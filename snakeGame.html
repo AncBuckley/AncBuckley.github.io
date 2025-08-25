@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Snake — Math Edition ☆</title>
+  <title>Snake — Math Edition ☆ (Touch)</title>
   <style>
     :root{
       --bg:#0f1226; --panel:#151938; --accent:#66e3ff; --accent-2:#9eff6a; --muted:#8a92b2; --danger:#ff6b6b; --shadow:0 10px 30px rgba(0,0,0,.4); --radius:18px;
@@ -22,10 +22,16 @@
 
     .gameRow{display:grid; grid-template-columns: 1fr 320px; gap:12px; align-items:start}
     .canvasWrap{position:relative}
-    canvas{width:100%; height:auto; display:block; background:#0b0e20; border-radius:var(--radius); border:1px solid rgba(255,255,255,.06)}
+    canvas{width:100%; height:auto; display:block; background:#0b0e20; border-radius:var(--radius); border:1px solid rgba(255,255,255,.06); touch-action:none}
 
     .sidebar{padding:14px}
     .problemBig{font-weight:800; line-height:1.05; font-size: clamp(34px, 7vmin, 68px); letter-spacing:.5px}
+
+    /* Touch D‑pad (shown on touch devices only) */
+    .touchPad{display:grid; grid-template-columns:repeat(3,64px); grid-template-rows:repeat(3,64px); gap:10px; justify-content:center; padding:10px}
+    .touchPad button{width:64px; height:64px; border-radius:14px; font-size:22px; background:linear-gradient(180deg,#2a2f61,#1c2147); color:#e8ecff; border:1px solid rgba(255,255,255,.12)}
+    .touchPad .spacer{visibility:hidden}
+    @media (any-pointer:fine){ .touchPad{display:none} }
 
     /* Settings overlay */
     .overlay{position:fixed; inset:0; display:grid; place-items:center; background:rgba(0,0,0,.5); backdrop-filter: blur(4px);}
@@ -63,6 +69,18 @@
     <div class="gameRow">
       <div class="canvasWrap">
         <canvas id="game" aria-label="Snake game area" role="img"></canvas>
+        <!-- Touch D‑pad for phones/tablets -->
+        <div class="touchPad" aria-label="Touch controls">
+          <span class="spacer"></span>
+          <button id="btnUp" aria-label="Up">▲</button>
+          <span class="spacer"></span>
+          <button id="btnLeft" aria-label="Left">◀</button>
+          <span class="spacer"></span>
+          <button id="btnRight" aria-label="Right">▶</button>
+          <span class="spacer"></span>
+          <button id="btnDown" aria-label="Down">▼</button>
+          <span class="spacer"></span>
+        </div>
       </div>
       <aside class="panel sidebar">
         <div class="label">Problem</div>
@@ -150,7 +168,13 @@
     const wrapToggle = document.getElementById('wrapToggle');
     const newProblemBtn = document.getElementById('newProblemBtn');
 
-    highEl.textContent = STATE.high;
+    // Touch buttons
+    const btnUp = document.getElementById('btnUp');
+    const btnDown = document.getElementById('btnDown');
+    const btnLeft = document.getElementById('btnLeft');
+    const btnRight = document.getElementById('btnRight');
+
+    highEl.textContent = STATE.high; speedValTop.textContent='15';
 
     function resizeCanvas(){
       const logical = STATE.grid * STATE.cell;
@@ -205,8 +229,7 @@
     function beginCountdown(){
       STATE.countdown = 3.0; // seconds
       hideOverlay();
-      const t0 = performance.now();
-      function frame(ts){
+      requestAnimationFrame(function frame(ts){
         const dt = (ts - (STATE.last||ts)) / 1000; // safe if STATE.last undefined
         STATE.countdown -= dt;
         draw();
@@ -214,8 +237,7 @@
         if(STATE.countdown > 0){ requestAnimationFrame(frame); }
         else { STATE.countdown = 0; startGame(); }
         STATE.last = ts;
-      }
-      requestAnimationFrame(frame);
+      });
     }
 
     function randInt(min,max){ return (Math.random()*(max-min+1) + min) | 0; }
@@ -256,7 +278,7 @@
       } while(attempts<5 && !isFinite(sol));
 
       STATE.problem = {a,b,op,sol};
-      problemText.textContent = `${a} ${op} ${b}`; // remove "= ?"
+      problemText.textContent = `${a} ${op} ${b}`; // no "= ?"
     }
 
     function freeCell(x,y){ return !STATE.snake.some(p=>p.x===x && p.y===y) && !STATE.targets.some(t=>t.x===x && t.y===y); }
@@ -288,6 +310,18 @@
     // Input
     function setDirection(dx,dy){ if(STATE.dirLocked) return; const c=STATE.direction; if(c.x===-dx && c.y===-dy) return; STATE.nextDirection={x:dx,y:dy}; STATE.dirLocked=true; }
     window.addEventListener('keydown',(e)=>{ const k=e.key.toLowerCase(); if(['arrowup','arrowdown','arrowleft','arrowright','w','a','s','d',' '].includes(k)) e.preventDefault(); if(k===' ') return (STATE.running?pauseGame():resumeGame()); if(k==='arrowup'||k==='w') setDirection(0,-1); else if(k==='arrowdown'||k==='s') setDirection(0,1); else if(k==='arrowleft'||k==='a') setDirection(-1,0); else if(k==='arrowright'||k==='d') setDirection(1,0); }, {passive:false});
+
+    // Touch / pointer controls
+    function setupTouch(){
+      let active=false, sx=0, sy=0; const THRESH=18; // px
+      canvas.addEventListener('pointerdown', (e)=>{ if(e.pointerType==='mouse') return; e.preventDefault(); active=true; sx=e.clientX; sy=e.clientY; }, {passive:false});
+      canvas.addEventListener('pointermove', (e)=>{ if(!active) return; if(e.pointerType==='mouse') return; const dx=e.clientX-sx, dy=e.clientY-sy; const adx=Math.abs(dx), ady=Math.abs(dy); if(adx+ady>THRESH){ if(adx>ady) setDirection(dx>0?1:-1,0); else setDirection(0, dy>0?1:-1); active=false; } }, {passive:false});
+      canvas.addEventListener('pointerup', ()=>{ active=false; });
+      canvas.addEventListener('pointercancel', ()=>{ active=false; });
+
+      function bind(btn, dx, dy){ if(!btn) return; const go=(e)=>{ e.preventDefault(); setDirection(dx,dy); }; btn.addEventListener('pointerdown', go, {passive:false}); btn.addEventListener('click', go); }
+      bind(btnUp,0,-1); bind(btnDown,0,1); bind(btnLeft,-1,0); bind(btnRight,1,0);
+    }
 
     // Buttons
     const startBtn = document.getElementById('startBtn');
@@ -463,9 +497,9 @@
     // Init
     function init(){
       resizeCanvas();
-      speedValTop.textContent = '15';
       readDifficulty();
       resetGame();
+      setupTouch();
       // show settings at start
       modalTitle.textContent='Settings'; resultStats.style.display='none'; showOverlay();
       draw();
