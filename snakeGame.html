@@ -1,0 +1,478 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Snake — Math Edition ☆</title>
+  <style>
+    :root{
+      --bg:#0f1226; --panel:#151938; --accent:#66e3ff; --accent-2:#9eff6a; --muted:#8a92b2; --danger:#ff6b6b; --shadow:0 10px 30px rgba(0,0,0,.4); --radius:18px;
+    }
+    html,body{height:100%}
+    *{box-sizing:border-box}
+    body{margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial; color:#e8ecff; background:var(--bg); display:grid; place-items:center; padding:18px}
+    .wrap{width:min(96vmin, 1100px); display:grid; gap:12px}
+    .panel{background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02)); border:1px solid rgba(255,255,255,.06); box-shadow:var(--shadow); border-radius:var(--radius)}
+    .hud{display:flex; align-items:center; justify-content:space-between; padding:10px 12px; gap:10px; flex-wrap:wrap}
+    .stats{display:flex; gap:10px; flex-wrap:wrap}
+    .card{background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.06); padding:8px 10px; border-radius:12px; display:flex; gap:6px; align-items:center}
+    .label{font-size:12px; color:var(--muted)}
+    .value{font-variant-numeric: tabular-nums; font-weight:700}
+    button{appearance:none; border:0; padding:8px 12px; border-radius:12px; font-weight:700; background:linear-gradient(180deg,#2a2f61,#1c2147); color:white; cursor:pointer; box-shadow:var(--shadow); border:1px solid rgba(255,255,255,.06)}
+
+    .gameRow{display:grid; grid-template-columns: 1fr 320px; gap:12px; align-items:start}
+    .canvasWrap{position:relative}
+    canvas{width:100%; height:auto; display:block; background:#0b0e20; border-radius:var(--radius); border:1px solid rgba(255,255,255,.06)}
+
+    .sidebar{padding:14px}
+    .problemBig{font-weight:800; line-height:1.05; font-size: clamp(34px, 7vmin, 68px); letter-spacing:.5px}
+
+    /* Settings overlay */
+    .overlay{position:fixed; inset:0; display:grid; place-items:center; background:rgba(0,0,0,.5); backdrop-filter: blur(4px);}
+    .modal{pointer-events:auto; text-align:left; background:rgba(12,16,39,.92); border:1px solid rgba(255,255,255,.08); border-radius:20px; padding:18px; margin:12px; width:min(720px, 92vw)}
+    .modal h2{margin:0 0 10px; font-size:20px}
+    .controlsRow{display:flex; gap:12px; flex-wrap:wrap; align-items:center}
+    input[type=number]{width:90px; padding:6px 8px; border-radius:10px; border:1px solid rgba(255,255,255,.12); background:rgba(0,0,0,.2); color:white}
+    .toggle{display:flex; align-items:center; gap:6px}
+    .ops{display:flex; gap:12px; flex-wrap:wrap}
+
+    @media (max-width:800px){
+      .gameRow{grid-template-columns: 1fr};
+      .sidebar{order:-1}
+    }
+    .overlay[hidden]{display:none!important}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <!-- TOP HUD: game controls + stats -->
+    <div class="panel hud">
+      <div class="stats">
+        <div class="card"><span class="label">Score</span> <span id="score" class="value">0</span></div>
+        <div class="card"><span class="label">High</span> <span id="high" class="value">0</span></div>
+        <div class="card"><span class="label">Speed</span> <span id="speedVal" class="value">15</span></div>
+      </div>
+      <div class="controlsRow">
+        <button id="startBtn">Start</button>
+        <button id="pauseBtn">Pause</button>
+        <button id="restartBtn">Restart</button>
+      </div>
+    </div>
+
+    <!-- GAME + SIDEBAR (problem on the right) -->
+    <div class="gameRow">
+      <div class="canvasWrap">
+        <canvas id="game" aria-label="Snake game area" role="img"></canvas>
+      </div>
+      <aside class="panel sidebar">
+        <div class="label">Problem</div>
+        <div id="problemText" class="problemBig">—</div>
+      </aside>
+    </div>
+  </div>
+
+  <!-- SETTINGS OVERLAY (shown at start and after game over) -->
+  <div id="overlay" class="overlay" hidden>
+    <div class="modal">
+      <h2 id="modalTitle">Settings</h2>
+      <div id="resultStats" class="card" style="display:none; margin-bottom:8px"></div>
+      <div class="controlsRow ops">
+        <label class="toggle"><input type="checkbox" id="opAdd" checked> Addition (+)</label>
+        <label class="toggle"><input type="checkbox" id="opSub" checked> Subtraction (−)</label>
+        <label class="toggle"><input type="checkbox" id="opMul"> Multiplication (×)</label>
+        <label class="toggle"><input type="checkbox" id="opDiv"> Division (÷)</label>
+      </div>
+      <div class="controlsRow" style="margin-top:8px">
+        <label class="toggle">Min <input type="number" id="minVal" value="0"></label>
+        <label class="toggle">Max <input type="number" id="maxVal" value="12"></label>
+        <label class="toggle"><input id="wrapToggle" type="checkbox" checked> Wrap Walls</label>
+      </div>
+      <div class="controlsRow" style="margin-top:12px; justify-content:flex-end">
+        <button id="newProblemBtn">New Problem</button>
+        <button id="playBtn" style="background:linear-gradient(180deg,#2e6a3a,#1f4727)">Play</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  (function(){
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+    const DPR = Math.max(1, Math.min(2, window.devicePixelRatio||1));
+
+    const ANSWER_COLOR = '#2d6e74'; // unified color for all answer tiles
+
+    const STATE = {
+      grid: 21,
+      cell: 22,
+      running:false, paused:false, wrap:true,
+      direction:{x:1,y:0}, nextDirection:{x:1,y:0}, dirLocked:false,
+      snake:[], score:0,
+      high:Number(localStorage.getItem('snake_math_high')||0),
+      stepHz:15, stepMs:1000/15, acc:0, last:0,
+      // Math state
+      minVal:0, maxVal:12, ops:{add:true, sub:true, mul:false, div:false},
+      problem:null, targets:[],
+      // Growth/Shrink control
+      grow: 0,
+      // Tracking answers
+      correct: 0, wrong: 0,
+      // Countdown
+      countdown: 0
+    };
+
+    // simple effects system (stars + glitter)
+    const EFX = {
+      stars: [], // {x,y,vx,vy,rot,vr,life,t}
+      sparks: [], // {x,y,vx,vy,life,t}
+      reset(){ this.stars.length=0; this.sparks.length=0; }
+    };
+
+    // UI refs
+    const scoreEl = document.getElementById('score');
+    const highEl = document.getElementById('high');
+    const speedValTop = document.getElementById('speedVal');
+
+    const problemText = document.getElementById('problemText');
+
+    // Overlay + settings
+    const overlay = document.getElementById('overlay');
+    const playBtn = document.getElementById('playBtn');
+    const modalTitle = document.getElementById('modalTitle');
+    const resultStats = document.getElementById('resultStats');
+
+    const opAdd = document.getElementById('opAdd');
+    const opSub = document.getElementById('opSub');
+    const opMul = document.getElementById('opMul');
+    const opDiv = document.getElementById('opDiv');
+    const minValI = document.getElementById('minVal');
+    const maxValI = document.getElementById('maxVal');
+    const wrapToggle = document.getElementById('wrapToggle');
+    const newProblemBtn = document.getElementById('newProblemBtn');
+
+    highEl.textContent = STATE.high;
+
+    function resizeCanvas(){
+      const logical = STATE.grid * STATE.cell;
+      canvas.width = logical * DPR; canvas.height = logical * DPR;
+      ctx.setTransform(DPR,0,0,DPR,0,0);
+    }
+
+    function seedSnake(){
+      const mid = Math.floor(STATE.grid/2);
+      STATE.snake = [];
+      for(let i=0;i<7;i++){ // start length 7
+        STATE.snake.push({x:mid-1-i,y:mid});
+      }
+      STATE.direction = {x:1,y:0};
+      STATE.nextDirection = {x:1,y:0};
+      STATE.dirLocked = false;
+    }
+
+    function resetGame(){
+      STATE.score = 0; scoreEl.textContent='0';
+      STATE.correct = 0; STATE.wrong = 0;
+      STATE.grow = 0; EFX.reset();
+      seedSnake();
+      STATE.acc=0; STATE.last=performance.now();
+      STATE.stepHz = 15; STATE.stepMs = 1000/STATE.stepHz; // lock speed
+      STATE.running=false; STATE.paused=false;
+      readDifficulty();
+      generateProblem();
+      placeTargets();
+      draw();
+    }
+
+    function startGame(){ if(STATE.running) return; STATE.running=true; STATE.last=performance.now(); requestAnimationFrame(loop); }
+    function pauseGame(){ if(!STATE.running) return; STATE.running=false; STATE.paused=true; }
+    function resumeGame(){ if(STATE.running) return; STATE.paused=false; STATE.running=true; STATE.last=performance.now(); requestAnimationFrame(loop); }
+
+    function gameOver(){
+      STATE.running=false; STATE.paused=false;
+      if(STATE.score>STATE.high){ STATE.high=STATE.score; localStorage.setItem('snake_math_high', STATE.high); highEl.textContent=STATE.high; }
+      // show results + settings
+      modalTitle.textContent = 'Game Over';
+      resultStats.style.display = 'flex';
+      resultStats.innerHTML = `<span class="label">Results:</span> <span class="value">Correct: ${STATE.correct}</span> <span class="value" style="margin-left:8px">Wrong: ${STATE.wrong}</span>`;
+      showOverlay();
+    }
+
+    function setWrap(v){ STATE.wrap=!!v; }
+
+    function showOverlay(){ overlay.hidden = false; }
+    function hideOverlay(){ overlay.hidden = true; }
+
+    function beginCountdown(){
+      STATE.countdown = 3.0; // seconds
+      hideOverlay();
+      const t0 = performance.now();
+      function frame(ts){
+        const dt = (ts - (STATE.last||ts)) / 1000; // safe if STATE.last undefined
+        STATE.countdown -= dt;
+        draw();
+        drawCountdownOverlay();
+        if(STATE.countdown > 0){ requestAnimationFrame(frame); }
+        else { STATE.countdown = 0; startGame(); }
+        STATE.last = ts;
+      }
+      requestAnimationFrame(frame);
+    }
+
+    function randInt(min,max){ return (Math.random()*(max-min+1) + min) | 0; }
+
+    function pickOp(){
+      const opts = [];
+      if(STATE.ops.add) opts.push('+');
+      if(STATE.ops.sub) opts.push('−');
+      if(STATE.ops.mul) opts.push('×');
+      if(STATE.ops.div) opts.push('÷');
+      if(opts.length===0){ STATE.ops.add=true; opAdd.checked=true; return '+'; }
+      return opts[(Math.random()*opts.length)|0];
+    }
+
+    function generateProblem(){
+      const min = Math.min(STATE.minVal, STATE.maxVal);
+      const max = Math.max(STATE.minVal, STATE.maxVal);
+      let a,b,op,sol;
+      let attempts=0;
+      do{
+        op = pickOp();
+        if(op==='+'){ a=randInt(min,max); b=randInt(min,max); sol=a+b; }
+        else if(op==='−'){ a=randInt(min,max); b=randInt(min,max); if(a<b){ const t=a; a=b; b=t; } sol=a-b; }
+        else if(op==='×'){ a=randInt(min,max); b=randInt(min,max); sol=a*b; }
+        else if(op==='÷'){
+          // integer division: choose b and q in range, compute a=b*q
+          let tries=0; let ok=false;
+          while(tries++<100 && !ok){
+            b = randInt(Math.max(min,1), Math.max(max,1)); // avoid 0 divisor
+            const q = randInt(Math.max(min,0), Math.max(max,1));
+            a = b*q; sol=q; ok = (a>=min && a<=max); // keep dividend within range if possible
+          }
+          if(!ok){ // fallback to multiplication if not found
+            op='×'; a=randInt(min,max); b=randInt(min,max); sol=a*b;
+          }
+        }
+        attempts++;
+      } while(attempts<5 && !isFinite(sol));
+
+      STATE.problem = {a,b,op,sol};
+      problemText.textContent = `${a} ${op} ${b}`; // remove "= ?"
+    }
+
+    function freeCell(x,y){ return !STATE.snake.some(p=>p.x===x && p.y===y) && !STATE.targets.some(t=>t.x===x && t.y===y); }
+
+    function placeTargets(){
+      STATE.targets = [];
+      const g = STATE.grid;
+      // Start with 4 answers; +1 for every 10 wrong answers
+      const needed = Math.max(2, 4 + Math.floor(STATE.wrong/10));
+      // place correct answer first
+      const correctVal = STATE.problem.sol;
+      placeOne(correctVal, true);
+      // place distractors
+      let tries=0; while(STATE.targets.length < needed && tries++ < 2000){
+        let v = correctVal + randInt(-10,10);
+        if(v===correctVal) v += (Math.random()<.5? -1 : 1) * (1 + (randInt(0,3)));
+        if(STATE.targets.some(t=>t.value===v)) continue;
+        placeOne(v, false);
+      }
+
+      function placeOne(val, isCorrect){
+        for(let i=0;i<1000;i++){
+          const x=(Math.random()*g)|0, y=(Math.random()*g)|0;
+          if(freeCell(x,y)){ STATE.targets.push({x,y,value:val,isCorrect}); return; }
+        }
+      }
+    }
+
+    // Input
+    function setDirection(dx,dy){ if(STATE.dirLocked) return; const c=STATE.direction; if(c.x===-dx && c.y===-dy) return; STATE.nextDirection={x:dx,y:dy}; STATE.dirLocked=true; }
+    window.addEventListener('keydown',(e)=>{ const k=e.key.toLowerCase(); if(['arrowup','arrowdown','arrowleft','arrowright','w','a','s','d',' '].includes(k)) e.preventDefault(); if(k===' ') return (STATE.running?pauseGame():resumeGame()); if(k==='arrowup'||k==='w') setDirection(0,-1); else if(k==='arrowdown'||k==='s') setDirection(0,1); else if(k==='arrowleft'||k==='a') setDirection(-1,0); else if(k==='arrowright'||k==='d') setDirection(1,0); }, {passive:false});
+
+    // Buttons
+    const startBtn = document.getElementById('startBtn');
+    const pauseBtn = document.getElementById('pauseBtn');
+    const restartBtn = document.getElementById('restartBtn');
+
+    startBtn.onclick = ()=>{ modalTitle.textContent='Settings'; resultStats.style.display='none'; hideOverlay(); readDifficulty(); resetGame(); beginCountdown(); };
+    pauseBtn.onclick = ()=>{ STATE.running?pauseGame():resumeGame(); };
+    restartBtn.onclick = ()=>{ modalTitle.textContent='Settings'; resultStats.style.display='none'; resetGame(); showOverlay(); };
+    playBtn.onclick = ()=>{ hideOverlay(); readDifficulty(); resetGame(); beginCountdown(); };
+
+    // Math/settings controls events
+    function readDifficulty(){
+      STATE.minVal = parseInt(minValI.value,10); if(!isFinite(STATE.minVal)) STATE.minVal=0;
+      STATE.maxVal = parseInt(maxValI.value,10); if(!isFinite(STATE.maxVal)) STATE.maxVal=12;
+      if(STATE.maxVal < STATE.minVal){ const t=STATE.minVal; STATE.minVal=STATE.maxVal; STATE.maxVal=t; minValI.value=STATE.minVal; maxValI.value=STATE.maxVal; }
+      STATE.ops.add = !!opAdd.checked; STATE.ops.sub = !!opSub.checked; STATE.ops.mul = !!opMul.checked; STATE.ops.div = !!opDiv.checked;
+      if(!STATE.ops.add && !STATE.ops.sub && !STATE.ops.mul && !STATE.ops.div){ STATE.ops.add=true; opAdd.checked=true; }
+    }
+
+    ;[opAdd,opSub,opMul,opDiv,minValI,maxValI].forEach(el=>{
+      el.addEventListener('change', ()=>{ readDifficulty(); generateProblem(); placeTargets(); draw(); });
+      el.addEventListener('input', ()=>{ readDifficulty(); generateProblem(); placeTargets(); draw(); });
+    });
+    wrapToggle.onchange=(e)=> setWrap(e.target.checked);
+    newProblemBtn.onclick = ()=>{ readDifficulty(); generateProblem(); placeTargets(); draw(); };
+
+    // Loop
+    function loop(ts){
+      if(!STATE.running) return;
+      const dt = ts-STATE.last; STATE.last=ts; STATE.acc+=dt;
+      let steps=0; while(STATE.acc>=STATE.stepMs && steps<5){ step(); STATE.acc-=STATE.stepMs; steps++; }
+      updateEffects(dt/1000);
+      draw();
+      requestAnimationFrame(loop);
+    }
+
+    function step(){
+      STATE.direction = STATE.nextDirection;
+      const head=STATE.snake[0]; let nx=head.x+STATE.direction.x; let ny=head.y+STATE.direction.y;
+      if(STATE.wrap){ nx=(nx+STATE.grid)%STATE.grid; ny=(ny+STATE.grid)%STATE.grid; } else { if(nx<0||ny<0||nx>=STATE.grid||ny>=STATE.grid) return gameOver(); }
+
+      // collision check with self (excluding tail)
+      const bodyToCheck = STATE.snake.slice(0, STATE.snake.length-1);
+      if(bodyToCheck.some(p=>p.x===nx && p.y===ny)) return gameOver();
+
+      // did we hit a target?
+      let hitIndex = -1; for(let i=0;i<STATE.targets.length;i++){ const t=STATE.targets[i]; if(t.x===nx && t.y===ny){ hitIndex=i; break; } }
+
+      STATE.snake.unshift({x:nx,y:ny}); // move head
+
+      if(hitIndex>=0){
+        const target = STATE.targets[hitIndex];
+        if(target.isCorrect){
+          // celebrate + points
+          STATE.score += 10; scoreEl.textContent = STATE.score;
+          STATE.correct++;
+          spawnCelebrate(nx, ny);
+          // new problem and fresh targets
+          generateProblem();
+          placeTargets();
+          // shrink by 1 if longer than 7 (net -1 compared to previous length)
+          if(STATE.snake.length > 7){ STATE.snake.pop(); STATE.snake.pop(); } else { STATE.snake.pop(); }
+        } else {
+          // wrong: add 3 blocks (this step + 2 future growths)
+          STATE.wrong++;
+          STATE.grow += 3;
+          placeTargets(); // refresh positions but keep problem
+          // consume one growth immediately by skipping pop below
+        }
+      } else {
+        // no target: apply normal tail/growth handling
+        if(STATE.grow > 0){ STATE.grow--; /* no pop */ }
+        else { STATE.snake.pop(); }
+      }
+
+      STATE.dirLocked=false;
+    }
+
+    // Effects
+    function spawnCelebrate(gridX, gridY){
+      const s=STATE.cell; const px=gridX*s + s/2, py=gridY*s + s/2;
+      // two stars shoot left/right
+      const speed = 260; const life = 0.7;
+      EFX.stars.push({x:px,y:py,vx:-speed,vy:0,rot:0,vr:-6,life,t:0});
+      EFX.stars.push({x:px,y:py,vx:+speed,vy:0,rot:0,vr:+6,life,t:0});
+      // initial glitter burst toward both sides
+      for(let i=0;i<36;i++){
+        const side = Math.random()<0.5? -1: +1;
+        const ang = (side<0? Math.PI : 0) + (Math.random()-0.5)*0.5; // bias left/right
+        const sp = 120 + Math.random()*220;
+        EFX.sparks.push({x:px,y:py,vx:Math.cos(ang)*sp, vy:Math.sin(ang)*sp*0.35, life:0.7+Math.random()*0.4, t:0});
+      }
+    }
+
+    function updateEffects(dt){
+      // stars
+      for(let i=EFX.stars.length-1;i>=0;i--){ const s=EFX.stars[i]; s.t+=dt; s.x += s.vx*dt; s.y += s.vy*dt; s.rot += s.vr*dt; if(s.t>s.life) { EFX.stars.splice(i,1); continue; }
+        // trailing glitter
+        if(Math.random()<0.9){
+          const sp = 40+Math.random()*90; const ang = (s.vx<0? Math.PI : 0) + (Math.random()-0.5)*0.7;
+          EFX.sparks.push({x:s.x, y:s.y, vx:Math.cos(ang)*sp, vy:Math.sin(ang)*sp*0.25, life:0.5, t:0});
+        }
+      }
+      // sparks
+      for(let i=EFX.sparks.length-1;i>=0;i--){ const p=EFX.sparks[i]; p.t+=dt; p.x += p.vx*dt; p.y += p.vy*dt; p.vy += 20*dt; // a little gravity
+        if(p.t>p.life) EFX.sparks.splice(i,1);
+      }
+      // cap
+      if(EFX.sparks.length>500) EFX.sparks.splice(0, EFX.sparks.length-500);
+    }
+
+    // Effects renderer
+    function drawEffects(){
+      for(const s of EFX.stars){ ctx.save(); ctx.translate(s.x, s.y); ctx.rotate(s.rot); drawStarShape(9, 4.5); ctx.restore(); }
+      ctx.save();
+      for(const p of EFX.sparks){ const a = Math.max(0, 1 - (p.t / p.life)); ctx.globalAlpha = a; ctx.fillStyle = '#ffd54a'; ctx.beginPath(); ctx.arc(p.x, p.y, 1.6, 0, Math.PI*2); ctx.fill(); }
+      ctx.restore();
+    }
+
+    // Rendering
+    function draw(){
+      const g=STATE.grid, s=STATE.cell; ctx.clearRect(0,0,canvas.width,canvas.height);
+      // grid lines faint
+      ctx.save(); ctx.globalAlpha=.5; for(let i=0;i<=g;i++){ ctx.fillStyle = i%2? 'rgba(255,255,255,.02)' : 'rgba(255,255,255,.03)'; ctx.fillRect(0,i*s,g*s,1); ctx.fillRect(i*s,0,1,g*s);} ctx.restore();
+
+      // draw answer tiles (all same color)
+      for(const t of STATE.targets){ drawCell(t.x, t.y, ANSWER_COLOR); drawNumber(t.x, t.y, String(t.value)); }
+
+      // snake
+      for(let i=STATE.snake.length-1;i>=0;i--){ const p=STATE.snake[i]; const isHead=i===0; const c1=isHead?'#66e3ff':'#9fb5ff'; const c2=isHead?'rgba(102,227,255,.35)':'rgba(159,181,255,.22)'; drawCell(p.x,p.y,c1); if(isHead) ringCell(p.x,p.y,c2); }
+
+      // fx on top
+      drawEffects();
+    }
+
+    function drawCountdownOverlay(){
+      if(STATE.countdown<=0) return;
+      const g=STATE.grid, s=STATE.cell; const W=g*s, H=g*s;
+      ctx.save();
+      ctx.fillStyle='rgba(0,0,0,.35)';
+      ctx.fillRect(0,0,W,H);
+      const t = Math.ceil(STATE.countdown);
+      const label = t>0 ? String(t) : 'GO!';
+      ctx.fillStyle='#ffffff';
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      ctx.font = `${Math.floor(s*3)}px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial`;
+      ctx.strokeStyle='rgba(0,0,0,.5)'; ctx.lineWidth=6; ctx.strokeText(label, W/2, H/2);
+      ctx.fillText(label, W/2, H/2);
+      ctx.restore();
+    }
+
+    function drawStarShape(R, r){
+      // 5‑point star filled gold
+      const gradient = ctx.createRadialGradient(0,0, r*0.5, 0,0, R);
+      gradient.addColorStop(0, '#ffe27a');
+      gradient.addColorStop(1, '#ffbf3f');
+      ctx.fillStyle = gradient; ctx.strokeStyle='rgba(0,0,0,.25)'; ctx.lineWidth=1;
+      ctx.beginPath();
+      const spikes = 5; const step = Math.PI / spikes;
+      for(let i=0;i<spikes*2;i++){
+        const rad = (i%2===0? R : r); const ang = i*step - Math.PI/2;
+        ctx.lineTo(Math.cos(ang)*rad, Math.sin(ang)*rad);
+      }
+      ctx.closePath(); ctx.fill(); ctx.stroke();
+    }
+
+    function drawCell(x,y,color){ const s=STATE.cell, r=6; const px=x*s, py=y*s; const grd=ctx.createLinearGradient(px,py,px,py+s); grd.addColorStop(0,color); grd.addColorStop(1,'rgba(255,255,255,.08)'); roundRect(px+1,py+1,s-2,s-2,r); ctx.fillStyle=grd; ctx.fill(); }
+    function ringCell(x,y,color){ const s=STATE.cell, px=x*s, py=y*s; ctx.strokeStyle=color; ctx.lineWidth=2; roundRect(px+2,py+2,s-4,s-4,7); ctx.stroke(); }
+    function roundRect(x,y,w,h,r){ const rr=Math.min(r,w/2,h/2); ctx.beginPath(); ctx.moveTo(x+rr,y); ctx.arcTo(x+w,y,x+w,y+h,rr); ctx.arcTo(x+w,y+h,x,y+h,rr); ctx.arcTo(x,y+h,x,y,rr); ctx.arcTo(x,y,x+w,y,rr); ctx.closePath(); }
+    function drawNumber(x,y,text){ const s=STATE.cell; const px=x*s + s/2, py=y*s + s/2; ctx.save(); ctx.font=`${Math.floor(s*0.65)}px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.lineWidth=3; ctx.strokeStyle='rgba(0,0,0,.6)'; ctx.strokeText(text,px,py); ctx.fillStyle='#ffffff'; ctx.fillText(text,px,py); ctx.restore(); }
+
+    // Init
+    function init(){
+      resizeCanvas();
+      speedValTop.textContent = '15';
+      readDifficulty();
+      resetGame();
+      // show settings at start
+      modalTitle.textContent='Settings'; resultStats.style.display='none'; showOverlay();
+      draw();
+    }
+    window.addEventListener('resize', ()=>{ resizeCanvas(); draw(); });
+    init();
+  })();
+  </script>
+</body>
+</html>
