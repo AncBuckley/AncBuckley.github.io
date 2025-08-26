@@ -1,4 +1,4 @@
-// muncher.js — updated modes, 5x5 grid, larger tiles, unified progress bar
+// muncher.js — fixed 5x5 grid, troggles seed tiles with adaptive correctness
 import MooseMan from "./MooseMan.js";
 let Character = MooseMan;
 
@@ -18,7 +18,6 @@ const closeHelp = document.getElementById('closeHelp');
 
 const categorySelect = document.getElementById('categorySelect');
 const modeSelect = document.getElementById('modeSelect');
-const gridSelect = document.getElementById('gridSelect');
 
 const levelSpan = document.getElementById('level');
 const scoreSpan = document.getElementById('score');
@@ -75,6 +74,16 @@ function makeWordCategory(name, correctSet, distractFromKeys=[], labelCase='lowe
     if (arr) pool.push(...arr);
   }
   const poolLower = [...new Set(pool.map(toLower))].filter(w => !correctLower.has(w));
+  const hydrate = (wLower) => {
+    for (const arr of Object.values(WORD_SETS)){
+      const found = (arr||[]).find(x => toLower(x)===wLower);
+      if (found) return String(found);
+    }
+    return wLower;
+  };
+
+  function getCorrectList(){ return [...new Set((correctSet||[]).map(String))]; }
+  function getDistractorList(){ return poolLower.map(hydrate); }
 
   return {
     id: forcedId || name.toLowerCase().replace(/\s+/g,'-'),
@@ -82,14 +91,13 @@ function makeWordCategory(name, correctSet, distractFromKeys=[], labelCase='lowe
     type: 'word',
     sourceKey,
     labelCase,
+    getCorrectList,
+    getDistractorList,
+    normalize,
     generate: (W,H,countCorrect=12) => {
       const total = W*H;
-
-      // correct
-      const correctList = [...new Set((correctSet||[]).map(String))];
+      const correctList = getCorrectList();
       const selectedCorrect = shuffle(correctList).slice(0, Math.min(countCorrect, total));
-
-      // distractors with wrap-around to fill the grid
       const distractNeeded = Math.max(0, total - selectedCorrect.length);
       const src = poolLower.length ? shuffle(poolLower) : [];
       const distractsLower = [];
@@ -97,16 +105,7 @@ function makeWordCategory(name, correctSet, distractFromKeys=[], labelCase='lowe
         if (src.length===0) break;
         distractsLower.push(src[i % src.length]);
       }
-
-      const hydrate = (wLower) => {
-        for (const arr of Object.values(WORD_SETS)){
-          const found = (arr||[]).find(x => toLower(x)===wLower);
-          if (found) return String(found);
-        }
-        return wLower;
-      };
       const distracts = distractsLower.map(hydrate);
-
       const items = [...selectedCorrect, ...distracts].map(w => ({
         label: normalize(w),
         value: String(w),
@@ -178,7 +177,7 @@ async function loadCategories(){
   }
 }
 
-// ---------- mode helpers ----------
+// ---------- modes ----------
 const DIRS = { UP:0, RIGHT:1, DOWN:2, LEFT:3 };
 const DIR_VECT = [[0,-1],[1,0],[0,1],[-1,0]];
 const ENEMY_STEP_MS = 3000;
@@ -217,7 +216,7 @@ const computeMathNeeded = (level, base)=> Math.max(1, Math.floor(base * Math.pow
 let state = {
   running:false, paused:false,
   level:1, score:0, lives:3,
-  gridW:5, gridH:5,        // default grid 5x5
+  gridW:5, gridH:5,                // ← fixed 5×5 grid
   tile:64,
   category:null,
   items:[], correctRemaining:0,
@@ -333,8 +332,7 @@ function nextLevel(isFirst=false){
   const m = state.mode;
 
   if (m==='single-category'){
-    // keep current selection
-    if (isFirst) launchCategoryFly(); // show once on game start
+    if (isFirst) launchCategoryFly();
   } else {
     const prev = state.category ? state.category.id : null;
     if (m==='math-only') state.category = pickRandomMathCategory(prev);
@@ -376,17 +374,13 @@ function tryEat(){
   if(tile.correct){
     state.score += 100;
     spawnStarBurstCell(tile.gx,tile.gy);
-    if (usesProgressBar(state.mode)){
-      state.math.progress = Math.min(state.math.needed, (state.math.progress||0)+1);
-      if (state.math.progress >= state.math.needed) setTimeout(levelCleared, 350);
-    } else {
-      state.correctRemaining -= 1; if (state.correctRemaining<=0) setTimeout(levelCleared,350);
-    }
+    state.math.progress = Math.min(state.math.needed, (state.math.progress||0)+1);
+    if (state.math.progress >= state.math.needed) setTimeout(levelCleared, 350);
     if (Math.random() < 0.06) spawnPowerUp(tile.gx,tile.gy);
     showToast('Yum! +100');
   } else {
     state.score = Math.max(0, state.score-50);
-    if (usesProgressBar(state.mode)) state.math.progress = Math.max(0, (state.math.progress||0)-1);
+    state.math.progress = Math.max(0, (state.math.progress||0)-1);
     spawnDisappointAt(state.player.gx,state.player.gy);
     loseLife();
     showToast('Wrong! −50');
@@ -425,10 +419,85 @@ function wrapLabel(text,maxWidth,ctx,maxLines=4){
   return lines;
 }
 
+// ---------- dynamic seeding by troggles ----------
+function normalizeLabelCase(s, labelCase){
+  if(labelCase === 'title') return String(s).replace(/\b\w/g,c=>c.toUpperCase());
+  if(labelCase === 'upper') return String(s).toUpperCase();
+  return String(s);
+}
+
+function computeSeedCorrectProb(){
+  const uneaten = state.items.filter(t=>!t.eaten);
+  const correctUneaten = uneaten.filter(t=>t.correct).length;
+  const ratio = uneaten.length ? correctUneaten/uneaten.length : 0;
+  // More correct on board -> lower probability; fewer -> higher probability
+  let p = clamp(0.7 - 0.6*ratio, 0.12, 0.88);
+  if (correctUneaten <= 2) p = Math.max(p, 0.80);
+  return p;
+}
+
+function sampleCorrectNumber(cat){
+  // Try random sampling first
+  for(let tries=0; tries<32; tries++){
+    const n = randi(cat.min, cat.max+1);
+    if (cat.test(n)) return n;
+  }
+  // Fallback scan
+  for(let n=cat.min;n<=cat.max;n++) if(cat.test(n)) return n;
+  return randi(cat.min, cat.max+1);
+}
+
+function sampleIncorrectNumber(cat){
+  for(let tries=0; tries<32; tries++){
+    const n = randi(cat.min, cat.max+1);
+    if (!cat.test(n)) return n;
+  }
+  for(let n=cat.min;n<=cat.max;n++) if(!cat.test(n)) return n;
+  return randi(cat.min, cat.max+1);
+}
+
+function seedTileAt(gx,gy){
+  if(!state.category) return;
+  const tile = getTileAt(gx,gy);
+  if(!tile || !tile.eaten) return;
+
+  const pCorrect = computeSeedCorrectProb();
+
+  if (state.category.type === 'word'){
+    const cat = state.category;
+    const correctList = (cat.getCorrectList ? cat.getCorrectList() : []);
+    // Build distractors fresh to respect latest WORD_SETS
+    const distractList = (cat.getDistractorList ? cat.getDistractorList() : []);
+    let makeCorrect = Math.random() < pCorrect && correctList.length>0;
+
+    // If no distractors but we don't want correct, force correct (to avoid empty)
+    if(!makeCorrect && distractList.length===0 && correctList.length>0) makeCorrect = true;
+
+    const pick = makeCorrect
+      ? choice(correctList)
+      : (distractList.length ? choice(distractList) : choice(correctList));
+
+    tile.label = normalizeLabelCase(pick, cat.labelCase||'lower');
+    tile.value = String(pick);
+    tile.correct = makeCorrect; // correct if taken from correct list
+    tile.eaten = false;
+    if (tile.correct) state.correctRemaining += 1;
+  } else { // number
+    const cat = state.category;
+    const makeCorrect = Math.random() < pCorrect;
+    const n = makeCorrect ? sampleCorrectNumber(cat) : sampleIncorrectNumber(cat);
+    tile.label = String(n);
+    tile.value = n;
+    tile.correct = !!cat.test(n);
+    tile.eaten = false;
+    if (tile.correct) state.correctRemaining += 1;
+  }
+}
+
 // ---------- render ----------
 function draw(){
   const rect = canvas.getBoundingClientRect();
-  const barArea = usesProgressBar(state.mode) ? Math.max(90, rect.width*0.08) : 0;
+  const barArea = Math.max(90, rect.width*0.08); // progress bar shown in all modes now
   const tile = Math.min((rect.width-barArea)/state.gridW, rect.height/state.gridH);
   const padX = (rect.width - barArea - state.gridW*tile)/2;
   const padY = (rect.height - state.gridH*tile)/2;
@@ -451,7 +520,7 @@ function draw(){
   for(const t of state.items){
     const x = padX + t.gx*tile;
     const y = padY + t.gy*tile;
-    const r = 16; // slightly rounder
+    const r = 16;
     ctx.beginPath(); roundRect(ctx, x+2, y+2, tile-4, tile-4, r);
     const grad = ctx.createLinearGradient(x,y,x+tile,y+tile);
     grad.addColorStop(0, t.eaten?'#0c1430':'#15204a');
@@ -462,7 +531,7 @@ function draw(){
 
     if(!t.eaten){
       ctx.save(); ctx.fillStyle='rgba(230,240,255,.96)';
-      const fs = Math.floor(tile*0.28); // larger text
+      const fs = Math.floor(tile*0.28);
       ctx.font = `${fs}px ui-sans-serif, system-ui, -apple-system, Segoe UI`;
       ctx.textAlign='center'; ctx.textBaseline='middle';
       const maxW = tile*0.84;
@@ -506,7 +575,7 @@ function draw(){
   drawSFX(ctx,padX,padY,tile);
   drawCategoryFly(ctx,rect);
 
-  if (usesProgressBar(state.mode)) drawLevelBar(ctx,rect,barArea);
+  drawLevelBar(ctx,rect,Math.max(90, rect.width*0.08));
 }
 
 function drawStar(ctx,cx,cy,spikes,outerR,innerR,color){
@@ -618,7 +687,7 @@ function drawCategoryFly(ctx,rect){
   if (tt>=1) catFly=null;
 }
 
-// progress bar (shown for all modes using progress)
+// progress bar (now shown for all modes)
 function drawLevelBar(ctx,rect,barArea){
   const barW = Math.max(20, Math.floor(barArea*0.5));
   const margin = 16;
@@ -658,7 +727,12 @@ function enemyStep(){
       }
       if(Math.random()<0.35) bestDir = choice([0,1,2,3]);
       const [dx,dy]=DIR_VECT[bestDir]; const nx=e.gx+dx, ny=e.gy+dy;
-      if(passable(nx,ny)){ e.gx=nx; e.gy=ny; e.x=nx; e.y=ny; e.dir=bestDir; }
+      if(passable(nx,ny)){
+        e.gx=nx; e.gy=ny; e.x=nx; e.y=ny; e.dir=bestDir;
+        // NEW: seed a tile if the troggle lands on an empty cell
+        const landed = getTileAt(nx,ny);
+        if (landed && landed.eaten) seedTileAt(nx,ny);
+      }
     }
   }
 }
@@ -683,7 +757,6 @@ function updateHUD(){
 }
 
 function updateProgressBar(){
-  if(!usesProgressBar(state.mode)){ levelProgress.style.width='0%'; return; }
   const pct = clamp((state.math.progress||0)/(state.math.needed||1), 0, 1);
   levelProgress.style.width = `${Math.round(pct*100)}%`;
 }
@@ -705,14 +778,12 @@ function populateCategories(){
   if(CATEGORIES.length){
     categorySelect.value = (state.category && state.category.id) || CATEGORIES[0].id;
   }
-  categorySelect.disabled = !['single-category'].includes(state.mode);
+  categorySelect.disabled = !(state.mode==='single-category');
 }
 
 function applyMenuSettings(){
-  // grid to 5x5 default; if menu has 5x5 option, select it
-  if (gridSelect && [...gridSelect.options].some(o=>o.value==='5x5')) gridSelect.value='5x5';
-  const [gw,gh] = (gridSelect?.value || '5x5').split('x').map(Number);
-  state.gridW = gw||5; state.gridH = gh||5;
+  // Fixed grid 5×5 (no UI)
+  state.gridW = 5; state.gridH = 5;
 
   state.mode = canonicalMode(modeSelect?.value || 'single-category');
 
@@ -720,7 +791,6 @@ function applyMenuSettings(){
     const cat = CATEGORIES.find(c=>c.id===categorySelect.value) || CATEGORIES[0];
     state.category = cat;
   }else{
-    // pick initial category for random modes
     if(state.mode==='math-only') state.category = pickRandomMathCategory(null);
     else if(state.mode==='words-only') state.category = pickRandomWordCategory(null);
     else if(state.mode==='anything-goes') state.category = pickRandomAnyCategory(null);
@@ -733,7 +803,6 @@ function applyMenuSettings(){
   resizeCanvas(); buildBoard(); spawnPlayer(); spawnEnemies(); resetEnemyTimers();
   updateHUD(); updateProgressBar();
 
-  // toggle category select availability
   if (categorySelect) categorySelect.disabled = !(state.mode==='single-category');
 }
 
@@ -779,11 +848,10 @@ modeSelect.addEventListener('change', ()=>{
   await loadCategories();
   state.category = CATEGORIES[0] || null;
 
-  // Default grid 5x5
+  // Fixed grid 5×5
   state.gridW=5; state.gridH=5;
-  if (gridSelect && [...gridSelect.options].some(o=>o.value==='5x5')) gridSelect.value='5x5';
 
-  // Back-compat if modeSelect still has old values
+  // Map legacy mode values if any
   state.mode = canonicalMode(modeSelect?.value || 'single-category');
 
   populateCategories();
