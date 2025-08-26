@@ -1,5 +1,6 @@
 // muncher.js — fixed 5x5 grid, adaptive troggle seeding, larger tiles (+5%), no mid-word wraps,
 // modes: single-category, math-only, words-only, anything-goes; unified progress bar.
+// NEW: "Recent Answers" list between the grid and the progress bar (last 10, color-coded, with headings).
 import MooseMan from "./MooseMan.js";
 let Character = MooseMan;
 
@@ -229,6 +230,20 @@ let state = {
 
 let explosions=[]; let starBursts=[]; let sfx=[]; let catFly=null; let star=null;
 
+// ---------- Recent answers log ----------
+const MAX_LOG = 10;
+let answerLog = []; // entries: {type:'answer', text, correct, time} | {type:'heading', text, time}
+let lastHeadingCategoryId = null;
+
+function logAnswer(text, correct){
+  answerLog.push({ type:'answer', text:String(text), correct:!!correct, time: now() });
+  if(answerLog.length > MAX_LOG) answerLog = answerLog.slice(answerLog.length - MAX_LOG);
+}
+function logHeading(text){
+  answerLog.push({ type:'heading', text:String(text), time: now() });
+  if(answerLog.length > MAX_LOG) answerLog = answerLog.slice(answerLog.length - MAX_LOG);
+}
+
 // ---------- layout ----------
 function resizeCanvas(){
   const dpr = window.devicePixelRatio||1;
@@ -331,15 +346,21 @@ function startGame(){
 
 function nextLevel(isFirst=false){
   const m = state.mode;
+  const prevId = state.category ? state.category.id : null;
 
   if (m==='single-category'){
     if (isFirst) launchCategoryFly();
   } else {
-    const prev = state.category ? state.category.id : null;
-    if (m==='math-only') state.category = pickRandomMathCategory(prev);
-    else if (m==='words-only') state.category = pickRandomWordCategory(prev);
-    else if (m==='anything-goes') state.category = pickRandomAnyCategory(prev);
+    if (m==='math-only') state.category = pickRandomMathCategory(prevId);
+    else if (m==='words-only') state.category = pickRandomWordCategory(prevId);
+    else if (m==='anything-goes') state.category = pickRandomAnyCategory(prevId);
     launchCategoryFly();
+  }
+
+  // Log heading if category changed
+  if (state.category && state.category.id !== lastHeadingCategoryId){
+    logHeading(state.category.name);
+    lastHeadingCategoryId = state.category.id;
   }
 
   state.math.needed = computeMathNeeded(state.level, state.math.base);
@@ -372,6 +393,9 @@ function tryEat(){
   if(!tile || tile.eaten) return;
 
   tile.eaten = true;
+  // Log the pick
+  logAnswer(tile.label, !!tile.correct);
+
   if(tile.correct){
     state.score += 100;
     spawnStarBurstCell(tile.gx,tile.gy);
@@ -399,7 +423,7 @@ function roundRect(ctx,x,y,w,h,r){ const rr=Math.min(r,w/2,h/2);
   ctx.arcTo(x,y+h,x,y,rr); ctx.arcTo(x,y,x+w,y,rr);
 }
 
-// (legacy, kept for any other use)
+// (legacy wrap; kept for any other use)
 function wrapLabel(text,maxWidth,ctx,maxLines=4){
   const words=String(text).split(' '); const lines=[]; let line='';
   for(let w of words){
@@ -421,7 +445,7 @@ function wrapLabel(text,maxWidth,ctx,maxLines=4){
   return lines;
 }
 
-// NEW: Fit text without breaking words — shrink font until it fits in <= maxLines
+// Fit text without breaking words — shrink font until it fits in <= maxLines
 function layoutLabelNoBreak(ctx, text, maxWidth, maxLines, basePx, fontFamily='ui-sans-serif, system-ui, -apple-system, Segoe UI'){
   let fs = basePx;
   let lines = [];
@@ -567,7 +591,7 @@ function draw(){
     ctx.lineWidth=1.2; ctx.stroke();
 
     if(!t.eaten){
-      // NEW: no mid-word break, auto-shrink to <= 4 lines
+      // no mid-word break, auto-shrink to <= 4 lines
       const maxW = tile * 0.84;
       const baseFs = Math.floor(tile * 0.30);
       const layout = layoutLabelNoBreak(ctx, t.label, maxW, 4, baseFs);
@@ -614,9 +638,11 @@ function draw(){
   drawSFX(ctx,padX,padY,tile);
   drawCategoryFly(ctx,rect);
 
-  drawLevelBar(ctx,rect,Math.max(90, rect.width*0.08));
+  const barGeom = drawLevelBar(ctx,rect,Math.max(90, rect.width*0.08));
+  drawAnswerList(ctx, rect, barGeom);
 }
 
+// small star helper
 function drawStar(ctx,cx,cy,spikes,outerR,innerR,color){
   const step=Math.PI/spikes; let rot=-Math.PI/2;
   ctx.save(); ctx.beginPath();
@@ -726,7 +752,7 @@ function drawCategoryFly(ctx,rect){
   if (tt>=1) catFly=null;
 }
 
-// progress bar
+// progress bar — returns its geometry so we can draw the recent list beside it
 function drawLevelBar(ctx,rect,barArea){
   const barW = Math.max(20, Math.floor(barArea*0.5));
   const margin = 16;
@@ -748,6 +774,84 @@ function drawLevelBar(ctx,rect,barArea){
   ctx.textAlign='center'; ctx.textBaseline='bottom';
   ctx.fillText(`${(state.math.progress||0)}/${(state.math.needed||1)}`, x+barW/2, y+h-6);
   ctx.restore();
+
+  return { x, y, w:barW, h, barArea, margin };
+}
+
+// NEW: draw recent answers list between the grid and the progress bar
+function drawAnswerList(ctx, rect, barGeom){
+  const { x:barX, y, w:barW, h, barArea, margin } = barGeom;
+  const pad = 10;
+  const listX = rect.width - barArea + pad;
+  const listW = (barX - pad) - listX - 8; // space left of the vertical bar
+  if (listW < 80) return; // too narrow, skip
+
+  // panel background
+  ctx.save();
+  ctx.globalAlpha = 0.85;
+  ctx.fillStyle = '#0b1433';
+  ctx.strokeStyle = '#23306a';
+  ctx.lineWidth = 1;
+  roundRect(ctx, listX, y, listW, h, 10);
+  ctx.fill(); ctx.stroke();
+  ctx.restore();
+
+  // heading "Recent" at top
+  ctx.save();
+  ctx.fillStyle = '#cfe2ff';
+  ctx.font = '600 12px system-ui, -apple-system, Segoe UI';
+  ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+  ctx.fillText('Recent', listX + 10, y + 8);
+  ctx.restore();
+
+  // draw entries (newest first)
+  const innerX = listX + 10;
+  let cursorY = y + 8 + 18;
+
+  // helper ellipsis
+  function ellipsize(text){
+    ctx.font = '12px system-ui, -apple-system, Segoe UI';
+    let s = String(text);
+    const maxW = listW - 20;
+    if (ctx.measureText(s).width <= maxW) return s;
+    while (s.length > 1 && ctx.measureText(s + '…').width > maxW){
+      s = s.slice(0, -1);
+    }
+    return s + '…';
+  }
+
+  // show up to MAX_LOG items (already capped), newest first
+  const entries = [...answerLog].slice().reverse();
+  for (const entry of entries){
+    if (cursorY > y + h - 16) break; // no vertical space left
+    if (entry.type === 'heading'){
+      // section heading for category change
+      ctx.save();
+      ctx.fillStyle = '#8ea0d0';
+      ctx.font = '600 12px system-ui, -apple-system, Segoe UI';
+      ctx.textBaseline = 'top'; ctx.textAlign = 'left';
+      const text = ellipsize(entry.text);
+      ctx.fillText(text, innerX, cursorY);
+      // separator
+      ctx.globalAlpha = 0.6;
+      ctx.strokeStyle = 'rgba(255,255,255,.10)'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(innerX, cursorY + 16); ctx.lineTo(innerX + listW - 20, cursorY + 16); ctx.stroke();
+      ctx.restore();
+      cursorY += 20;
+    } else {
+      // answer line with colored dot
+      const color = entry.correct ? '#9cff6d' : '#ff6d8a';
+      ctx.save();
+      ctx.fillStyle = color;
+      ctx.beginPath(); ctx.arc(innerX + 6, cursorY + 8, 5, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = '#e8f0ff';
+      ctx.font = '12px system-ui, -apple-system, Segoe UI';
+      ctx.textBaseline = 'top'; ctx.textAlign = 'left';
+      ctx.fillText(ellipsize(entry.text), innerX + 18, cursorY);
+      ctx.restore();
+      cursorY += 18;
+    }
+  }
 }
 
 // ---------- AI (enemies) ----------
@@ -833,6 +937,14 @@ function applyMenuSettings(){
     if(state.mode==='math-only') state.category = pickRandomMathCategory(null);
     else if(state.mode==='words-only') state.category = pickRandomWordCategory(null);
     else if(state.mode==='anything-goes') state.category = pickRandomAnyCategory(null);
+  }
+
+  // reset recent log and add heading
+  answerLog = [];
+  lastHeadingCategoryId = null;
+  if (state.category){
+    logHeading(state.category.name);
+    lastHeadingCategoryId = state.category.id;
   }
 
   state.math.base = 6;
