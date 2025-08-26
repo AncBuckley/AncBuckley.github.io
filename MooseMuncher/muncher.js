@@ -225,8 +225,8 @@ function draw(){
     const px=padX+state.player.x*tile+tile/2;
     const py=padY+state.player.y*tile+tile/2;
     const inv=now()<state.invulnUntil;
-    const panim = Character.computeAnim(state.player, DIR_VECT);
-    Character.draw(ctx, px, py, tile*0.34, state.player.dir, inv, panim);
+const panim = Character.computeAnim(state.player, DIR_VECT);
+Character.draw(ctx, px, py, tile*0.34, state.player.dir, inv, panim);
   }
 
   // enemies
