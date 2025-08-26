@@ -1,5 +1,6 @@
 // MooseMan.js — character module for MuncherJS
 // Exports a single character with animation & drawing logic.
+console.log('[MooseMan] loaded v1.1');
 
 const clamp = (v,a,b)=> Math.min(b, Math.max(a,v));
 const easeOutCubic = t => 1 - Math.pow(1 - t, 3);
@@ -32,18 +33,18 @@ const MooseMan = {
     let tilt = clamp(vx * 0.18 + (vy < 0 ? -0.04 : vy > 0 ? 0.06 : 0), -0.25, 0.25);
 
     // Vertical bob: gentle for flying, bigger arc for jump (down). Idle hover when not moving.
-    let yOffset = flying ? -Math.sin(Math.PI*phase) * 0.18 : -Math.sin(Math.PI*phase) * 0.45;
+    let yOffset = flying ? -Math.sin(Math.PI*phase) * 0.22 : -Math.sin(Math.PI*phase) * 0.55;
     if(!moving) yOffset = Math.sin(performance.now()/600) * 0.06;
 
     // Cape drag opposite movement + time wiggle
     const speedPulse = moving ? Math.sin(Math.PI*phase) : 0.2;
-    const capeDX = -vx * (0.6*speedPulse + 0.15);
-    const capeDY = -vy * (0.6*speedPulse + 0.15);
+    const capeDX = -vx * (0.8*speedPulse + 0.2);
+    const capeDY = -vy * (0.8*speedPulse + 0.2);
     const capeWiggle = Math.sin(performance.now()/130 + phase*3);
 
     // Limb swing (arms a bit faster than legs)
-    const armSwing = (moving ? Math.sin(Math.PI*phase*2) : Math.sin(performance.now()/350)) * 0.9;
-    const legSwing = (moving ? Math.sin(Math.PI*phase*2 + Math.PI/2) : Math.sin(performance.now()/420)) * 0.8;
+    const armSwing = (moving ? Math.sin(Math.PI*phase*2) : Math.sin(performance.now()/350)) * 1.1;
+    const legSwing = (moving ? Math.sin(Math.PI*phase*2 + Math.PI/2) : Math.sin(performance.now()/420)) * 1.0;
 
     return { moving, phase, vx, vy, tilt, yOffset, capeDX, capeDY, armSwing, legSwing, capeWiggle };
   },
@@ -62,17 +63,28 @@ const MooseMan = {
     const bodyW = radius*1.05;
     const bodyH = radius*1.7;
 
-    // ---- Cape (billows opposite movement) ----
+    // ---- Cape (side-aware based on movement) ----
+(function drawCapes(){
+  const vx = anim.vx || 0;
+  const vy = anim.vy || 0;
+
+  function drawCapeSide(side, alpha=1, lift=0, magnitude=1){
     ctx.save();
+    ctx.globalAlpha = alpha;
     ctx.shadowColor = '#34d399';
     ctx.shadowBlur = 14;
 
-    const windX = (anim.capeDX||0) * bodyH * 0.35;
-    const windY = (anim.capeDY||0) * bodyH * 0.18;
-    const wiggle = (anim.capeWiggle||0) * bodyH * 0.12;
+    // Mirror the left-shape to the right side when needed
+    if(side === 'right'){
+      ctx.scale(-1, 1);
+    }
+
+    const windX = (anim.capeDX||0) * bodyH * 0.35 * magnitude;
+    const windY = (anim.capeDY||0) * bodyH * 0.18 * magnitude;
+    const wiggle = (anim.capeWiggle||0) * bodyH * 0.12 * magnitude;
 
     const cx0 = -bodyW*0.55 + windX*0.3;
-    const cy0 = -bodyH*0.3  + windY*0.2;
+    const cy0 = -bodyH*0.3  + windY*0.2 - lift;
 
     ctx.beginPath();
     ctx.moveTo(cx0, cy0);
@@ -87,7 +99,27 @@ const MooseMan = {
     const capeGrad = ctx.createLinearGradient(cx0, cy0, bodyW*0.2, cy0+bodyH*0.8);
     capeGrad.addColorStop(0, '#34d399'); capeGrad.addColorStop(1, '#059669');
     ctx.fillStyle = capeGrad; ctx.fill();
+
     ctx.restore();
+  }
+
+  if (Math.abs(vx) > 0.01){
+    // Horizontal move: main cape on the side opposite movement
+    const mainSide = vx > 0 ? 'left' : 'right';
+    drawCapeSide(mainSide, 1.0, 0, 1.0);
+    // Faint echo on the other side for wrap-around look
+    drawCapeSide(mainSide === 'left' ? 'right' : 'left', 0.45, 0, 0.65);
+  } else if (vy > 0.01){
+    // Moving down: cape visible on both sides and slightly rising from the bottom
+    const lift = bodyH * 0.08;
+    drawCapeSide('left',  0.90, lift, 0.90);
+    drawCapeSide('right', 0.75, lift, 0.80);
+  } else {
+    // Idle or moving up: show on both sides, trailing naturally
+    drawCapeSide('left',  0.85, 0, 0.90);
+    drawCapeSide('right', 0.85, 0, 0.90);
+  }
+})();
 
     // ---- Torso (green suit) ----
     const torsoX = -bodyW/2, torsoY = -bodyH*0.55, torsoW = bodyW, torsoH = bodyH*1.05;
