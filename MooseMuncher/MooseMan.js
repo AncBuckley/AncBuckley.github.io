@@ -1,6 +1,6 @@
 // MooseMan.js — character module for MuncherJS
 // Exports a single character with animation & drawing logic.
-console.log('[MooseMan] loaded v1.1');
+console.log('[MooseMan] loaded v1.2');
 
 const clamp = (v,a,b)=> Math.min(b, Math.max(a,v));
 const easeOutCubic = t => 1 - Math.pow(1 - t, 3);
@@ -68,35 +68,37 @@ const MooseMan = {
   const vx = anim.vx || 0;
   const vy = anim.vy || 0;
 
-  function drawCapeSide(side, alpha=1, lift=0, magnitude=1){
+  function drawCapeSide(side, alpha=1, lift=0, mag=1){
     ctx.save();
     ctx.globalAlpha = alpha;
     ctx.shadowColor = '#34d399';
-    ctx.shadowBlur = 14;
+    ctx.shadowBlur = 12;
 
-    // Mirror the left-shape to the right side when needed
-    if(side === 'right'){
-      ctx.scale(-1, 1);
-    }
+    // Mirror for right side; keep path in left-side local space
+    if (side === 'right') ctx.scale(-1, 1);
 
-    const windX = (anim.capeDX||0) * bodyH * 0.35 * magnitude;
-    const windY = (anim.capeDY||0) * bodyH * 0.18 * magnitude;
-    const wiggle = (anim.capeWiggle||0) * bodyH * 0.12 * magnitude;
+    // Keep outward spread symmetrical on both sides (always negative in local x)
+    const windX = -Math.abs(anim.capeDX||0) * bodyH * 0.35 * mag;
+    const windY = (anim.capeDY||0) * bodyH * 0.10 * mag;
+    const wiggle = (anim.capeWiggle||0) * bodyH * 0.09 * mag;
 
-    const cx0 = -bodyW*0.55 + windX*0.3;
-    const cy0 = -bodyH*0.3  + windY*0.2 - lift;
+    // Pull the cape a bit closer to the body than before
+    const base = -bodyW * 0.48;
+    const cx0 = base + windX * 0.35;
+    const cy0 = -bodyH * 0.28 + windY * 0.2 - lift;
 
     ctx.beginPath();
     ctx.moveTo(cx0, cy0);
-    ctx.bezierCurveTo(-bodyW*1.2 + windX*0.6, cy0 + bodyH*0.2 + wiggle*0.2 + windY*0.2,
-                      -bodyW*0.8 + windX*0.9, cy0 + bodyH*0.9 + wiggle + windY*0.8,
-                      -bodyW*0.1 + windX*0.6, cy0 + bodyH*0.8 + wiggle*0.6 + windY*0.7);
-    ctx.bezierCurveTo(bodyW*0.3 + windX*0.2, cy0 + bodyH*0.7 + wiggle*0.2 + windY*0.5,
-                      bodyW*0.5,            cy0 + bodyH*0.1 + wiggle*0.1 + windY*0.3,
-                      bodyW*0.1,            cy0 + bodyH*0.05+ wiggle*0.05+ windY*0.1);
+    // Tighter bezier to keep parts closer together
+    ctx.bezierCurveTo(base*2.2 + windX*0.55, cy0 + bodyH*0.18 + wiggle*0.2,
+                      base*1.5 + windX*0.80, cy0 + bodyH*0.78 + wiggle,
+                      base*0.2 + windX*0.55, cy0 + bodyH*0.72 + wiggle*0.6);
+    ctx.bezierCurveTo(bodyW*0.25 + windX*0.15, cy0 + bodyH*0.62 + wiggle*0.2,
+                      bodyW*0.42,              cy0 + bodyH*0.12 + wiggle*0.1,
+                      bodyW*0.08,              cy0 + bodyH*0.06 + wiggle*0.05);
     ctx.closePath();
 
-    const capeGrad = ctx.createLinearGradient(cx0, cy0, bodyW*0.2, cy0+bodyH*0.8);
+    const capeGrad = ctx.createLinearGradient(cx0, cy0, bodyW*0.2, cy0 + bodyH*0.65);
     capeGrad.addColorStop(0, '#34d399'); capeGrad.addColorStop(1, '#059669');
     ctx.fillStyle = capeGrad; ctx.fill();
 
@@ -104,20 +106,20 @@ const MooseMan = {
   }
 
   if (Math.abs(vx) > 0.01){
-    // Horizontal move: main cape on the side opposite movement
+    // Horizontal move: main cape is on side opposite movement
     const mainSide = vx > 0 ? 'left' : 'right';
     drawCapeSide(mainSide, 1.0, 0, 1.0);
-    // Faint echo on the other side for wrap-around look
-    drawCapeSide(mainSide === 'left' ? 'right' : 'left', 0.45, 0, 0.65);
+    // Subtle echo on the near side, kept close
+    drawCapeSide(mainSide === 'left' ? 'right' : 'left', 0.35, 0, 0.72);
   } else if (vy > 0.01){
-    // Moving down: cape visible on both sides and slightly rising from the bottom
+    // Moving down: visible on both sides and slightly rising from the bottom
     const lift = bodyH * 0.08;
-    drawCapeSide('left',  0.90, lift, 0.90);
-    drawCapeSide('right', 0.75, lift, 0.80);
+    drawCapeSide('left',  0.90, lift, 0.85);
+    drawCapeSide('right', 0.85, lift, 0.85);
   } else {
-    // Idle or moving up: show on both sides, trailing naturally
-    drawCapeSide('left',  0.85, 0, 0.90);
-    drawCapeSide('right', 0.85, 0, 0.90);
+    // Idle or moving up: capes on both sides, close to body
+    drawCapeSide('left',  0.85, 0, 0.85);
+    drawCapeSide('right', 0.85, 0, 0.85);
   }
 })();
 
