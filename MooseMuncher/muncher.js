@@ -159,10 +159,48 @@ let star=null;     // freeze power-up
 function resizeCanvas(){ const dpr=window.devicePixelRatio||1; const rect=canvas.getBoundingClientRect(); canvas.width=Math.floor(rect.width*dpr); canvas.height=Math.floor(rect.height*dpr); ctx.setTransform(dpr,0,0,dpr,0,0); state.tile=Math.floor(Math.min(rect.width/state.gridW, rect.height/state.gridH)); }
 addEventListener('resize', resizeCanvas);
 
-// ===== Board =====
-function buildBoard(){ if(!state.category){ console.warn('No category yet'); return; } const W=state.gridW, H=state.gridH; const need=state.mode==='math'? Math.min(W*H, Math.max(12, state.math.needed||12)) : undefined; const items=state.category.generate(W,H,need);
-  const totalCorrect=items.filter(i=>i.correct).length; if(totalCorrect < Math.max(6, Math.floor(W*H*0.2))){ let tries=0; while(tries<10){ const alt=state.category.generate(W,H,need); if(alt.filter(i=>i.correct).length>totalCorrect){ items.splice(0,items.length,...alt); break; } tries++; } }
-  state.items = items.map((it,idx)=>({...it, eaten:false, gx:idx%W, gy:Math.floor(idx/W)})); state.correctRemaining = state.items.filter(t=>t.correct).length; star=null; }
+// Put this helper near your other utils
+function minCorrectForBoard(W, H){
+  // Use the same baseline as math mode (at least 12, never more than the board)
+  // Classic: min 12 as well, so it behaves the same way.
+  return Math.min(W*H, Math.max(12, state.mode === 'math' ? (state.math.needed || 12) : 12));
+}
+
+// === REPLACE your existing buildBoard() with this ===
+function buildBoard(){
+  if(!state.category){ console.warn('No category yet'); return; }
+
+  const W = state.gridW, H = state.gridH;
+  const need = minCorrectForBoard(W, H);
+
+  // Single mixed-generation path for BOTH modes
+  let items = state.category.generate(W, H, need);
+
+  // Safety: ensure the board isn't starved of correct tiles
+  let correctCount = items.filter(i => i.correct).length;
+  const targetMin = Math.max(6, Math.floor(W*H*0.2)); // at least ~20% correct (or 6)
+  if (correctCount < targetMin){
+    let best = items, bestCount = correctCount;
+    for (let i = 0; i < 12; i++){
+      const alt = state.category.generate(W, H, need);
+      const c = alt.filter(x => x.correct).length;
+      if (c > bestCount){ best = alt; bestCount = c; if (c >= targetMin) break; }
+    }
+    items = best;
+  }
+
+  state.items = items.map((it, idx) => ({
+    ...it,
+    eaten: false,
+    gx: idx % W,
+    gy: Math.floor(idx / W)
+  }));
+
+  state.correctRemaining = state.items.filter(t => t.correct).length;
+  star = null;
+}
+
+
 
 // ===== Entities =====
 function spawnPlayer(){ state.player={ gx:0, gy:0, x:0, y:0, dir:DIRS.RIGHT, moving:null }; }
