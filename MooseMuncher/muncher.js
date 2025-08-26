@@ -1,4 +1,5 @@
-// muncher.js — fixed 5x5 grid, troggles seed tiles with adaptive correctness
+// muncher.js — fixed 5x5 grid, adaptive troggle seeding, larger tiles (+5%), no mid-word wraps,
+// modes: single-category, math-only, words-only, anything-goes; unified progress bar.
 import MooseMan from "./MooseMan.js";
 let Character = MooseMan;
 
@@ -398,6 +399,7 @@ function roundRect(ctx,x,y,w,h,r){ const rr=Math.min(r,w/2,h/2);
   ctx.arcTo(x,y+h,x,y,rr); ctx.arcTo(x,y,x+w,y,rr);
 }
 
+// (legacy, kept for any other use)
 function wrapLabel(text,maxWidth,ctx,maxLines=4){
   const words=String(text).split(' '); const lines=[]; let line='';
   for(let w of words){
@@ -419,6 +421,42 @@ function wrapLabel(text,maxWidth,ctx,maxLines=4){
   return lines;
 }
 
+// NEW: Fit text without breaking words — shrink font until it fits in <= maxLines
+function layoutLabelNoBreak(ctx, text, maxWidth, maxLines, basePx, fontFamily='ui-sans-serif, system-ui, -apple-system, Segoe UI'){
+  let fs = basePx;
+  let lines = [];
+  for(let iter=0; iter<14; iter++){
+    ctx.font = `${fs}px ${fontFamily}`;
+    const words = String(text).trim().split(/\s+/).filter(Boolean);
+    let tooWide = false;
+
+    for(const w of words){
+      if(ctx.measureText(w).width > maxWidth){ tooWide = true; break; }
+    }
+
+    lines = [];
+    let line = '';
+    if(!tooWide){
+      for(const w of words){
+        const test = line ? `${line} ${w}` : w;
+        if(ctx.measureText(test).width <= maxWidth){
+          line = test;
+        }else{
+          if(line) lines.push(line); else { tooWide = true; break; }
+          line = w;
+          if(lines.length >= maxLines){ tooWide = true; break; }
+        }
+      }
+      if(line && lines.length < maxLines) lines.push(line);
+    }
+
+    if(!tooWide && lines.length <= maxLines) break;
+    fs = Math.max(10, Math.floor(fs * 0.92));
+  }
+  const lineHeight = Math.max(12, Math.floor(fs * 1.08));
+  return { lines, font: `${fs}px ${fontFamily}`, fontSize: fs, lineHeight };
+}
+
 // ---------- dynamic seeding by troggles ----------
 function normalizeLabelCase(s, labelCase){
   if(labelCase === 'title') return String(s).replace(/\b\w/g,c=>c.toUpperCase());
@@ -430,19 +468,16 @@ function computeSeedCorrectProb(){
   const uneaten = state.items.filter(t=>!t.eaten);
   const correctUneaten = uneaten.filter(t=>t.correct).length;
   const ratio = uneaten.length ? correctUneaten/uneaten.length : 0;
-  // More correct on board -> lower probability; fewer -> higher probability
   let p = clamp(0.7 - 0.6*ratio, 0.12, 0.88);
   if (correctUneaten <= 2) p = Math.max(p, 0.80);
   return p;
 }
 
 function sampleCorrectNumber(cat){
-  // Try random sampling first
   for(let tries=0; tries<32; tries++){
     const n = randi(cat.min, cat.max+1);
     if (cat.test(n)) return n;
   }
-  // Fallback scan
   for(let n=cat.min;n<=cat.max;n++) if(cat.test(n)) return n;
   return randi(cat.min, cat.max+1);
 }
@@ -466,11 +501,8 @@ function seedTileAt(gx,gy){
   if (state.category.type === 'word'){
     const cat = state.category;
     const correctList = (cat.getCorrectList ? cat.getCorrectList() : []);
-    // Build distractors fresh to respect latest WORD_SETS
     const distractList = (cat.getDistractorList ? cat.getDistractorList() : []);
     let makeCorrect = Math.random() < pCorrect && correctList.length>0;
-
-    // If no distractors but we don't want correct, force correct (to avoid empty)
     if(!makeCorrect && distractList.length===0 && correctList.length>0) makeCorrect = true;
 
     const pick = makeCorrect
@@ -479,7 +511,7 @@ function seedTileAt(gx,gy){
 
     tile.label = normalizeLabelCase(pick, cat.labelCase||'lower');
     tile.value = String(pick);
-    tile.correct = makeCorrect; // correct if taken from correct list
+    tile.correct = makeCorrect;
     tile.eaten = false;
     if (tile.correct) state.correctRemaining += 1;
   } else { // number
@@ -497,10 +529,15 @@ function seedTileAt(gx,gy){
 // ---------- render ----------
 function draw(){
   const rect = canvas.getBoundingClientRect();
-  const barArea = Math.max(90, rect.width*0.08); // progress bar shown in all modes now
-  const tile = Math.min((rect.width-barArea)/state.gridW, rect.height/state.gridH);
-  const padX = (rect.width - barArea - state.gridW*tile)/2;
-  const padY = (rect.height - state.gridH*tile)/2;
+  const barArea = Math.max(90, rect.width*0.08); // progress bar shown for all modes
+  const baseTile = Math.min((rect.width - barArea) / state.gridW, rect.height / state.gridH);
+  let tile = baseTile;
+  const enlarged = baseTile * 1.05; // ~5% larger if it still fits
+  if (enlarged * state.gridW <= (rect.width - barArea) && enlarged * state.gridH <= rect.height){
+    tile = enlarged;
+  }
+  const padX = (rect.width - barArea - state.gridW*tile) / 2;
+  const padY = (rect.height - state.gridH*tile) / 2;
 
   ctx.clearRect(0,0,canvas.width,canvas.height);
 
@@ -530,16 +567,18 @@ function draw(){
     ctx.lineWidth=1.2; ctx.stroke();
 
     if(!t.eaten){
-      ctx.save(); ctx.fillStyle='rgba(230,240,255,.96)';
-      const fs = Math.floor(tile*0.28);
-      ctx.font = `${fs}px ui-sans-serif, system-ui, -apple-system, Segoe UI`;
+      // NEW: no mid-word break, auto-shrink to <= 4 lines
+      const maxW = tile * 0.84;
+      const baseFs = Math.floor(tile * 0.30);
+      const layout = layoutLabelNoBreak(ctx, t.label, maxW, 4, baseFs);
+
+      ctx.save();
+      ctx.fillStyle='rgba(230,240,255,.96)';
+      ctx.font = layout.font;
       ctx.textAlign='center'; ctx.textBaseline='middle';
-      const maxW = tile*0.84;
-      const lh = Math.max(16, Math.floor(fs*1.10));
-      const lines = wrapLabel(t.label, maxW, ctx, 4);
-      const totalH = lines.length*lh;
-      let ly = y + tile/2 - totalH/2 + lh/2;
-      for(const line of lines){ ctx.fillText(line, x+tile/2, ly); ly += lh; }
+      const totalH = layout.lines.length * layout.lineHeight;
+      let ly = y + tile/2 - totalH/2 + layout.lineHeight/2;
+      for(const line of layout.lines){ ctx.fillText(line, x+tile/2, ly); ly += layout.lineHeight; }
       ctx.restore();
     } else if (t.correct){
       ctx.save(); ctx.globalAlpha=0.2; ctx.fillStyle='#9cff6d';
@@ -687,7 +726,7 @@ function drawCategoryFly(ctx,rect){
   if (tt>=1) catFly=null;
 }
 
-// progress bar (now shown for all modes)
+// progress bar
 function drawLevelBar(ctx,rect,barArea){
   const barW = Math.max(20, Math.floor(barArea*0.5));
   const margin = 16;
@@ -729,7 +768,7 @@ function enemyStep(){
       const [dx,dy]=DIR_VECT[bestDir]; const nx=e.gx+dx, ny=e.gy+dy;
       if(passable(nx,ny)){
         e.gx=nx; e.gy=ny; e.x=nx; e.y=ny; e.dir=bestDir;
-        // NEW: seed a tile if the troggle lands on an empty cell
+        // Seed a tile if the troggle lands on an empty cell
         const landed = getTileAt(nx,ny);
         if (landed && landed.eaten) seedTileAt(nx,ny);
       }
@@ -830,11 +869,14 @@ helpBtn.addEventListener('click', ()=>{ help.classList.remove('hide'); state.pau
 closeHelp.addEventListener('click', ()=> help.classList.add('hide'));
 pauseBtn.addEventListener('click', togglePause);
 
-document.getElementById('shuffleBtn').addEventListener('click', ()=>{
-  if(state.mode==='single-category'){
-    const r = choice(CATEGORIES); categorySelect.value=r.id;
-  }
-});
+const shuffleBtn = document.getElementById('shuffleBtn');
+if (shuffleBtn){
+  shuffleBtn.addEventListener('click', ()=>{
+    if(state.mode==='single-category'){
+      const r = choice(CATEGORIES); categorySelect.value=r.id;
+    }
+  });
+}
 
 modeSelect.addEventListener('change', ()=>{
   state.mode = canonicalMode(modeSelect.value);
