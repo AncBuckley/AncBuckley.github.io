@@ -71,10 +71,29 @@ function numericCategory(name, predicate, opts={}){
     }
   };
 }
+function applyCrossHints(wordSets, crossHints) {
+  if (!crossHints) return wordSets;
+  // Make case-insensitive checks but preserve original casing in sets
+  const hasWord = (arr, w) => arr.some(x => x.toLowerCase() === w.toLowerCase());
+  for (const [word, targets] of Object.entries(crossHints)) {
+    for (const setName of targets) {
+      wordSets[setName] = wordSets[setName] || [];
+      if (!hasWord(wordSets[setName], word)) {
+        wordSets[setName].push(word);
+      }
+    }
+  }
+  return wordSets;
+}
 function buildCategoriesFromJSON(json){
   WORD_SETS = json.wordSets || {};
+
+  // >>> NEW: apply explicit cross-membership (silver→colors+metals+elements, etc.)
+  WORD_SETS = applyCrossHints(WORD_SETS, json.crossHints);
+
   const list = [];
-  for(const nc of (json.numbers||[])){
+  // numbers
+  for (const nc of (json.numbers||[])){
     let predicate = ()=>false;
     switch(nc.kind){
       case 'even': predicate = n=>n%2===0; break;
@@ -88,12 +107,14 @@ function buildCategoriesFromJSON(json){
     }
     list.push(numericCategory(nc.name, predicate, {id:nc.id, min:nc.min, max:nc.max}));
   }
-  for(const wc of (json.words||[])){
+  // words
+  for (const wc of (json.words||[])){
     const set = WORD_SETS[wc.set] || [];
     list.push(makeWordCategory(wc.name, set, wc.distractFrom||[], wc.case||'lower', wc.id));
   }
   return list;
 }
+
 async function loadCategories(){
   // Resolve relative to this module file (robust on different hosts/subpaths)
   const url = new URL('./categories.json', import.meta.url).toString();
