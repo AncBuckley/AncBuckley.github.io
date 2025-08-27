@@ -1,4 +1,4 @@
-// muncher.js — modular build with four game modes
+// muncher.js — modular build with 4 game modes acting correctly
 import MooseMan from "./MooseMan.js";
 
 /* ===== DOM ===== */
@@ -88,9 +88,11 @@ const CATEGORIES=[
 const WORD_CATS = CATEGORIES.filter(c=>c.type==='word');
 const NUM_CATS  = CATEGORIES.filter(c=>c.type==='number');
 
+/* ===== mode helpers ===== */
 function pickRandomMathCategory(excludeId){const nums=NUM_CATS.filter(c=>c.id!==excludeId);return choice(nums.length?nums:NUM_CATS);}
 function pickRandomWordCategory(excludeId){const ws=WORD_CATS.filter(c=>c.id!==excludeId);return choice(ws.length?ws:WORD_CATS);}
 function pickRandomAnyCategory(excludeId){const cs=CATEGORIES.filter(c=>c.id!==excludeId);return choice(cs.length?cs:CATEGORIES);}
+const isBarMode = ()=> state.mode==='math'||state.mode==='words'||state.mode==='any';
 function computeMathNeeded(level,base){return Math.max(1,Math.floor(base*Math.pow(2,level-1)));}
 
 /* ===== constants ===== */
@@ -103,7 +105,7 @@ const TROGGLE_COLORS=['#ff3b6b','#ffb800','#00e5ff','#7cff00','#ff00e5','#ff7a00
 let state={
   running:false, paused:false,
   level:1, score:0, lives:3,
-  gridW:5, gridH:5, tile:64,          // fixed 5×5
+  gridW:5, gridH:5,                  // fixed 5×5 across modes
   category:CATEGORIES[0],
   items:[], correctRemaining:0,
   player:null, enemies:[],
@@ -113,9 +115,8 @@ let state={
   single:{totalCorrectAtStart:0},
   recent:[]
 };
-const isBarMode = ()=> state.mode==='math'||state.mode==='words'||state.mode==='any';
 
-/* ===== responsive canvas buffer ===== */
+/* ===== responsive canvas ===== */
 function resizeCanvas(){
   const dpr = window.devicePixelRatio || 1;
   const rect = canvas.getBoundingClientRect();
@@ -330,12 +331,12 @@ function handlePlayerStep(k){
 function selectCategoryForLevel(){
   const prev = state.category ? state.category.id : null;
   switch(state.mode){
-    case 'math':  state.category = pickRandomMathCategory(prev);  break;
-    case 'words': state.category = pickRandomWordCategory(prev);  break;
-    case 'any':   state.category = pickRandomAnyCategory(prev);   break;
+    case 'math':  state.category = pickRandomMathCategory(prev);  break;   // numeric only
+    case 'words': state.category = pickRandomWordCategory(prev);  break;   // word only
+    case 'any':   state.category = pickRandomAnyCategory(prev);   break;   // any category
     case 'single':
     default:
-      // keep whatever user chose in categorySelect
+      // keep state.category (chosen in menu)
       break;
   }
   const strong=catBadge.querySelector("strong"); if(strong) strong.textContent=state.category.name;
@@ -458,7 +459,8 @@ function drawSFX(padX,padY,tile){
       const n=4; for(let i=0;i<n;i++){const off=(i-(n-1)/2)*tile*0.08; const len=tile*0.22*(1-p); ctx.beginPath(); ctx.moveTo(cx+off, cy - tile*0.2); ctx.lineTo(cx+off, cy - tile*0.2 + len); ctx.stroke();}
       ctx.restore();
       ctx.save(); ctx.globalAlpha=1-p; ctx.fillStyle="#46d4ff";
-      ctx.beginPath(); ctx.moveTo(cx + tile*0.18, cy - tile*0.06);
+      ctx.beginPath();
+      ctx.moveTo(cx + tile*0.18, cy - tile*0.06);
       ctx.quadraticCurveTo(cx + tile*0.24, cy + 0.02, cx + 0.14*tile, cy + 0.10*tile);
       ctx.quadraticCurveTo(cx + tile*0.28, cy + 0.00, cx + tile*0.18, cy - tile*0.06);
       ctx.fill(); ctx.restore();
@@ -616,7 +618,6 @@ function populateModes(){
   const raw = (modeSelect.value||'').toLowerCase();
   if(raw==='classic') state.mode='single';
   else if(raw==='math') state.mode='math';
-  // Apply selection (keep previously chosen if valid)
   if(!['single','math','words','any'].includes(state.mode)) state.mode='single';
   modeSelect.value = state.mode;
 }
@@ -627,9 +628,15 @@ function readModeFromSelect(){
   if(['single','math','words','any'].includes(v)) return v;
   return 'single';
 }
+function syncCategorySelectDisabled(){
+  const disable = state.mode !== 'single';
+  categorySelect.disabled = disable;
+  categorySelect.title = disable ? 'Category is chosen automatically each level in this mode.' : '';
+}
 function applyMenuSettings(){
   state.gridW=5; state.gridH=5; // lock grid size
   state.mode = readModeFromSelect();
+  syncCategorySelectDisabled();
   // Selected category for Single Category; otherwise we’ll pick per-level
   const cat=CATEGORIES.find(c=>c.id===categorySelect.value)||CATEGORIES[0];
   state.category=cat;
@@ -637,18 +644,18 @@ function applyMenuSettings(){
   state.recent.length=0; pushRecentHeading(state.category.name);
   buildBoard(); spawnPlayer(); spawnEnemies(); resetEnemyTimers(); updateHUD();
 }
+modeSelect?.addEventListener('change',()=>{ state.mode = readModeFromSelect(); syncCategorySelectDisabled(); });
+
 startBtn?.addEventListener('click',()=>{ menu.classList.add('hide'); gameover.classList.add('hide'); applyMenuSettings(); state.running=true; state.paused=false; state.level=1; state.score=0; state.lives=3; state.freezeUntil=0; state.invulnUntil=0; updateHUD(); });
 againBtn?.addEventListener('click',()=>{ gameover.classList.add('hide'); menu.classList.add('hide'); applyMenuSettings(); state.running=true; state.paused=false; state.level=1; state.score=0; state.lives=3; state.freezeUntil=0; state.invulnUntil=0; updateHUD(); });
 menuBtn?.addEventListener('click',()=>{ gameover.classList.add('hide'); menu.classList.remove('hide'); state.running=false; });
 helpBtn?.addEventListener('click',()=>{ help.classList.remove('hide'); state.paused=true; pauseBtn.textContent='▶️ Resume'; });
 closeHelp?.addEventListener('click',()=> help.classList.add('hide'));
-pauseBtn?.addEventListener('click',togglePause);
 document.getElementById('shuffleBtn')?.addEventListener('click',()=>{ const r=choice(CATEGORIES); categorySelect.value=r.id; const strong=catBadge.querySelector("strong"); if(strong) strong.textContent=r.name; });
 
 /* ===== init ===== */
 (function init(){
   state.category=CATEGORIES[0];
-  // If the HTML still has old 2-mode options, we’ll overwrite them here:
   populateModes();
   populateCategories();
   resizeCanvas(); updateHUD(); requestAnimationFrame(loop);
