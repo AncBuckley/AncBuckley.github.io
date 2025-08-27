@@ -1,8 +1,5 @@
-// muncher.js — MuncherJS (modular, JSON-driven categories, 4 modes, 5×5 grid)
-// Loads number+word categories from ./categories.json and cross-applies words via crossHints.
-// Default mode: "Anything Goes" (any). Word boards include correct+ distractors.
-// Enemies move 1 tile every 3s; player moves 1 tile per keypress.
-// Requires: MooseMan.js, prefs.js (already applied by index), categories.json
+// muncher.js — JSON-driven categories, 4 modes, MooseMan, effects, CSS-themed
+// Requires: MooseMan.js, categories.json, styles.css (defines CSS variables)
 
 import MooseMan from "./MooseMan.js";
 
@@ -46,13 +43,45 @@ function roundRect(c,x,y,w,h,r){
   c.arcTo(x,y+h,x,y,rr); c.arcTo(x,y,x+w,y,rr);
 }
 
-/* ===================== Category loading (JSON) ===================== */
-// JSON schema you provided:
-// { numbers:[{id,name,kind,min,max,k?},...],
-//   wordSets:{key:[...strings],...},
-//   words:[{id,name,set,case},...],
-//   crossHints:{ word:[catId, ...], ... } }
+/* ===================== Theme from CSS variables ===================== */
+function readTheme(){
+  const rootStyle = getComputedStyle(document.documentElement);
+  const bodyStyle = getComputedStyle(document.body);
+  const get = (name, fb='') => (rootStyle.getPropertyValue(name)||'').trim() || fb;
+  const parseCSV = (v)=>v.split(',').map(s=>s.trim()).filter(Boolean);
 
+  return {
+    fontFamily: bodyStyle.fontFamily || 'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Inter, Arial, sans-serif',
+    radius: parseInt(get('--radius','16'))||16,
+
+    // tiles
+    tileA: get('--tile', '#141e3f'),
+    tileB: get('--tile2', '#1b2753'),
+    tileEatenA: get('--tile-eaten', '#0c1430'),
+    tileEatenB: get('--tile-eaten2', '#0a1126'),
+    tileStroke: get('--tile-stroke','rgba(255,255,255,.12)'),
+    tileStrokeEaten: get('--tile-stroke-eaten','rgba(255,255,255,.06)'),
+    textPrimary: get('--tile-text', 'rgba(230,240,255,.96)'),
+    correctHalo: get('--correct-halo', '#9cff6d'),
+
+    // progress bar
+    progEmpty: get('--progress-empty','#0a1437'),
+    progBorder: get('--progress-border','#20306b'),
+    progStart: get('--progress-start','#46d4ff'),
+    progEnd: get('--progress-end','#9cff6d'),
+
+    // sfx
+    sfxDanger: get('--danger','#ff6d8a'),
+    sfxGood: get('--good','#77ffb4'),
+    sfxWarn: get('--warning','#ffd166'),
+
+    // troggles
+    troggleColors: parseCSV(get('--troggle-colors', '#ff3b6b,#ffb800,#00e5ff,#7cff00,#ff00e5,#ff7a00,#00ffb3,#ffd700,#00ffd0,#ff4d00'))
+  };
+}
+let THEME = readTheme();
+
+/* ===================== Category loading (JSON) ===================== */
 let NUM_CATS = [];
 let WORD_CATS = [];
 let CATEGORIES = [];
@@ -98,15 +127,14 @@ function makeWordCategoryFromJSON(wdef, setMap, crossByCat){
     id, name, type:'word', labelCase,
     getCorrectList(){ return correctList.slice(); },
     generate:(W,H,countCorrect=12)=>{
-      const total=W*H;
+      const total = W*H;
       const nCorrect=Math.min(total,countCorrect);
       const chosenCorrect = shuffle(correctList.slice()).slice(0,nCorrect);
       const have=new Set(chosenCorrect.map(String));
 
-      // distractors: all words from all sets except ones that are correct for this cat
       const ownSet = new Set(correctList.map(String));
       const pool = WORD_DISTRACTOR_POOL.filter(w=>!ownSet.has(String(w)));
-      const distractNeeded=Math.max(0,total-chosenCorrect.length);
+      const distractNeeded=Math.max(0, total-chosenCorrect.length);
       const distract=shuffle(pool).filter(w=>!have.has(String(w))).slice(0,distractNeeded);
 
       const items = chosenCorrect.map(w=>({label:normalize(w), value:String(w), correct:true}))
@@ -119,16 +147,14 @@ function makeWordCategoryFromJSON(wdef, setMap, crossByCat){
 
 async function loadCategoriesFromJSON(jsonRelPath='./categories.json'){
   try{
-    const url = new URL(jsonRelPath, import.meta.url); // resolve relative to this module
+    const url = new URL(jsonRelPath, import.meta.url);
     const res = await fetch(url.href, {cache:'no-store'});
     if(!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
     const data = await res.json();
 
-    // wordSets → global pool
     const setMap = data.wordSets || {};
     WORD_DISTRACTOR_POOL = Object.values(setMap).flat().map(String);
 
-    // crossHints: word => [catId...]
     const crossByCat = new Map(); // catId -> Set(words)
     const hints = data.crossHints || {};
     for(const [word, cats] of Object.entries(hints)){
@@ -145,7 +171,7 @@ async function loadCategoriesFromJSON(jsonRelPath='./categories.json'){
     console.log(`[muncher] loaded: numbers=${NUM_CATS.length}, words=${WORD_CATS.length}, pool=${WORD_DISTRACTOR_POOL.length}`);
   }catch(err){
     console.error('[muncher] Failed to load categories.json:', err);
-    // Fallback (minimal)
+    // Minimal fallback so game runs
     NUM_CATS = [
       numericCategoryFromJSON({id:'even-numbers', name:'Even Numbers', kind:'even', min:2, max:120}),
       numericCategoryFromJSON({id:'prime-numbers', name:'Prime Numbers', kind:'prime', min:2, max:199})
@@ -160,34 +186,23 @@ async function loadCategoriesFromJSON(jsonRelPath='./categories.json'){
   }
 }
 
-/* ===================== Modes & math helpers ===================== */
+/* ===================== Modes & helpers ===================== */
 const isBarMode = ()=> state.mode==='math' || state.mode==='words' || state.mode==='any';
 function computeMathNeeded(level,base){ return Math.max(1, Math.floor(base * Math.pow(2, level-1))); }
-
-function pickRandomMathCategory(excludeId){
-  const nums=NUM_CATS.filter(c=>c.id!==excludeId);
-  return choice(nums.length?nums:NUM_CATS);
-}
-function pickRandomWordCategory(excludeId){
-  const ws=WORD_CATS.filter(c=>c.id!==excludeId);
-  return choice(ws.length?ws:WORD_CATS);
-}
-function pickRandomAnyCategory(excludeId){
-  const cs=CATEGORIES.filter(c=>c.id!==excludeId);
-  return choice(cs.length?cs:CATEGORIES);
-}
+function pickRandomMathCategory(excludeId){ const nums=NUM_CATS.filter(c=>c.id!==excludeId); return choice(nums.length?nums:NUM_CATS); }
+function pickRandomWordCategory(excludeId){ const ws=WORD_CATS.filter(c=>c.id!==excludeId); return choice(ws.length?ws:WORD_CATS); }
+function pickRandomAnyCategory(excludeId){ const cs=CATEGORIES.filter(c=>c.id!==excludeId); return choice(cs.length?cs:CATEGORIES); }
 
 /* ===================== Constants ===================== */
 const DIRS={UP:0,RIGHT:1,DOWN:2,LEFT:3};
 const DIR_VECT=[[0,-1],[1,0],[0,1],[-1,0]];
 const ENEMY_STEP_MS=3000; // enemies step every 3s
-const TROGGLE_COLORS=['#ff3b6b','#ffb800','#00e5ff','#7cff00','#ff00e5','#ff7a00','#00ffb3','#ffd700','#00ffd0','#ff4d00'];
 
 /* ===================== State ===================== */
 let state={
   running:false, paused:false,
   level:1, score:0, lives:3,
-  gridW:5, gridH:5,                    // fixed 5×5 across modes
+  gridW:5, gridH:5,                    // fixed 5×5
   category:null,
   items:[], correctRemaining:0,
   player:null, enemies:[],
@@ -200,6 +215,7 @@ let state={
 
 /* ===================== Responsive canvas ===================== */
 function resizeCanvas(){
+  THEME = readTheme(); // re-read on resize in case CSS vars changed
   const dpr = window.devicePixelRatio || 1;
   const rect = canvas.getBoundingClientRect();
   canvas.width  = Math.floor(rect.width  * dpr);
@@ -234,7 +250,7 @@ function drawSidebar(rect){
   const barH = Math.max(140, rect.height*0.28);
   const barW = 22;
   const bx = 28, by = 42;
-  ctx.fillStyle='#0a1437'; ctx.strokeStyle='#20306b'; ctx.lineWidth=1;
+  ctx.fillStyle=THEME.progEmpty; ctx.strokeStyle=THEME.progBorder; ctx.lineWidth=1;
   ctx.beginPath(); roundRect(ctx, bx, by, barW, barH, 10); ctx.fill(); ctx.stroke();
 
   let pct=0, label='';
@@ -248,7 +264,7 @@ function drawSidebar(rect){
   }
   const fillH = Math.floor(barH*pct);
   const g=ctx.createLinearGradient(0, by+barH, 0, by+barH-fillH);
-  g.addColorStop(0,'#46d4ff'); g.addColorStop(1,'#9cff6d');
+  g.addColorStop(0, THEME.progStart); g.addColorStop(1, THEME.progEnd);
   ctx.fillStyle=g;
   ctx.beginPath(); roundRect(ctx, bx, by+barH-fillH, barW, fillH, 10); ctx.fill();
 
@@ -266,7 +282,7 @@ function drawSidebar(rect){
     if(it.type==='heading'){
       ctx.fillStyle='#9fb7ff'; ctx.fillText(`— ${it.text} —`, 20, ly);
     }else{
-      ctx.fillStyle = it.correct ? '#77ffb4' : '#ff6d8a';
+      ctx.fillStyle = it.correct ? THEME.sfxGood : THEME.sfxDanger;
       ctx.fillText((it.correct?'✓ ':'✗ ') + it.text, 20, ly);
     }
     ly += 18; if(ly > rect.height - 24) break;
@@ -315,7 +331,7 @@ function spawnEnemies(){
       ex=randi(0,state.gridW); ey=randi(0,state.gridH); if(++tries>50)break;
     }
     occupied.add(`${ex},${ey}`);
-    state.enemies.push({gx:ex,gy:ey,x:ex,y:ey,dir:randi(0,4),color:choice(TROGGLE_COLORS),nextStepAt:baseTime+ENEMY_STEP_MS+i*150});
+    state.enemies.push({gx:ex,gy:ey,x:ex,y:ey,dir:randi(0,4),color:choice(THEME.troggleColors),nextStepAt:baseTime+ENEMY_STEP_MS+i*150});
   }
 }
 function resetEnemyTimers(){ const base=now(); state.enemies.forEach((e,i)=>{ e.nextStepAt=base+ENEMY_STEP_MS+i*150; }); }
@@ -330,7 +346,7 @@ function enemyUpdate(){
       const bias = (Math.abs(state.player.gx-e.gx)>Math.abs(state.player.gy-e.gy))
         ? (state.player.gx>e.gx?DIRS.RIGHT:DIRS.LEFT)
         : (state.player.gy>e.gy?DIRS.DOWN:DIRS.UP);
-      const dirs=[bias,0,1,2,3].filter((d,i,arr)=>arr.indexOf(d)===i); // bias first, then others
+      const dirs=[bias,0,1,2,3].filter((d,i,arr)=>arr.indexOf(d)===i);
       for(const d of dirs){
         const [dx,dy]=DIR_VECT[d];
         const nx=e.gx+dx, ny=e.gy+dy;
@@ -348,7 +364,6 @@ function computeSeedCorrectProb(){
   const uneaten=state.items.filter(t=>!t.eaten);
   const correct=uneaten.filter(t=>t.correct).length;
   const ratio=uneaten.length?correct/uneaten.length:0;
-  // higher chance when few correct remain; lower when many are present
   let p=clamp(0.7-0.6*ratio,0.12,0.88);
   if(correct<=2) p=Math.max(p,0.80);
   return p;
@@ -417,7 +432,7 @@ function selectCategoryForLevel(){
     case 'words': state.category = pickRandomWordCategory(prev);  break;
     case 'any':   state.category = pickRandomAnyCategory(prev);   break;
     case 'single':
-    default: /* keep chosen */                                     break;
+    default: break;
   }
   const strong=catBadge?.querySelector("strong"); if(strong) strong.textContent=state.category?.name||'–';
 }
@@ -428,7 +443,7 @@ function startGame(){
   nextLevel(true);
 }
 function nextLevel(pushHeading=false){
-  state.gridW=5; state.gridH=5; // fixed
+  state.gridW=5; state.gridH=5;
   if(isBarMode()){
     state.math.needed=computeMathNeeded(state.level, state.math.base);
     state.math.progress=0;
@@ -501,12 +516,13 @@ function drawExplosions(padX,padY,tile){
     const cx=padX+ex.gx*tile+tile/2, cy=padY+ex.gy*tile+tile/2;
     // ring
     ctx.save(); ctx.globalAlpha=0.5*(1-p); ctx.beginPath(); ctx.arc(cx,cy,tile*0.15+tile*0.4*easeOutCubic(p),0,Math.PI*2);
-    ctx.strokeStyle="#ff6d8a"; ctx.lineWidth=2; ctx.stroke(); ctx.restore();
+    ctx.strokeStyle=THEME.sfxDanger; ctx.lineWidth=2; ctx.stroke(); ctx.restore();
     // particles
     for(const pr of ex.parts){
       const dist=easeOutCubic(p)*pr.spd*tile*0.9;
       const x=cx+Math.cos(pr.ang)*dist, y=cy+Math.sin(pr.ang)*dist;
-      ctx.save(); ctx.globalAlpha=1-p; ctx.fillStyle="#ff6d8a"; ctx.beginPath(); ctx.arc(x,y,Math.max(1.5,3*(1-p)),0,Math.PI*2); ctx.fill(); ctx.restore();
+      ctx.save(); ctx.globalAlpha=1-p; ctx.fillStyle=THEME.sfxDanger;
+      ctx.beginPath(); ctx.arc(x,y,Math.max(1.5,3*(1-p)),0,Math.PI*2); ctx.fill(); ctx.restore();
     }
   }
 }
@@ -529,7 +545,7 @@ function drawStarBursts(padX,padY,tile){
     for(const pr of sb.parts){
       const dist=easeOutCubic(p)*pr.spd*tile*0.95;
       const x=cx+Math.cos(pr.ang)*dist, y=cy+Math.sin(pr.ang)*dist;
-      ctx.save(); ctx.globalAlpha=1-p; drawStar(x,y,5,Math.max(2,tile*0.10*(1-p)),Math.max(1,tile*0.05*(1-p)),"#ffd166"); ctx.restore();
+      ctx.save(); ctx.globalAlpha=1-p; drawStar(x,y,5,Math.max(2,tile*0.10*(1-p)),Math.max(1,tile*0.05*(1-p)),THEME.sfxWarn); ctx.restore();
     }
   }
 }
@@ -549,13 +565,13 @@ function drawSFX(padX,padY,tile){
       ctx.save(); ctx.globalAlpha=1-p; ctx.fillStyle="#46d4ff";
       ctx.beginPath(); ctx.moveTo(cx + tile*0.18, cy - tile*0.06);
       ctx.quadraticCurveTo(cx + tile*0.24, cy + 0.02, cx + 0.14*tile, cy + 0.10*tile);
-      ctx.quadraticCurveTo(cx + tile*0.28, cy + 0.00, cx + tile*0.18, cy - tile*0.06);
+      ctx.quadraticCurveTo(cx + tile*0.28, cy + 0.00, cx + tile*0.18, cy - 0.06*tile);
       ctx.fill(); ctx.restore();
     }
   }
 }
 
-/* ===================== Math/Words/Any: category fly-in ===================== */
+/* ===================== Category fly-in ===================== */
 function launchCategoryFly(){ catFly={ text: state.category?.name||'', start: now(), delay: 1000, dur: 900 }; }
 function getBadgeCenterInCanvas(){
   const br = catBadge.getBoundingClientRect();
@@ -600,28 +616,54 @@ function showToast(msg){
 }
 function togglePause(){ if(!state.running) return; state.paused=!state.paused; pauseBtn.textContent=state.paused?'▶️ Resume':'⏸️ Pause'; }
 
-/* ===================== Draw ===================== */
-function wrapLabel(text,maxWidth,ctx2,maxLines=3){
-  const words=String(text).split(/\s+/); const lines=[]; let line="";
-  for(let w of words){
-    const test=line?line+" "+w:w;
-    if(ctx2.measureText(test).width<=maxWidth){ line=test; }
-    else{
-      if(line){ lines.push(line); if(lines.length>=maxLines) return lines; }
-      // break long tokens
-      let tmp=w;
-      while(ctx2.measureText(tmp).width>maxWidth){
-        let cut=tmp.length; while(cut>1 && ctx2.measureText(tmp.slice(0,cut)).width>maxWidth) cut--;
-        lines.push(tmp.slice(0,cut)); tmp=tmp.slice(cut);
-        if(lines.length>=maxLines) return lines;
+/* ===================== Text layout: no mid-word breaks ===================== */
+/**
+ * Fit text without breaking words:
+ * 1) Shrink font size until the longest word fits maxWidth.
+ * 2) Greedy wrap by spaces.
+ * 3) If lines exceed maxLines, shrink more and retry.
+ */
+function layoutLabelNoBreak(ctx2, text, maxWidth, options={}){
+  const { baseSize=28, minSize=10, lineHeightFactor=1.06, maxLines=3, fontFamily=THEME.fontFamily } = options;
+  const words = String(text).split(/\s+/);
+
+  // helper to wrap with current font
+  const wrapWithCurrentFont = ()=>{
+    const lines=[]; let line='';
+    for(const w of words){
+      const test = line ? (line+' '+w) : w;
+      if(ctx2.measureText(test).width <= maxWidth){
+        line = test;
+      }else{
+        if(line) lines.push(line);
+        line = w; // start new line with whole word (no breaks)
       }
-      line=tmp;
     }
+    if(line) lines.push(line);
+    return lines;
+  };
+
+  let size = baseSize;
+  while(size >= minSize){
+    ctx2.font = `${size}px ${fontFamily}`;
+    // ensure even the longest word fits on a line
+    const longest = words.reduce((m,w)=> Math.max(m, ctx2.measureText(w).width), 0);
+    if(longest > maxWidth){ size -= 1; continue; }
+
+    let lines = wrapWithCurrentFont();
+    if(lines.length > maxLines){ size -= 1; continue; }
+
+    // success
+    return { lines, fontSize:size, lineHeight: Math.max(12, Math.floor(size*lineHeightFactor)) };
   }
-  if(line && lines.length<maxLines) lines.push(line);
-  return lines;
+
+  // Fallback: tiny font, still don't break words—truncate extra lines
+  ctx2.font = `${minSize}px ${fontFamily}`;
+  const lines = layoutLabelNoBreak(ctx2, text, maxWidth, {baseSize:minSize, minSize, lineHeightFactor, maxLines: 99, fontFamily}).lines || [text];
+  return { lines: lines.slice(0, maxLines), fontSize:minSize, lineHeight:Math.max(12, Math.floor(minSize*lineHeightFactor)) };
 }
 
+/* ===================== Draw ===================== */
 function draw(){
   const rect=canvas.getBoundingClientRect();
   const sideW = sidebarWidth(rect);
@@ -641,26 +683,31 @@ function draw(){
   // tiles
   for(const t of state.items){
     const x=padX+t.gx*tile, y=padY+t.gy*tile;
-    ctx.beginPath(); roundRect(ctx,x+2,y+2,tile-4,tile-4,16);
+    ctx.beginPath(); roundRect(ctx,x+2,y+2,tile-4,tile-4,THEME.radius);
     const grad=ctx.createLinearGradient(x,y,x+tile,y+tile);
-    grad.addColorStop(0,t.eaten?'#0c1430':'#15204a'); grad.addColorStop(1,t.eaten?'#0a1126':'#0e1737');
+    grad.addColorStop(0,t.eaten?THEME.tileEatenA:THEME.tileA); grad.addColorStop(1,t.eaten?THEME.tileEatenB:THEME.tileB);
     ctx.fillStyle=grad; ctx.fill();
-    ctx.strokeStyle=t.eaten?'rgba(255,255,255,.06)':'rgba(255,255,255,.12)'; ctx.lineWidth=1.2; ctx.stroke();
+    ctx.strokeStyle=t.eaten?THEME.tileStrokeEaten:THEME.tileStroke; ctx.lineWidth=1.2; ctx.stroke();
 
     if(!t.eaten){
-      ctx.save(); ctx.fillStyle='rgba(230,240,255,.96)'; const fontSize=Math.floor(tile*0.30);
-      ctx.font=`${fontSize}px ui-sans-serif, system-ui, -apple-system, Segoe UI`; ctx.textAlign='center'; ctx.textBaseline='middle';
-      const maxW=tile*0.86, lineH=Math.max(12,Math.floor(fontSize*1.06));
-      const lines=wrapLabel(t.label,maxW,ctx,3); const totalH=lines.length*lineH; let ly=y+tile/2 - totalH/2 + lineH/2;
-      for(const line of lines){ ctx.fillText(line,x+tile/2,ly); ly+=lineH; }
+      // No mid-word breaks: shrink-to-fit + wrap by spaces only
+      ctx.save(); ctx.fillStyle=THEME.textPrimary;
+      const baseSize = Math.floor(tile*0.30);
+      const { lines, fontSize, lineHeight } = layoutLabelNoBreak(ctx, t.label, tile*0.86, {
+        baseSize, minSize: 10, maxLines: 3, fontFamily: THEME.fontFamily
+      });
+      ctx.font = `${fontSize}px ${THEME.fontFamily}`;
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      const totalH = lines.length*lineHeight; let ly=y+tile/2 - totalH/2 + lineHeight/2;
+      for(const line of lines){ ctx.fillText(line, x+tile/2, ly); ly+=lineHeight; }
       ctx.restore();
     }else if(t.correct){
-      ctx.save(); ctx.globalAlpha=0.2; ctx.fillStyle='#9cff6d'; ctx.beginPath(); ctx.arc(x+tile/2,y+tile/2,tile*0.18,0,Math.PI*2); ctx.fill(); ctx.restore();
+      ctx.save(); ctx.globalAlpha=0.2; ctx.fillStyle=THEME.correctHalo; ctx.beginPath(); ctx.arc(x+tile/2,y+tile/2,tile*0.18,0,Math.PI*2); ctx.fill(); ctx.restore();
     }
   }
 
   // powerup
-  if(star && star.active){ const x=padX+star.gx*tile+tile/2, y=padY+star.gy*tile+tile/2; drawStar(x,y,5,tile*0.22,tile*0.09,'#ffd166'); }
+  if(star && star.active){ const x=padX+star.gx*tile+tile/2, y=padY+star.gy*tile+tile/2; drawStar(x,y,5,tile*0.22,tile*0.09,THEME.sfxWarn); }
 
   // player
   if(state.player){
@@ -755,15 +802,13 @@ function syncCategorySelectDisabled(){
   categorySelect.title = disable ? 'Category is chosen automatically each level in this mode.' : '';
 }
 function applyMenuSettings(){
-  state.gridW=5; state.gridH=5; // fixed grid
+  state.gridW=5; state.gridH=5;
   state.mode = readModeFromSelect();
   syncCategorySelectDisabled();
 
-  // Selected category for Single Category; otherwise pick per level
   const selected = CATEGORIES.find(c=>c.id===categorySelect.value) || CATEGORIES[0];
   state.category = selected || null;
 
-  // reset stats
   state.level=1; state.score=0; state.lives=3; state.freezeUntil=0; state.invulnUntil=0;
   state.math.base=6; state.math.progress=0; state.math.needed=computeMathNeeded(1,state.math.base);
   state.recent.length=0; if(state.category) pushRecentHeading(state.category.name);
@@ -784,10 +829,8 @@ shuffleBtn?.addEventListener('click',()=>{ const r=choice(CATEGORIES); categoryS
 
 /* ===================== Init ===================== */
 (async function init(){
-  // Load categories from your JSON (numbers, wordSets, words, crossHints)
   await loadCategoriesFromJSON('./categories.json');
 
-  // Default category & modes
   state.category = CATEGORIES[0] || null;
   populateModes();
   populateCategories();
@@ -797,6 +840,5 @@ shuffleBtn?.addEventListener('click',()=>{ const r=choice(CATEGORIES); categoryS
   updateHUD();
   requestAnimationFrame(loop);
 
-  // Show menu on load
   menu.classList.remove('hide');
 })();
