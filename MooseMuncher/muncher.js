@@ -1,4 +1,5 @@
-// muncher.js — modular build with 4 game modes acting correctly
+// muncher.js — modular build with 4 modes
+// Default mode: "Anything Goes" and word categories loaded from ./categories.json
 import MooseMan from "./MooseMan.js";
 
 /* ===== DOM ===== */
@@ -35,65 +36,115 @@ const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=randi(0,i+1);[a[i],a[j]]
 const easeOutCubic=t=>1-Math.pow(1-t,3);
 function roundRect(c,x,y,w,h,r){const rr=Math.min(r,w/2,h/2);c.moveTo(x+rr,y);c.arcTo(x+w,y,x+w,y+h,rr);c.arcTo(x+w,y+h,x,y+h,rr);c.arcTo(x,y+h,x,y,rr);c.arcTo(x,y,x+w,y,rr);}
 
-/* ===== categories ===== */
+/* ===== category helpers ===== */
 const isPrime=n=>{if(n<2)return false;if(n%2===0)return n===2;const r=(Math.sqrt(n)|0);for(let i=3;i<=r;i+=2){if(n%i===0)return false}return true;};
 
-const wordSets={
-  fruits:["apple","banana","grape","orange","pear","peach","cherry","mango","kiwi","plum","lemon","lime","apricot","fig","melon","silver"],
-  mammals:["dog","cat","whale","bat","human","elephant","tiger","lion","horse","dolphin","mouse","wolf","bear","otter","giraffe"],
-  colors:["red","blue","green","yellow","purple","orange","pink","black","white","gray","brown","cyan","magenta","silver","gold"],
-  planets:["mercury","venus","earth","mars","jupiter","saturn","uranus","neptune"],
-  usStates:["alabama","alaska","arizona","arkansas","california","colorado","connecticut","delaware","florida","georgia","hawaii","idaho","illinois","indiana","iowa","kansas","kentucky","louisiana","maine","maryland","massachusetts","michigan","minnesota","mississippi","missouri","montana","nebraska","nevada","new hampshire","new jersey","new mexico","new york","north carolina","north dakota","ohio","oklahoma","oregon","pennsylvania","rhode island","south carolina","south dakota","tennessee","texas","utah","vermont","virginia","washington","west virginia","wisconsin","wyoming"],
-  elements:["hydrogen","helium","lithium","beryllium","boron","carbon","nitrogen","oxygen","fluorine","neon","sodium","magnesium","aluminum","silicon","phosphorus","sulfur","chlorine","argon","potassium","calcium","iron","copper","zinc","silver","gold","tin","lead","mercury"]
-};
-
-function makeWordCategory(name,setKey,labelCase="lower"){
-  const set=wordSets[setKey]||[];
-  const correct=new Set(set.map(String));
-  const distractPool=Object.values(wordSets).flat().filter(w=>!correct.has(String(w)));
-  const normalize=s=>labelCase==='title'?String(s).replace(/\b\w/g,c=>c.toUpperCase()):labelCase==='upper'?String(s).toUpperCase():String(s);
+function numericCategory(name,predicate,{min=2,max=99}={}){
   return{
-    id:name.toLowerCase().replace(/\s+/g,'-'), name, type:'word', labelCase,
-    getCorrectList(){return [...correct];},
-    getDistractorList(){return distractPool.slice();},
-    generate:(W,H,countCorrect=12)=>{
+    id:name.toLowerCase().replace(/\s+/g,'-'),
+    name,
+    type:'number',
+    min,max,test:predicate,
+    generate:(W,H)=>{
       const total=W*H;
-      const selCorrect=shuffle([...correct]).slice(0,Math.min(total,countCorrect));
-      const need=total-selCorrect.length;
-      const distract=shuffle(distractPool).slice(0,need);
-      return shuffle([...selCorrect,...distract]).map(w=>({label:normalize(w),value:String(w),correct:correct.has(String(w))}));
+      const pool=Array.from({length:max-min+1},(_,i)=>i+min);
+      const chosen=shuffle(pool).slice(0,total);
+      return chosen.map(n=>({label:String(n),value:n,correct:!!predicate(n)}));
     }
   };
 }
-function numericCategory(name,predicate,{min=2,max=99}={}){
+
+function makeWordCategory(name, words, {labelCase='lower'}={}){
+  const correctSet=new Set(words.map(String));
+  const normalize=s=>labelCase==='title'?String(s).replace(/\b\w/g,c=>c.toUpperCase()):labelCase==='upper'?String(s).toUpperCase():String(s);
   return{
-    id:name.toLowerCase().replace(/\s+/g,'-'), name,type:'number',min,max,test:predicate,
-    generate:(W,H)=>{const total=W*H;const pool=Array.from({length:max-min+1},(_,i)=>i+min);const chosen=shuffle(pool).slice(0,total);return chosen.map(n=>({label:String(n),value:n,correct:!!predicate(n)}));}
+    id:name.toLowerCase().replace(/\s+/g,'-'),
+    name,
+    type:'word',
+    labelCase,
+    getCorrectList(){ return [...correctSet]; },
+    // In JSON build we don’t ship explicit distractors; we’ll use all other word lists as a pool.
+    getDistractorList(){ return []; },
+    generate:(W,H,countCorrect=12)=>{
+      const total=W*H;
+      const corr=shuffle([...correctSet]).slice(0,Math.min(total,countCorrect));
+      // distractors will be filled later using a global pool built from all word categories
+      return corr.map(w=>({label:normalize(w),value:String(w),correct:true}));
+    }
   };
 }
-const CATEGORIES=[
-  numericCategory("Multiples of 3",n=>n%3===0),
-  numericCategory("Even Numbers",n=>n%2===0),
-  numericCategory("Prime Numbers",isPrime,{min:2,max:199}),
-  numericCategory("Squares",n=>Number.isInteger(Math.sqrt(n))),
-  numericCategory("Factors of 36",n=>36%n===0,{min:1,max:72}),
-  numericCategory("Greater than 50",n=>n>50,{min:1,max:99}),
-  makeWordCategory("Fruits","fruits","lower"),
-  makeWordCategory("Mammals","mammals","lower"),
-  makeWordCategory("Colors","colors","lower"),
-  makeWordCategory("Planets","planets","lower"),
-  makeWordCategory("US States","usStates","title"),
-  makeWordCategory("Chemical Elements","elements","lower"),
+
+/* ===== global category sets (filled at runtime) ===== */
+let NUM_CATS = [
+  numericCategory("Multiples of 3", n=>n%3===0),
+  numericCategory("Even Numbers", n=>n%2===0),
+  numericCategory("Prime Numbers", isPrime, {min:2,max:199}),
+  numericCategory("Squares", n=>Number.isInteger(Math.sqrt(n))),
+  numericCategory("Factors of 36", n=>36%n===0, {min:1,max:72}),
+  numericCategory("Greater than 50", n=>n>50, {min:1,max:99}),
 ];
-const WORD_CATS = CATEGORIES.filter(c=>c.type==='word');
-const NUM_CATS  = CATEGORIES.filter(c=>c.type==='number');
+
+let WORD_CATS = [];          // from categories.json
+let CATEGORIES = [];         // NUM_CATS + WORD_CATS after load
+let WORD_DISTRACTOR_POOL = []; // flat pool of all words across word categories
+
+/* ===== load word categories from JSON =====
+   Expected format (example):
+   {
+     "wordCategories": [
+       { "name": "Fruits", "labelCase": "lower", "words": ["apple","banana", ...] },
+       { "name": "US States", "labelCase": "title", "words": ["alabama","alaska", ...] }
+     ]
+   }
+*/
+async function loadWordCategories(jsonPath='./categories.json'){
+  try{
+    const res = await fetch(jsonPath, {cache:'no-store'});
+    if(!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const list = Array.isArray(data.wordCategories) ? data.wordCategories : [];
+    WORD_CATS = list.map(def => makeWordCategory(def.name, def.words||[], {labelCase:def.labelCase||'lower'}));
+    // Build global distractor pool from every word across all categories
+    WORD_DISTRACTOR_POOL = list.flatMap(def => (def.words||[]).map(String));
+  }catch(err){
+    console.error('[muncher] Failed to load categories.json:', err);
+    // Minimal fallback so the game still runs
+    WORD_CATS = [
+      makeWordCategory("Fruits", ["apple","banana","grape","orange","pear","peach","cherry","mango","kiwi","plum","lemon","lime","apricot","fig","melon"], {labelCase:'lower'}),
+      makeWordCategory("Colors", ["red","blue","green","yellow","purple","orange","pink","black","white","gray","brown","cyan","magenta","silver","gold"], {labelCase:'lower'}),
+    ];
+    WORD_DISTRACTOR_POOL = WORD_CATS.flatMap(c=>c.getCorrectList());
+  }
+  // Patch each word category's generate() to include distractors from the global pool
+  WORD_CATS = WORD_CATS.map(cat=>{
+    const baseGen = cat.generate;
+    return {
+      ...cat,
+      generate:(W,H,countCorrect=12)=>{
+        const total=W*H;
+        // start with base corrects
+        const items = baseGen(W,H,Math.min(total,countCorrect));
+        const have = new Set(items.map(i=>i.value));
+        const need = Math.max(0,total-items.length);
+        // pick distractors not in this cat’s correct set
+        const ownSet = new Set(cat.getCorrectList().map(String));
+        const pool = WORD_DISTRACTOR_POOL.filter(w=>!ownSet.has(String(w)));
+        const distract = shuffle(pool).filter(w=>!have.has(String(w))).slice(0,need);
+        const normalize = s => cat.labelCase==='title'?String(s).replace(/\b\w/g,c=>c.toUpperCase()):cat.labelCase==='upper'?String(s).toUpperCase():String(s);
+        const dItems = distract.map(w=>({label:normalize(w),value:String(w),correct:false}));
+        return shuffle(items.concat(dItems));
+      }
+    };
+  });
+  CATEGORIES = [...NUM_CATS, ...WORD_CATS];
+}
 
 /* ===== mode helpers ===== */
-function pickRandomMathCategory(excludeId){const nums=NUM_CATS.filter(c=>c.id!==excludeId);return choice(nums.length?nums:NUM_CATS);}
-function pickRandomWordCategory(excludeId){const ws=WORD_CATS.filter(c=>c.id!==excludeId);return choice(ws.length?ws:WORD_CATS);}
-function pickRandomAnyCategory(excludeId){const cs=CATEGORIES.filter(c=>c.id!==excludeId);return choice(cs.length?cs:CATEGORIES);}
+function pickRandomMathCategory(excludeId){ const nums=NUM_CATS.filter(c=>c.id!==excludeId); return choice(nums.length?nums:NUM_CATS); }
+function pickRandomWordCategory(excludeId){ const ws=WORD_CATS.filter(c=>c.id!==excludeId); return choice(ws.length?ws:WORD_CATS); }
+function pickRandomAnyCategory(excludeId){ const cs=CATEGORIES.filter(c=>c.id!==excludeId); return choice(cs.length?cs:CATEGORIES); }
 const isBarMode = ()=> state.mode==='math'||state.mode==='words'||state.mode==='any';
-function computeMathNeeded(level,base){return Math.max(1,Math.floor(base*Math.pow(2,level-1)));}
+function computeMathNeeded(level,base){ return Math.max(1,Math.floor(base*Math.pow(2,level-1))); }
 
 /* ===== constants ===== */
 const DIRS={UP:0,RIGHT:1,DOWN:2,LEFT:3};
@@ -106,11 +157,11 @@ let state={
   running:false, paused:false,
   level:1, score:0, lives:3,
   gridW:5, gridH:5,                  // fixed 5×5 across modes
-  category:CATEGORIES[0],
+  category:null,                     // set after categories load
   items:[], correctRemaining:0,
   player:null, enemies:[],
   freezeUntil:0, invulnUntil:0,
-  mode:'single',                      // 'single' | 'math' | 'words' | 'any'
+  mode:'any',                        // DEFAULT: Anything Goes
   math:{progress:0, base:6, needed:6},
   single:{totalCorrectAtStart:0},
   recent:[]
@@ -278,21 +329,19 @@ function seedTileAt(gx,gy){
   const pCorrect=computeSeedCorrectProb();
   if(state.category.type==='word'){
     const corr=state.category.getCorrectList?.()||[];
-    const dist=state.category.getDistractorList?.()||[];
+    const ownSet=new Set(corr.map(String));
+    const pool=WORD_DISTRACTOR_POOL.filter(w=>!ownSet.has(String(w)));
     let makeCorrect=Math.random()<pCorrect && corr.length>0;
-    if(!makeCorrect && dist.length===0 && corr.length>0) makeCorrect=true;
-    const pick=makeCorrect?choice(corr):(dist.length?choice(dist):choice(corr));
+    if(!makeCorrect && pool.length===0 && corr.length>0) makeCorrect=true;
+    const pick=makeCorrect?choice(corr):(pool.length?choice(pool):choice(corr));
     const labelCase=state.category.labelCase||'lower';
     const normalized=labelCase==='title'?String(pick).replace(/\b\w/g,c=>c.toUpperCase()):labelCase==='upper'?String(pick).toUpperCase():String(pick);
     tile.label=normalized; tile.value=String(pick); tile.correct=makeCorrect;
     if(makeCorrect) state.correctRemaining+=1;
   }else{
     const c=state.category; let n=0, correct=false;
-    if(Math.random()<pCorrect){
-      for(let i=0;i<50;i++){n=randi(c.min,c.max+1); if(c.test(n)){correct=true;break;}}
-    }else{
-      for(let i=0;i<50;i++){n=randi(c.min,c.max+1); if(!c.test(n)){correct=false;break;}}
-    }
+    if(Math.random()<pCorrect){ for(let i=0;i<50;i++){n=randi(c.min,c.max+1); if(c.test(n)){correct=true;break;}} }
+    else { for(let i=0;i<50;i++){n=randi(c.min,c.max+1); if(!c.test(n)){correct=false;break;}} }
     tile.label=String(n); tile.value=n; tile.correct=correct;
     if(correct) state.correctRemaining+=1;
   }
@@ -331,15 +380,13 @@ function handlePlayerStep(k){
 function selectCategoryForLevel(){
   const prev = state.category ? state.category.id : null;
   switch(state.mode){
-    case 'math':  state.category = pickRandomMathCategory(prev);  break;   // numeric only
-    case 'words': state.category = pickRandomWordCategory(prev);  break;   // word only
-    case 'any':   state.category = pickRandomAnyCategory(prev);   break;   // any category
+    case 'math':  state.category = pickRandomMathCategory(prev);  break;
+    case 'words': state.category = pickRandomWordCategory(prev);  break;
+    case 'any':   state.category = pickRandomAnyCategory(prev);   break;
     case 'single':
-    default:
-      // keep state.category (chosen in menu)
-      break;
+    default:      /* keep selected */                             break;
   }
-  const strong=catBadge.querySelector("strong"); if(strong) strong.textContent=state.category.name;
+  const strong=catBadge.querySelector("strong"); if(strong) strong.textContent=state.category?.name||'–';
 }
 function startGame(){
   state.running=true; state.paused=false;
@@ -348,7 +395,7 @@ function startGame(){
   nextLevel(true);
 }
 function nextLevel(pushHeading=false){
-  state.gridW=5; state.gridH=5; // lock grid size
+  state.gridW=5; state.gridH=5;
   if(isBarMode()){
     state.math.needed=computeMathNeeded(state.level,state.math.base);
     state.math.progress=0;
@@ -356,7 +403,7 @@ function nextLevel(pushHeading=false){
   if(state.mode!=='single'){ selectCategoryForLevel(); }
   buildBoard(); spawnPlayer(); spawnEnemies(); resetEnemyTimers(); updateHUD();
   state.invulnUntil=now()+1200;
-  if(pushHeading) pushRecentHeading(state.category.name);
+  if(pushHeading && state.category) pushRecentHeading(state.category.name);
 }
 function levelCleared(){ state.score+=500; state.level+=1; nextLevel(true); }
 function loseLife(){
@@ -459,8 +506,7 @@ function drawSFX(padX,padY,tile){
       const n=4; for(let i=0;i<n;i++){const off=(i-(n-1)/2)*tile*0.08; const len=tile*0.22*(1-p); ctx.beginPath(); ctx.moveTo(cx+off, cy - tile*0.2); ctx.lineTo(cx+off, cy - tile*0.2 + len); ctx.stroke();}
       ctx.restore();
       ctx.save(); ctx.globalAlpha=1-p; ctx.fillStyle="#46d4ff";
-      ctx.beginPath();
-      ctx.moveTo(cx + tile*0.18, cy - tile*0.06);
+      ctx.beginPath(); ctx.moveTo(cx + tile*0.18, cy - tile*0.06);
       ctx.quadraticCurveTo(cx + tile*0.24, cy + 0.02, cx + 0.14*tile, cy + 0.10*tile);
       ctx.quadraticCurveTo(cx + tile*0.28, cy + 0.00, cx + tile*0.18, cy - tile*0.06);
       ctx.fill(); ctx.restore();
@@ -516,7 +562,6 @@ function wrapLabel(text,maxWidth,ctx2,maxLines=4){
 function draw(){
   const rect=canvas.getBoundingClientRect();
   const sideW = sidebarWidth(rect);
-
   const tile=Math.min((rect.width - sideW)/state.gridW, rect.height/state.gridH);
   const padX=(rect.width - sideW - state.gridW*tile)/2;
   const padY=(rect.height - state.gridH*tile)/2;
@@ -611,22 +656,19 @@ function populateModes(){
     {val:'single', label:'Single Category'},
     {val:'math',   label:'Math only'},
     {val:'words',  label:'Words only'},
-    {val:'any',    label:'Anything Goes'}
+    {val:'any',    label:'Anything Goes'},
   ];
   modeSelect.innerHTML = options.map(o=>`<option value="${o.val}">${o.label}</option>`).join('');
-  // Back-compat if the page had old values pre-selected:
-  const raw = (modeSelect.value||'').toLowerCase();
-  if(raw==='classic') state.mode='single';
-  else if(raw==='math') state.mode='math';
-  if(!['single','math','words','any'].includes(state.mode)) state.mode='single';
-  modeSelect.value = state.mode;
+  // Default to "Anything Goes"
+  modeSelect.value = 'any';
+  state.mode = 'any';
 }
 function readModeFromSelect(){
-  const v=(modeSelect?.value||'single').toLowerCase();
+  const v=(modeSelect?.value||'any').toLowerCase();
   if(v==='classic') return 'single';
   if(v==='math')    return 'math';
   if(['single','math','words','any'].includes(v)) return v;
-  return 'single';
+  return 'any';
 }
 function syncCategorySelectDisabled(){
   const disable = state.mode !== 'single';
@@ -634,14 +676,14 @@ function syncCategorySelectDisabled(){
   categorySelect.title = disable ? 'Category is chosen automatically each level in this mode.' : '';
 }
 function applyMenuSettings(){
-  state.gridW=5; state.gridH=5; // lock grid size
+  state.gridW=5; state.gridH=5;
   state.mode = readModeFromSelect();
   syncCategorySelectDisabled();
-  // Selected category for Single Category; otherwise we’ll pick per-level
+  // Selected category for Single Category; otherwise we pick per level
   const cat=CATEGORIES.find(c=>c.id===categorySelect.value)||CATEGORIES[0];
   state.category=cat;
   state.math.base=6; state.math.progress=0; state.math.needed=computeMathNeeded(1,state.math.base);
-  state.recent.length=0; pushRecentHeading(state.category.name);
+  state.recent.length=0; if(state.category) pushRecentHeading(state.category.name);
   buildBoard(); spawnPlayer(); spawnEnemies(); resetEnemyTimers(); updateHUD();
 }
 modeSelect?.addEventListener('change',()=>{ state.mode = readModeFromSelect(); syncCategorySelectDisabled(); });
@@ -653,10 +695,13 @@ helpBtn?.addEventListener('click',()=>{ help.classList.remove('hide'); state.pau
 closeHelp?.addEventListener('click',()=> help.classList.add('hide'));
 document.getElementById('shuffleBtn')?.addEventListener('click',()=>{ const r=choice(CATEGORIES); categorySelect.value=r.id; const strong=catBadge.querySelector("strong"); if(strong) strong.textContent=r.name; });
 
-/* ===== init ===== */
-(function init(){
-  state.category=CATEGORIES[0];
-  populateModes();
+/* ===== init (load JSON first) ===== */
+(async function init(){
+  await loadWordCategories('./categories.json');     // pulls word lists
+  CATEGORIES = [...NUM_CATS, ...WORD_CATS];
+  state.category = CATEGORIES[0] || null;
+
+  populateModes();            // sets default to "Anything Goes"
   populateCategories();
   resizeCanvas(); updateHUD(); requestAnimationFrame(loop);
 })();
