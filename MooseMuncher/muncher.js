@@ -1,4 +1,5 @@
-// muncher.js — modular build using MooseMan.js (hero) + enemies.js (pluggable enemies)
+// muncher.js — Modular build using MooseMan.js (hero) + enemies.js (pluggable enemies)
+
 import MooseMan from "./MooseMan.js";
 import { EnemySystem, createTroggleType, ENEMY_STEP_MS } from "./enemies.js";
 const Character = MooseMan;
@@ -39,7 +40,6 @@ const now=()=>performance.now();
 const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=randi(0,i+1);[a[i],a[j]]=[a[j],a[i]]}return a};
 const easeOutCubic=t=>1-Math.pow(1-t,3);
 const lerp=(a,b,t)=>a+(b-a)*t;
-const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\"/g,'&quot;');
 const isPrime=n=>{if(n<2)return false;if(n%2===0)return n===2;const r=(Math.sqrt(n)|0);for(let i=3;i<=r;i+=2){if(n%i===0)return false}return true;};
 function roundRect(ctx,x,y,w,h,r){const rr=Math.min(r,w/2,h/2);ctx.moveTo(x+rr,y);ctx.arcTo(x+w,y,x+w,y+h,rr);ctx.arcTo(x+w,y+h,x,y+h,rr);ctx.arcTo(x,y+h,x,y,rr);ctx.arcTo(x,y,x+w,y,rr);}
 
@@ -110,18 +110,18 @@ let state={
   math:{progress:0, base:6, needed:6}
 };
 
-/* --- recent answers (newest first when drawn) --- */
+/* ---------- answer log (optional UI elsewhere) ---------- */
 const MAX_LOG=10;
-let answerLog=[]; let lastHeadingCategoryId=null;
-function logHeading(text){answerLog.push({type:'heading',text:String(text),time:now()}); if(answerLog.length>MAX_LOG)answerLog=answerLog.slice(-MAX_LOG);}
-function logAnswer(text,correct){answerLog.push({type:'answer',text:String(text),correct:!!correct,time:now()}); if(answerLog.length>MAX_LOG)answerLog=answerLog.slice(-MAX_LOG);}
+let answerLog=[];
+let lastHeadingCategoryId=null;
+function logHeading(text){answerLog.push({type:'heading',text:String(text),time:now()});if(answerLog.length>MAX_LOG)answerLog=answerLog.slice(-MAX_LOG);}
+function logAnswer(text,correct){answerLog.push({type:'answer',text:String(text),correct:!!correct,time:now()});if(answerLog.length>MAX_LOG)answerLog=answerLog.slice(-MAX_LOG);}
 
 /* ---------- enemy system ---------- */
 const enemySystem = new EnemySystem({
   DIR_VECT,
   passable:(x,y)=>x>=0&&y>=0&&x<state.gridW&&y<state.gridH,
   getTileAt:(gx,gy)=>state.items.find(t=>t.gx===gx&&t.gy===gy),
-  seedTileAt:(gx,gy,st)=>seedTileAt(gx,gy,st),
   stepMs: ENEMY_STEP_MS
 });
 enemySystem.register(createTroggleType());
@@ -188,20 +188,21 @@ function handlePlayerStep(k){
   }
 }
 
-/* ---------- flow ---------- */
+/* ---------- game flow ---------- */
 function startGame(){
   state.running=true; state.paused=false;
   state.level=1; state.score=0; state.lives=3; state.freezeUntil=0; state.invulnUntil=0;
   answerLog=[]; lastHeadingCategoryId=null;
   if(state.category){ logHeading(state.category.name); lastHeadingCategoryId=state.category.id; }
-  nextLevel(true);
+  nextLevel();
 }
 function nextLevel(){
   if((modeSelect?.value||'classic').toLowerCase()==='math'){
     const prev=state.category?state.category.id:null;
     state.category=pickRandomMathCategory(prev);
-    state.math.needed=computeMathNeeded(state.level,state.math.base);
-    state.math.progress=0; launchCategoryFly();
+    state.math.needed=computeMathNeeded(state.level, state.math.base);
+    state.math.progress=0;
+    launchCategoryFly();
   }
   if(state.category && state.category.id!==lastHeadingCategoryId){
     logHeading(state.category.name); lastHeadingCategoryId=state.category.id;
@@ -212,7 +213,8 @@ function nextLevel(){
 function levelCleared(){ state.score+=500; state.level+=1; nextLevel(); }
 function loseLife(){
   if(now()<state.invulnUntil) return;
-  state.lives-=1; state.invulnUntil=now()+1500; showToast('Ouch!');
+  state.lives-=1; state.invulnUntil=now()+1500;
+  showToast('Ouch!');
   if(state.lives<=0){ gameOver(); return; }
   state.player.gx=0; state.player.gy=0; state.player.x=0; state.player.y=0; state.player.dir=DIRS.RIGHT;
 }
@@ -222,13 +224,13 @@ function gameOver(){
   document.getElementById('finalStats')?.textContent=`You scored ${state.score}.`;
 }
 
-/* ---------- eating & scoring ---------- */
+/* ---------- eat ---------- */
 function tryEat(){
   if(!state.running||state.paused) return;
   const tile=state.items.find(t=>t.gx===state.player.gx&&t.gy===state.player.gy);
   if(!tile||tile.eaten) return;
 
-  // log first
+  // record in recent list
   logAnswer(tile.label, !!tile.correct);
 
   tile.eaten=true;
@@ -254,7 +256,7 @@ function tryEat(){
   updateHUD();
 }
 
-/* ---------- seeding for enemies (called when they land on eaten) ---------- */
+/* ---------- seeding helper for enemies (optional override in enemies.js) ---------- */
 function computeSeedCorrectProb(){
   const uneaten=state.items.filter(t=>!t.eaten);
   const correct=uneaten.filter(t=>t.correct).length;
@@ -263,47 +265,26 @@ function computeSeedCorrectProb(){
   if(correct<=2) p=Math.max(p,0.80);
   return p;
 }
-function seedTileAt(gx,gy,st=state){
-  const tile=st.items.find(t=>t.gx===gx&&t.gy===gy);
-  if(!tile||!tile.eaten) return;
-  const pCorrect=computeSeedCorrectProb();
-  if(st.category.type==='word'){
-    const corr=st.category.getCorrectList?.()||[];
-    const dist=st.category.getDistractorList?.()||[];
-    let makeCorrect=Math.random()<pCorrect && corr.length>0;
-    if(!makeCorrect && dist.length===0 && corr.length>0) makeCorrect=true;
-    const pick=makeCorrect?choice(corr):(dist.length?choice(dist):choice(corr));
-    const labelCase=st.category.labelCase||'lower';
-    const normalized=labelCase==='title'?String(pick).replace(/\b\w/g,c=>c.toUpperCase()):labelCase==='upper'?String(pick).toUpperCase():String(pick);
-    tile.label=normalized; tile.value=String(pick); tile.correct=makeCorrect;
-  }else{
-    const c=st.category; let n;
-    if(Math.random()<pCorrect){
-      for(let i=0;i<50;i++){n=randi(c.min,c.max+1); if(c.test(n)) break;}
-      tile.correct=true;
-    }else{
-      for(let i=0;i<50;i++){n=randi(c.min,c.max+1); if(!c.test(n)) break;}
-      tile.correct=false;
-    }
-    tile.label=String(n); tile.value=n;
-  }
-  tile.eaten=false;
-  if(tile.correct) st.correctRemaining+=1;
-}
 
 /* ---------- powerups ---------- */
 let star=null;
 function spawnPowerUp(gx,gy){ star={gx,gy,active:true,born:now()}; }
 
-/* ---------- vfx ---------- */
+/* ---------- effects ---------- */
 let explosions=[]; let starBursts=[]; let sfx=[]; let catFly=null;
-function spawnExplosion(gx,gy){ const N=18,parts=[]; for(let i=0;i<N;i++) parts.push({ang:rand(0,Math.PI*2),spd:rand(0.6,1.1)}); explosions.push({gx,gy,born:now(),duration:650,parts}); }
+
+function spawnExplosion(gx,gy){
+  const N=18,parts=[]; for(let i=0;i<N;i++) parts.push({ang:rand(0,Math.PI*2),spd:rand(0.6,1.1)});
+  explosions.push({gx,gy,born:now(),duration:650,parts});
+}
 function drawExplosions(ctx,padX,padY,tile){
   const tnow=now(); explosions=explosions.filter(ex=>tnow-ex.born<ex.duration);
   for(const ex of explosions){
     const p=clamp((tnow-ex.born)/ex.duration,0,1);
     const cx=padX+ex.gx*tile+tile/2, cy=padY+ex.gy*tile+tile/2;
+    // ring
     ctx.save(); ctx.globalAlpha=0.5*(1-p); ctx.beginPath(); ctx.arc(cx,cy,tile*0.15+tile*0.4*easeOutCubic(p),0,Math.PI*2); ctx.strokeStyle='#ff6d8a'; ctx.lineWidth=2; ctx.stroke(); ctx.restore();
+    // particles
     for(const pr of ex.parts){
       const dist=easeOutCubic(p)*pr.spd*tile*0.9;
       const x=cx+Math.cos(pr.ang)*dist, y=cy+Math.sin(pr.ang)*dist;
@@ -311,7 +292,16 @@ function drawExplosions(ctx,padX,padY,tile){
     }
   }
 }
-function spawnStarBurstCell(gx,gy){ const N=12,parts=[]; for(let i=0;i<N;i++) parts.push({ang:rand(0,Math.PI*2),spd:rand(0.6,1.1)}); starBursts.push({gx,gy,born:now(),duration:700,parts}); }
+function spawnStarBurstCell(gx,gy){
+  const N=12,parts=[]; for(let i=0;i<N;i++) parts.push({ang:rand(0,Math.PI*2),spd:rand(0.6,1.1)});
+  starBursts.push({gx,gy,born:now(),duration:700,parts});
+}
+function drawStar(ctx,cx,cy,spikes,outerR,innerR,color){
+  const step=Math.PI/spikes; let rot=-Math.PI/2;
+  ctx.save(); ctx.beginPath();
+  for(let i=0;i<spikes;i++){ ctx.lineTo(cx+Math.cos(rot)*outerR, cy+Math.sin(rot)*outerR); rot+=step; ctx.lineTo(cx+Math.cos(rot)*innerR, cy+Math.sin(rot)*innerR); rot+=step; }
+  ctx.closePath(); ctx.fillStyle=color; ctx.fill(); ctx.restore();
+}
 function drawStarBursts(ctx,padX,padY,tile){
   const tnow=now(); starBursts=starBursts.filter(s=>tnow-s.born<s.duration);
   for(const sb of starBursts){
@@ -331,9 +321,11 @@ function drawSFX(ctx,padX,padY,tile){
     if(e.type==='disappoint'){
       const p=clamp((tnow-e.born)/e.duration,0,1);
       const cx=padX+e.gx*tile+tile/2, cy=padY+e.gy*tile+tile/2 - tile*0.2;
+      // blue stress lines
       ctx.save(); ctx.strokeStyle='rgba(70,212,255,0.9)'; ctx.lineWidth=2;
       const n=4; for(let i=0;i<n;i++){const off=(i-(n-1)/2)*tile*0.08; const len=tile*0.22*(1-p); ctx.beginPath(); ctx.moveTo(cx+off, cy - tile*0.2); ctx.lineTo(cx+off, cy - tile*0.2 + len); ctx.stroke();}
       ctx.restore();
+      // sweat drop
       ctx.save(); ctx.globalAlpha=1-p; ctx.fillStyle='#46d4ff';
       ctx.beginPath(); ctx.moveTo(cx + tile*0.18, cy - tile*0.06);
       ctx.quadraticCurveTo(cx + tile*0.24, cy + tile*0.02, cx + tile*0.14, cy + tile*0.10);
@@ -342,14 +334,8 @@ function drawSFX(ctx,padX,padY,tile){
     }
   }
 }
-function drawStar(ctx,cx,cy,spikes,outerR,innerR,color){
-  const step=Math.PI/spikes; let rot=-Math.PI/2;
-  ctx.save(); ctx.beginPath();
-  for(let i=0;i<spikes;i++){ ctx.lineTo(cx+Math.cos(rot)*outerR, cy+Math.sin(rot)*outerR); rot+=step; ctx.lineTo(cx+Math.cos(rot)*innerR, cy+Math.sin(rot)*innerR); rot+=step; }
-  ctx.closePath(); ctx.fillStyle=color; ctx.fill(); ctx.restore();
-}
 
-/* ---------- math fly-in ---------- */
+/* ---------- category fly-in for math mode ---------- */
 function launchCategoryFly(){ catFly={text:state.category.name,start:now(),delay:1000,dur:900}; }
 function getBadgeCenterInCanvas(){
   const br=catBadge.getBoundingClientRect(), cr=canvas.getBoundingClientRect();
@@ -382,21 +368,24 @@ function drawCategoryFly(ctx,rect){
 
 /* ---------- HUD ---------- */
 function updateHUD(){
-  levelSpan.textContent=state.level;
-  scoreSpan.textContent=state.score;
-  livesSpan.textContent=state.lives;
-  const strong=catBadge.querySelector('strong'); if(strong) strong.textContent=state.category?state.category.name:'–';
-  if(state.mode==='math'){
-    const pct=clamp((state.math.progress||0)/(state.math.needed||1),0,1);
-    levelProgress.style.width=`${Math.round(pct*100)}%`;
-  }else{
-    levelProgress.style.width='0%';
+  levelSpan.textContent = state.level;
+  scoreSpan.textContent = state.score;
+  livesSpan.textContent = state.lives;
+  const strong = catBadge.querySelector('strong');
+  if (strong) strong.textContent = state.category ? state.category.name : '–';
+
+  // progress bar only for math mode
+  if ((modeSelect?.value||'classic').toLowerCase()==='math'){
+    const pct = clamp((state.math.progress||0)/(state.math.needed||1), 0, 1);
+    levelProgress.style.width = `${Math.round(pct*100)}%`;
+  } else {
+    levelProgress.style.width = '0%';
   }
 }
 function showToast(msg){ toast.textContent=msg; toast.classList.remove('hide'); clearTimeout(showToast._t); showToast._t=setTimeout(()=>toast.classList.add('hide'),1200); }
 function togglePause(){ if(!state.running) return; state.paused=!state.paused; pauseBtn.textContent=state.paused?'▶️ Resume':'⏸️ Pause'; }
 
-/* ---------- collisions & loop ---------- */
+/* ---------- collisions & draw loop ---------- */
 function checkCollisions(){
   for(const e of (state.enemies||[])){
     if(e.gx===state.player.gx && e.gy===state.player.gy){
@@ -434,6 +423,7 @@ function draw(){
     ctx.fillStyle=grad; ctx.fill();
     ctx.strokeStyle=t.eaten?'rgba(255,255,255,.06)':'rgba(255,255,255,.12)'; ctx.lineWidth=1.2; ctx.stroke();
     if(!t.eaten){
+      // wrap text without mid-word breaks
       ctx.save(); ctx.fillStyle='rgba(230,240,255,.96)'; const fontSize=Math.floor(tile*0.28);
       ctx.font=`${fontSize}px ui-sans-serif, system-ui, -apple-system, Segoe UI`; ctx.textAlign='center'; ctx.textBaseline='middle';
       const maxW=tile*0.84, lineH=Math.max(12,Math.floor(fontSize*1.06));
@@ -459,14 +449,11 @@ function draw(){
   // enemies (delegated)
   enemySystem.draw(ctx, state, padX, padY, tile);
 
-  // effects and overlays
+  // effects & overlays
   drawExplosions(ctx,padX,padY,tile);
   drawStarBursts(ctx,padX,padY,tile);
   drawSFX(ctx,padX,padY,tile);
   drawCategoryFly(ctx,rect);
-
-  // simple right-side meter (math progress shown in HUD bar; here we only reserve space)
-  // (You can extend to draw recent answers list here if desired)
 }
 function wrapLabel(text,maxWidth,ctx,maxLines=4){
   const words=String(text).split(/\s+/); const lines=[]; let line='';
@@ -503,7 +490,7 @@ function parseGridSelect(){
   const v=gridSelect?.value||"12x8"; const m=v.match(/(\d+)\s*x\s*(\d+)/i); if(!m) return {w:12,h:8}; return {w:parseInt(m[1],10),h:parseInt(m[2],10)};
 }
 function populateCategories(){
-  categorySelect.innerHTML=CATEGORIES.map(c=>`<option value="${esc(c.id)}">${esc(c.name)}</option>`).join("");
+  categorySelect.innerHTML=CATEGORIES.map(c=>`<option value="${c.id}">${c.name}</option>`).join("");
   if(CATEGORIES.length) categorySelect.value=state.category?.id||CATEGORIES[0].id;
 }
 function applyMenuSettings(){
@@ -512,8 +499,12 @@ function applyMenuSettings(){
   state.mode = modeRaw==='math' ? 'math' : 'classic';
   const cat=CATEGORIES.find(c=>c.id===categorySelect.value)||CATEGORIES[0];
   state.category=cat;
-  answerLog=[]; lastHeadingCategoryId=null; if(state.category){logHeading(state.category.name); lastHeadingCategoryId=state.category.id;}
+
+  // reset progress
   state.math.base=6; state.math.progress=0; state.math.needed=computeMathNeeded(1,state.math.base);
+
+  answerLog=[]; lastHeadingCategoryId=null; if(state.category){logHeading(state.category.name); lastHeadingCategoryId=state.category.id;}
+
   resizeCanvas(); buildBoard(); spawnPlayer(); enemySystem.spawnForLevel(state); enemySystem.resetTimers(state); updateHUD();
 }
 startBtn.addEventListener('click',()=>{ menu.classList.add('hide'); gameover.classList.add('hide'); applyMenuSettings(); state.running=true; state.paused=false; state.level=1; state.score=0; state.lives=3; state.freezeUntil=0; state.invulnUntil=0; updateHUD(); });
