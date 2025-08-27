@@ -1,4 +1,4 @@
-// muncher.js — modular build
+// muncher.js — modular build with four game modes
 import MooseMan from "./MooseMan.js";
 
 /* ===== DOM ===== */
@@ -85,7 +85,12 @@ const CATEGORIES=[
   makeWordCategory("US States","usStates","title"),
   makeWordCategory("Chemical Elements","elements","lower"),
 ];
-function pickRandomMathCategory(excludeId){const nums=CATEGORIES.filter(c=>c.type==='number'&&c.id!==excludeId);return choice(nums.length?nums:CATEGORIES.filter(c=>c.type==='number'));}
+const WORD_CATS = CATEGORIES.filter(c=>c.type==='word');
+const NUM_CATS  = CATEGORIES.filter(c=>c.type==='number');
+
+function pickRandomMathCategory(excludeId){const nums=NUM_CATS.filter(c=>c.id!==excludeId);return choice(nums.length?nums:NUM_CATS);}
+function pickRandomWordCategory(excludeId){const ws=WORD_CATS.filter(c=>c.id!==excludeId);return choice(ws.length?ws:WORD_CATS);}
+function pickRandomAnyCategory(excludeId){const cs=CATEGORIES.filter(c=>c.id!==excludeId);return choice(cs.length?cs:CATEGORIES);}
 function computeMathNeeded(level,base){return Math.max(1,Math.floor(base*Math.pow(2,level-1)));}
 
 /* ===== constants ===== */
@@ -103,11 +108,12 @@ let state={
   items:[], correctRemaining:0,
   player:null, enemies:[],
   freezeUntil:0, invulnUntil:0,
-  mode:'classic',                     // "classic" or "math"
+  mode:'single',                      // 'single' | 'math' | 'words' | 'any'
   math:{progress:0, base:6, needed:6},
   single:{totalCorrectAtStart:0},
   recent:[]
 };
+const isBarMode = ()=> state.mode==='math'||state.mode==='words'||state.mode==='any';
 
 /* ===== responsive canvas buffer ===== */
 function resizeCanvas(){
@@ -149,7 +155,7 @@ function drawSidebar(rect){
   ctx.beginPath(); roundRect(ctx, bx, by, barW, barH, 10); ctx.fill(); ctx.stroke();
 
   let pct=0, label='';
-  if(state.mode==='math'){
+  if(isBarMode()){
     pct = clamp((state.math.progress||0)/(state.math.needed||1),0,1);
     label = `${state.math.progress||0} / ${state.math.needed||0}`;
   }else{
@@ -192,7 +198,7 @@ function trimRecent(){ if(state.recent.length>60) state.recent.splice(0, state.r
 
 /* ===== board ===== */
 function minCorrectForBoard(W,H){
-  const need = state.mode==='math' ? state.math.needed||12 : Math.ceil(W*H*0.35);
+  const need = isBarMode() ? (state.math.needed||12) : Math.ceil(W*H*0.35);
   return Math.min(W*H, Math.max(12, need));
 }
 function buildBoard(){
@@ -321,6 +327,19 @@ function handlePlayerStep(k){
 }
 
 /* ===== flow ===== */
+function selectCategoryForLevel(){
+  const prev = state.category ? state.category.id : null;
+  switch(state.mode){
+    case 'math':  state.category = pickRandomMathCategory(prev);  break;
+    case 'words': state.category = pickRandomWordCategory(prev);  break;
+    case 'any':   state.category = pickRandomAnyCategory(prev);   break;
+    case 'single':
+    default:
+      // keep whatever user chose in categorySelect
+      break;
+  }
+  const strong=catBadge.querySelector("strong"); if(strong) strong.textContent=state.category.name;
+}
 function startGame(){
   state.running=true; state.paused=false;
   state.level=1; state.score=0; state.lives=3; state.freezeUntil=0; state.invulnUntil=0;
@@ -329,18 +348,13 @@ function startGame(){
 }
 function nextLevel(pushHeading=false){
   state.gridW=5; state.gridH=5; // lock grid size
-  if((modeSelect?.value||'classic').toLowerCase()==='math'){
-    state.mode='math';
-    const prev=state.category?state.category.id:null;
-    state.category=pickRandomMathCategory(prev);
+  if(isBarMode()){
     state.math.needed=computeMathNeeded(state.level,state.math.base);
     state.math.progress=0;
-  }else{
-    state.mode='classic';
   }
+  if(state.mode!=='single'){ selectCategoryForLevel(); }
   buildBoard(); spawnPlayer(); spawnEnemies(); resetEnemyTimers(); updateHUD();
   state.invulnUntil=now()+1200;
-  const strong=catBadge.querySelector("strong"); if(strong) strong.textContent=state.category.name;
   if(pushHeading) pushRecentHeading(state.category.name);
 }
 function levelCleared(){ state.score+=500; state.level+=1; nextLevel(true); }
@@ -368,7 +382,7 @@ function tryEat(){
   if(tile.correct){
     state.score+=100;
     pushRecentPick(tile.label,true);
-    if(state.mode==='math'){
+    if(isBarMode()){
       state.math.progress=Math.min(state.math.needed,(state.math.progress||0)+1);
       if(state.math.progress>=state.math.needed) setTimeout(levelCleared,350);
     }else{
@@ -380,7 +394,7 @@ function tryEat(){
     showToast('Yum! +100');
   }else{
     state.score=Math.max(0,state.score-50);
-    if(state.mode==='math') state.math.progress=Math.max(0,(state.math.progress||0)-1);
+    if(isBarMode()) state.math.progress=Math.max(0,(state.math.progress||0)-1);
     pushRecentPick(tile.label,false);
     spawnDisappointAt(state.player.gx,state.player.gy);
     loseLife();
@@ -444,8 +458,7 @@ function drawSFX(padX,padY,tile){
       const n=4; for(let i=0;i<n;i++){const off=(i-(n-1)/2)*tile*0.08; const len=tile*0.22*(1-p); ctx.beginPath(); ctx.moveTo(cx+off, cy - tile*0.2); ctx.lineTo(cx+off, cy - tile*0.2 + len); ctx.stroke();}
       ctx.restore();
       ctx.save(); ctx.globalAlpha=1-p; ctx.fillStyle="#46d4ff";
-      ctx.beginPath();
-      ctx.moveTo(cx + tile*0.18, cy - tile*0.06);
+      ctx.beginPath(); ctx.moveTo(cx + tile*0.18, cy - tile*0.06);
       ctx.quadraticCurveTo(cx + tile*0.24, cy + 0.02, cx + 0.14*tile, cy + 0.10*tile);
       ctx.quadraticCurveTo(cx + tile*0.28, cy + 0.00, cx + tile*0.18, cy - tile*0.06);
       ctx.fill(); ctx.restore();
@@ -555,10 +568,9 @@ function draw(){
   }
 
   // overlays
-  const _padX=padX,_padY=padY,_tile=tile;
-  drawExplosions(_padX,_padY,_tile);
-  drawStarBursts(_padX,_padY,_tile);
-  drawSFX(_padX,_padY,_tile);
+  drawExplosions(padX,padY,tile);
+  drawStarBursts(padX,padY,tile);
+  drawSFX(padX,padY,tile);
 
   // right sidebar
   drawSidebar(rect);
@@ -592,10 +604,33 @@ function populateCategories(){
   categorySelect.innerHTML=CATEGORIES.map(c=>`<option value="${c.id}">${c.name}</option>`).join("");
   if(CATEGORIES.length) categorySelect.value=state.category?.id||CATEGORIES[0].id;
 }
+function populateModes(){
+  const options = [
+    {val:'single', label:'Single Category'},
+    {val:'math',   label:'Math only'},
+    {val:'words',  label:'Words only'},
+    {val:'any',    label:'Anything Goes'}
+  ];
+  modeSelect.innerHTML = options.map(o=>`<option value="${o.val}">${o.label}</option>`).join('');
+  // Back-compat if the page had old values pre-selected:
+  const raw = (modeSelect.value||'').toLowerCase();
+  if(raw==='classic') state.mode='single';
+  else if(raw==='math') state.mode='math';
+  // Apply selection (keep previously chosen if valid)
+  if(!['single','math','words','any'].includes(state.mode)) state.mode='single';
+  modeSelect.value = state.mode;
+}
+function readModeFromSelect(){
+  const v=(modeSelect?.value||'single').toLowerCase();
+  if(v==='classic') return 'single';
+  if(v==='math')    return 'math';
+  if(['single','math','words','any'].includes(v)) return v;
+  return 'single';
+}
 function applyMenuSettings(){
   state.gridW=5; state.gridH=5; // lock grid size
-  const wantMath=(modeSelect?.value||'classic').toLowerCase()==='math';
-  state.mode= wantMath ? 'math' : 'classic';
+  state.mode = readModeFromSelect();
+  // Selected category for Single Category; otherwise we’ll pick per-level
   const cat=CATEGORIES.find(c=>c.id===categorySelect.value)||CATEGORIES[0];
   state.category=cat;
   state.math.base=6; state.math.progress=0; state.math.needed=computeMathNeeded(1,state.math.base);
@@ -608,11 +643,13 @@ menuBtn?.addEventListener('click',()=>{ gameover.classList.add('hide'); menu.cla
 helpBtn?.addEventListener('click',()=>{ help.classList.remove('hide'); state.paused=true; pauseBtn.textContent='▶️ Resume'; });
 closeHelp?.addEventListener('click',()=> help.classList.add('hide'));
 pauseBtn?.addEventListener('click',togglePause);
-document.getElementById('shuffleBtn')?.addEventListener('click',()=>{ const r=choice(CATEGORIES); categorySelect.value=r.id; });
+document.getElementById('shuffleBtn')?.addEventListener('click',()=>{ const r=choice(CATEGORIES); categorySelect.value=r.id; const strong=catBadge.querySelector("strong"); if(strong) strong.textContent=r.name; });
 
 /* ===== init ===== */
 (function init(){
   state.category=CATEGORIES[0];
-  state.mode=(modeSelect?.value||'classic').toLowerCase()==='math'?'math':'classic';
-  populateCategories(); resizeCanvas(); updateHUD(); requestAnimationFrame(loop);
+  // If the HTML still has old 2-mode options, we’ll overwrite them here:
+  populateModes();
+  populateCategories();
+  resizeCanvas(); updateHUD(); requestAnimationFrame(loop);
 })();
