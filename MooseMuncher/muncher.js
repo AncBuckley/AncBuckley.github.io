@@ -1,35 +1,44 @@
-// munch.js — main game module
-// Requires: prefs.js, MooseMan.js, enemies.js, categories.json
+// muncher.js — main game module (multi-file build)
+// Imports
 import { applyPreferences } from './prefs.js';
 import MooseMan from './MooseMan.js';
 import { stepEnemies, resetEnemyTimers, spawnTroggles, drawTroggle } from './enemies.js';
 
-//
-// ------- DOM -------
-//
+// ---------- DOM ----------
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 
-const catBadge   = document.getElementById('categoryBadge'); // expects <div id="categoryBadge"><strong>…</strong></div>
-const levelEl    = document.getElementById('level');
-const scoreEl    = document.getElementById('score');
-const livesEl    = document.getElementById('lives');
-const toastEl    = document.getElementById('toast');
+// HUD
+const catBadge = document.getElementById('categoryBadge'); // expects <div id="categoryBadge"><strong>…</strong></div>
+const levelEl  = document.getElementById('level');
+const scoreEl  = document.getElementById('score');
+const livesEl  = document.getElementById('lives');
+const toastEl  = document.getElementById('toast');
 
-const modeSelect = document.getElementById('modeSelect');      // values: single | words | math | any
-const catSelect  = document.getElementById('categorySelect');  // filled from categories.json
+// Menu overlays & buttons
+const menuEl     = document.getElementById('menu');
+const helpEl     = document.getElementById('help');
+const gameoverEl = document.getElementById('gameover');
+
 const startBtn   = document.getElementById('startBtn');
+const againBtn   = document.getElementById('againBtn');
+const menuBtn    = document.getElementById('menuBtn');
+const helpBtn    = document.getElementById('helpBtn');
+const closeHelp  = document.getElementById('closeHelp');
+
+// Controls on HUD/menu
+const modeSelect = document.getElementById('modeSelect');      // values: single | words | math | any  (Anything Goes default)
+const catSelect  = document.getElementById('categorySelect');  // filled from categories.json
 const pauseBtn   = document.getElementById('pauseBtn');
 const shuffleBtn = document.getElementById('shuffleBtn');
 
-//
-// ------- Utils -------
-//
+// ---------- Utils ----------
 const now = ()=> performance.now();
 const clamp = (v,a,b)=> Math.min(b, Math.max(a,v));
 const choice = arr => arr[Math.floor(Math.random()*arr.length)];
 const randi = (a,b)=> (Math.random()*(b-a)+a)|0;
 const easeOutCubic = t => 1 - Math.pow(1 - t, 3);
+function shuffle(arr){ for(let i=arr.length-1;i>0;i--){ const j=(Math.random()*(i+1))|0; [arr[i],arr[j]]=[arr[j],arr[i]]; } return arr; }
 
 function roundRect(ctx, x,y,w,h,r){
   const rr = Math.min(r, w/2, h/2);
@@ -47,15 +56,11 @@ function showToast(text, ms=1300){
   }, 60);
 }
 
-//
-// ------- Directions -------
-//
+// ---------- Directions ----------
 const DIRS = { UP:0, RIGHT:1, DOWN:2, LEFT:3 };
 const DIR_VECT = [ [0,-1],[1,0],[0,1],[-1,0] ];
 
-//
-// ------- Categories (loaded from categories.json) -------
-//
+// ---------- Categories (from categories.json) ----------
 let CATEGORIES = [];   // mixed list (numbers + words)
 let WORD_CATS = [];
 let MATH_CATS = [];
@@ -69,7 +74,7 @@ async function loadCategories(){
   const wordSets = structuredClone(data.wordSets || {});
   CROSS_HINTS = data.crossHints || {};
 
-  // Apply cross hints: e.g., "silver" appears in colors, metals, elements
+  // Inject cross-hints (e.g., silver -> colors + metals + elements)
   for(const [word, sets] of Object.entries(CROSS_HINTS)){
     for(const setKey of sets){
       if(!wordSets[setKey]) wordSets[setKey] = [];
@@ -91,22 +96,19 @@ async function loadCategories(){
       case: labCase,
       generate(W,H, wantCorrect = Math.floor(W*H*0.4)){
         const total = W*H;
-        // Pick a blend of correct + distractors
         const correctPool = [...set];
         const otherPools = Object.keys(wordSets)
           .filter(k => k !== wc.set)
           .flatMap(k => wordSets[k]);
 
-        const shuffledCorrect = shuffle(correctPool);
-        const chosenCorrect = shuffledCorrect.slice(0, Math.min(wantCorrect, shuffledCorrect.length));
+        const chosenCorrect = shuffle(correctPool).slice(0, Math.min(wantCorrect, correctPool.length));
+        const distractNeed  = Math.max(0, total - chosenCorrect.length);
+        const chosenDistract= shuffle(otherPools.filter(x => !chosenCorrect.includes(x))).slice(0, distractNeed);
 
-        const distractPool = shuffle(otherPools.filter(x => !chosenCorrect.includes(x)));
-        const distractNeed = Math.max(0, total - chosenCorrect.length);
-        const chosenDistract = distractPool.slice(0, distractNeed);
-
-        const items = shuffle([...chosenCorrect.map(label => ({ label: normalize(label), value: label, correct: true })),
-                               ...chosenDistract.map(label => ({ label: normalize(label), value: label, correct: false }))]);
-
+        const items = shuffle([
+          ...chosenCorrect.map(label => ({ label: normalize(label), value: label, correct: true })),
+          ...chosenDistract.map(label => ({ label: normalize(label), value: label, correct: false }))
+        ]);
         return items;
       }
     };
@@ -114,7 +116,8 @@ async function loadCategories(){
 
   // Number categories
   const isPrime = n => {
-    if (n<2) return false; if (n%2===0) return n===2; const r=Math.sqrt(n)|0; for(let i=3;i<=r;i+=2){ if(n%i===0) return false } return true;
+    if (n<2) return false; if (n%2===0) return n===2; const r=Math.sqrt(n)|0;
+    for(let i=3;i<=r;i+=2){ if(n%i===0) return false } return true;
   };
   MATH_CATS = (data.numbers || []).map(nc => {
     let pred;
@@ -141,17 +144,16 @@ async function loadCategories(){
   });
 
   CATEGORIES = [...MATH_CATS, ...WORD_CATS];
-  // Default the dropdown options, if present
+
+  // Populate dropdown (for Single Category mode only)
   if(catSelect){
-    catSelect.innerHTML = WORD_CATS.concat(MATH_CATS).map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+    catSelect.innerHTML = WORD_CATS.concat(MATH_CATS)
+      .map(c => `<option value="${c.id}">${c.name}</option>`)
+      .join('');
   }
 }
 
-function shuffle(arr){ for(let i=arr.length-1;i>0;i--){ const j=(Math.random()*(i+1))|0; [arr[i],arr[j]]=[arr[j],arr[i]]; } return arr; }
-
-//
-// ------- Game State -------
-//
+// ---------- Game State ----------
 const state = {
   running: false,
   paused: false,
@@ -164,7 +166,7 @@ const state = {
   score: 0,
   lives: 3,
 
-  mode: 'any',             // 'single' | 'words' | 'math' | 'any'
+  mode: 'any',             // 'single' | 'words' | 'math' | 'any'  (Anything Goes default)
   category: null,
 
   items: [],               // tiles
@@ -176,32 +178,29 @@ const state = {
   freezeUntil: 0,
   invulnUntil: 0,
 
-  // level bar (all non-single modes *and* single per your earlier change)
+  // level progress bar config
   math: { base: 6, needed: 6, progress: 0 },
 
-  // Troggle catch animation flag
+  // Troggle catch animation state
   catchAnim: null
 };
 
-//
-// ------- Canvas & Resize -------
-//
+// ---------- Canvas & Resize ----------
 function resizeCanvas(){
   const dpr = devicePixelRatio || 1;
   const rect = canvas.getBoundingClientRect();
   canvas.width = Math.floor(rect.width * dpr);
   canvas.height = Math.floor(rect.height * dpr);
   ctx.setTransform(dpr,0,0,dpr,0,0);
-  // fixed 5x5 grid — compute tile from available area
+
+  // Fixed 5×5 grid — compute tile from available area
   const barW = needsBar() ? Math.max(90, rect.width*0.08) : 0;
   state.tile = Math.floor(Math.min((rect.width - barW)/state.gridW, rect.height/state.gridH));
 }
 addEventListener('resize', resizeCanvas);
 
-//
-// ------- UI Sync -------
-//
-function needsBar(){ return true; } // keep level bar for all modes (as requested previously)
+// ---------- UI helpers ----------
+function needsBar(){ return true; } // keep bar in all modes per your earlier change
 
 function updateHUD(){
   if(levelEl) levelEl.textContent = String(state.level);
@@ -214,9 +213,9 @@ function updateHUD(){
 function readModeFromSelect(){
   if(!modeSelect) return state.mode;
   const v = modeSelect.value;
-  if(v === 'single') return 'single';
-  if(v === 'words')  return 'words';
-  if(v === 'math')   return 'math';
+  if(v==='single') return 'single';
+  if(v==='words')  return 'words';
+  if(v==='math')   return 'math';
   return 'any';
 }
 
@@ -232,33 +231,23 @@ function pickRandom(arr, excludeId){
   return pool.length ? choice(pool) : null;
 }
 
-function pickRandomAnyCategory(prevId){
-  return pickRandom(CATEGORIES, prevId);
-}
-function pickRandomWordCategory(prevId){
-  return pickRandom(WORD_CATS, prevId);
-}
-function pickRandomMathCategory(prevId){
-  return pickRandom(MATH_CATS, prevId);
-}
+function pickRandomAnyCategory(prevId){ return pickRandom(CATEGORIES, prevId); }
+function pickRandomWordCategory(prevId){ return pickRandom(WORD_CATS, prevId); }
+function pickRandomMathCategory(prevId){ return pickRandom(MATH_CATS, prevId); }
 
+// Every 5th level, increase the per-level requirement by larger increments: +2 at 5, +4 at 10, +6 at 15, …
 function computeMathNeeded(level, base){
-  // baseline exponential, plus your "progressive increase every 5th level":
-  // +2 at 5, +4 at 10, +6 at 15, etc.
-  const step = Math.floor(level/5);
-  const extra = (step * (step+1)); // 2, 6, 12 ... (2 + 4 + 6 up to step) -> cumulative, but we’ll just bump base multiplier
+  const block = Math.floor(level/5);        // 0,1,2,3…
+  const extra = block * (block + 1);        // 0,2,6,12,…  (2,4,6 added cumulatively)
   return Math.max(1, Math.floor(base * Math.pow(2, level-1) + extra));
 }
 
-//
-// ------- Board & Entities -------
-//
+// ---------- Board & Entities ----------
 function buildBoard(){
   const W = state.gridW, H = state.gridH;
   const wantCorrect = Math.min(W*H, Math.max(8, state.math.needed||8));
   const items = state.category.generate(W,H, wantCorrect).slice(0, W*H);
 
-  // Stamp grid positions + eaten flags
   state.items = items.map((it, idx)=>({
     ...it,
     eaten:false,
@@ -272,9 +261,7 @@ function spawnPlayer(){
   state.player = { gx:0, gy:0, x:0, y:0, dir:DIRS.RIGHT, moving:null };
 }
 
-//
-// ------- Game Flow -------
-//
+// ---------- Game Flow ----------
 function applyMenuSettings(){
   state.gridW = 5; state.gridH = 5;
 
@@ -282,7 +269,6 @@ function applyMenuSettings(){
   syncCategorySelectDisabled();
 
   if (state.mode === 'single'){
-    // use dropdown
     const selected = CATEGORIES.find(c => c.id === catSelect?.value) || CATEGORIES[0];
     state.category = selected || null;
   } else if (state.mode === 'words'){
@@ -293,7 +279,7 @@ function applyMenuSettings(){
     state.category = pickRandomAnyCategory();
   }
 
-  // Reset baseline stats & bar
+  // Reset stats & bar
   state.level = 1; state.score = 0; state.lives = 3;
   state.freezeUntil = 0; state.invulnUntil = 0;
 
@@ -310,6 +296,10 @@ function applyMenuSettings(){
 }
 
 function startGame(){
+  // Hide overlays
+  menuEl?.classList.add('hide');
+  gameoverEl?.classList.add('hide');
+
   applyMenuSettings();
   state.running = true;
   state.paused = false;
@@ -317,10 +307,8 @@ function startGame(){
 }
 
 function nextLevel(){
-  // pick category according to mode (Words -> word-only, Math -> numeric-only, Any -> mixed)
   const prev = state.category ? state.category.id : null;
   if (state.mode === 'single'){
-    // keep same selected category
     const sel = CATEGORIES.find(c => c.id === catSelect?.value) || state.category;
     state.category = sel || state.category;
   } else if (state.mode === 'words'){
@@ -354,12 +342,8 @@ function loseLife(){
   state.lives -= 1;
   state.invulnUntil = now() + 1500;
   showToast('Ouch!');
-  if(state.lives <= 0){
-    state.running = false;
-    state.paused = false;
-    showToast('Game Over');
-    return;
-  }
+  if(state.lives <= 0){ gameOver(); return; }
+
   // Respawn player at (0,0)
   if(state.player){
     state.player.gx=0; state.player.gy=0;
@@ -370,9 +354,17 @@ function loseLife(){
   updateHUD();
 }
 
-//
-// ------- Input -------
-//
+function gameOver(){
+  state.running = false;
+  state.paused  = false;
+
+  // show overlay with final score
+  const finalStats = document.getElementById('finalStats');
+  if(finalStats) finalStats.textContent = `You scored ${state.score}.`;
+  gameoverEl?.classList.remove('hide');
+}
+
+// ---------- Input ----------
 document.addEventListener('keydown', e=>{
   const k = e.key.toLowerCase();
   if(['arrowup','arrowdown','arrowleft','arrowright','w','a','s','d'].includes(k)){
@@ -383,6 +375,10 @@ document.addEventListener('keydown', e=>{
   }
   if(k===' ' || k==='enter'){ tryEat(); }
   if(k==='p'){ togglePause(); }
+  if(k==='escape'){
+    if(!helpEl?.classList.contains('hide')) helpEl?.classList.add('hide');
+    else togglePause();
+  }
 });
 
 function handlePlayerStep(k){
@@ -412,9 +408,7 @@ function togglePause(){
   pauseBtn && (pauseBtn.textContent = state.paused ? '▶️ Resume' : '⏸️ Pause');
 }
 
-//
-// ------- Eating tiles -------
-//
+// ---------- Eating ----------
 function getTileAt(gx,gy){ return state.items.find(t => t.gx===gx && t.gy===gy); }
 function inBounds(gx,gy){ return gx>=0 && gy>=0 && gx<state.gridW && gy<state.gridH; }
 
@@ -436,19 +430,17 @@ function tryEat(){
     }
   } else {
     state.score = Math.max(0, state.score - 50);
-    // small wrong-pick feedback (visual handled elsewhere if you have an sfx system)
     showToast('Wrong! −50');
     // In bar modes, drain a bit
     state.math.progress = Math.max(0, (state.math.progress||0) - 1);
-    // Optionally also lose life on wrong eat (keep or remove as your design)
+    // (Optional: also lose a life on wrong)
+    // loseLife();
   }
 
   updateHUD();
 }
 
-//
-// ------- Collisions & Catch Animation -------
-//
+// ---------- Collisions & Catch Animation ----------
 function checkCollisions(){
   if(state.catchAnim) return; // don't retrigger mid-animation
   for(let i=0;i<state.enemies.length;i++){
@@ -494,9 +486,7 @@ function finalizeCatchAnimation(){
   state.catchAnim = null;
 }
 
-//
-// ------- Draw Helpers -------
-//
+// ---------- Draw helpers ----------
 function wrapLabel(text, maxWidth, ctx, maxLines=3){
   const words = String(text).split(' ');
   const lines = [];
@@ -508,7 +498,7 @@ function wrapLabel(text, maxWidth, ctx, maxLines=3){
     } else {
       if(line) lines.push(line);
       else {
-        // Hard break long word
+        // Hard break very long word
         let tmp = w;
         while(ctx.measureText(tmp).width > maxWidth){
           let cut = tmp.length;
@@ -531,16 +521,18 @@ function drawLevelBar(ctx, rect, barArea){
   const x = rect.width - barArea + (barArea - barW)/2;
   const y = 16;
   const h = rect.height - 32;
-  // panel
+
   ctx.save();
+  // panel
   ctx.fillStyle = '#0a1437'; ctx.strokeStyle = '#20306b'; ctx.lineWidth = 1;
   ctx.beginPath(); roundRect(ctx, x, y, barW, h, 10); ctx.fill(); ctx.stroke();
+
   // fill
   const p = clamp(state.math.progress / (state.math.needed || 1), 0, 1);
   const fillH = Math.floor((h-6) * p);
-  ctx.fillStyle = ctx.createLinearGradient(0,y+h-3-fillH, 0, y+h-3);
-  ctx.fillStyle.addColorStop?.(0, '#46d4ff'); // guard old canvases
-  ctx.fillStyle.addColorStop?.(1, '#9cff6d');
+  const grd = ctx.createLinearGradient(0,y+h-3-fillH, 0, y+h-3);
+  grd.addColorStop?.(0, '#46d4ff'); grd.addColorStop?.(1, '#9cff6d');
+  ctx.fillStyle = grd;
   ctx.fillRect(x+3, y+h-3-fillH, barW-6, fillH);
   ctx.restore();
 }
@@ -581,9 +573,7 @@ function drawCatchAnimation(padX, padY, tile){
   }
 }
 
-//
-// ------- Draw -------
-//
+// ---------- Draw ----------
 function draw(){
   const rect = canvas.getBoundingClientRect();
   const barArea = needsBar() ? Math.max(90, rect.width*0.08) : 0;
@@ -620,7 +610,7 @@ function draw(){
     ctx.lineWidth = 1.2; ctx.stroke();
 
     if(!t.eaten){
-      // word/number label
+      // label with wrapping (no mid-word breaks)
       ctx.save();
       ctx.fillStyle = 'rgba(230,240,255,.95)';
       const fontSize = Math.floor(tile*0.23);
@@ -642,7 +632,7 @@ function draw(){
     }
   }
 
-  // Player (skip normal draw during catch animation so shrink effect is visible)
+  // Player (skip normal draw during catch animation)
   if(state.player && !state.catchAnim){
     const px = padX + state.player.x*tile + tile/2;
     const py = padY + state.player.y*tile + tile/2;
@@ -670,18 +660,16 @@ function draw(){
   }
 }
 
-//
-// ------- Loop -------
-//
+// ---------- Loop ----------
 function tick(){
   if(state.running && !state.paused){
-    // Move enemies (skips internally while catch animation is active)
+    // Move enemies (enemies.js skips movement while catch animation is active)
     stepEnemies(state);
 
     // Collision checks (no re-trigger during active animation)
     checkCollisions();
 
-    // End the catch animation once time elapses
+    // End catch animation if time elapsed
     if(state.catchAnim && (now() - state.catchAnim.start >= state.catchAnim.duration)){
       finalizeCatchAnimation();
     }
@@ -692,18 +680,44 @@ function tick(){
   requestAnimationFrame(tick);
 }
 
-//
-// ------- Wiring -------
-//
+// ---------- Wiring ----------
 function bindUI(){
-  startBtn?.addEventListener('click', startGame);
+  // Start → hide menu and start game
+  startBtn?.addEventListener('click', () => {
+    menuEl?.classList.add('hide');
+    gameoverEl?.classList.add('hide');
+    startGame();
+  });
+
+  // Game Over → Play again
+  againBtn?.addEventListener('click', () => {
+    gameoverEl?.classList.add('hide');
+    startGame();
+  });
+
+  // Game Over → Back to menu
+  menuBtn?.addEventListener('click', () => {
+    gameoverEl?.classList.add('hide');
+    menuEl?.classList.remove('hide');
+    state.running = false;
+  });
+
+  // Help open/close
+  helpBtn?.addEventListener('click', () => helpEl?.classList.remove('hide'));
+  closeHelp?.addEventListener('click', () => helpEl?.classList.add('hide'));
+
+  // Pause
   pauseBtn?.addEventListener('click', togglePause);
+
+  // Random category quick-pick
   shuffleBtn?.addEventListener('click', ()=>{
     if(!catSelect) return;
     const all = WORD_CATS.concat(MATH_CATS);
     const pick = choice(all);
     catSelect.value = pick?.id || catSelect.value;
   });
+
+  // Mode changes affect category dropdown availability
   modeSelect?.addEventListener('change', ()=>{
     state.mode = readModeFromSelect();
     syncCategorySelectDisabled();
@@ -711,14 +725,19 @@ function bindUI(){
 }
 
 async function boot(){
-  applyPreferences?.(); // apply theme/fonts if you’re using prefs.js
+  applyPreferences?.(); // theme/fonts
   bindUI();
   await loadCategories();
+  // Default mode is "any" (Anything Goes)
+  if(modeSelect) modeSelect.value = 'any';
+  state.mode = readModeFromSelect();
+  syncCategorySelectDisabled();
+
   resizeCanvas();
   updateHUD();
   requestAnimationFrame(tick);
 }
-
 boot();
 
+// Exports (if needed elsewhere)
 export { state, DIRS, DIR_VECT, inBounds, getTileAt, startGame, nextLevel, tryEat };
