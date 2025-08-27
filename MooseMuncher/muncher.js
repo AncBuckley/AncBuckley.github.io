@@ -1,7 +1,7 @@
-// muncher.js — clean modular build compatible with Index + MooseMan v1.2
+// muncher.js — 5x5 grid + right sidebar (level bar + recent picks)
 import MooseMan from "./MooseMan.js";
 
-/* ================= DOM ================= */
+/* ===== DOM ===== */
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
@@ -18,32 +18,24 @@ const closeHelp = document.getElementById("closeHelp");
 
 const categorySelect = document.getElementById("categorySelect");
 const modeSelect = document.getElementById("modeSelect");
-const gridSelect = document.getElementById("gridSelect");
 
 const levelSpan = document.getElementById("level");
 const scoreSpan = document.getElementById("score");
 const livesSpan = document.getElementById("lives");
 const toast = document.getElementById("toast");
 const catBadge = document.getElementById("categoryBadge");
-const levelProgress = document.getElementById("levelProgress");
 
-/* =============== utils =============== */
-const rand = (a,b)=>Math.random()*(b-a)+a;
-const randi = (a,b)=>Math.floor(rand(a,b));
-const choice = a=>a[Math.floor(Math.random()*a.length)];
-const clamp = (v,a,b)=>Math.min(b,Math.max(a,v));
-const now = ()=>performance.now();
-const shuffle = a=>{for(let i=a.length-1;i>0;i--){const j=randi(0,i+1);[a[i],a[j]]=[a[j],a[i]]}return a};
+/* ===== utils ===== */
+const rand=(a,b)=>Math.random()*(b-a)+a;
+const randi=(a,b)=>Math.floor(rand(a,b));
+const choice=a=>a[Math.floor(Math.random()*a.length)];
+const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
+const now=()=>performance.now();
+const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=randi(0,i+1);[a[i],a[j]]=[a[j],a[i]]}return a};
 const easeOutCubic=t=>1-Math.pow(1-t,3);
-const lerp=(a,b,t)=>a+(b-a)*t;
+function roundRect(c,x,y,w,h,r){const rr=Math.min(r,w/2,h/2);c.moveTo(x+rr,y);c.arcTo(x+w,y,x+w,y+h,rr);c.arcTo(x+w,y+h,x,y+h,rr);c.arcTo(x,y+h,x,y,rr);c.arcTo(x,y,x+w,y,rr);}
 
-function roundRect(c,x,y,w,h,r){
-  const rr=Math.min(r,w/2,h/2);
-  c.moveTo(x+rr,y); c.arcTo(x+w,y,x+w,y+h,rr); c.arcTo(x+w,y+h,x,y+h,rr);
-  c.arcTo(x,y+h,x,y,rr); c.arcTo(x,y,x+w,y,rr);
-}
-
-/* ============ categories ============ */
+/* ===== categories ===== */
 const isPrime=n=>{if(n<2)return false;if(n%2===0)return n===2;const r=(Math.sqrt(n)|0);for(let i=3;i<=r;i+=2){if(n%i===0)return false}return true;};
 
 const wordSets={
@@ -61,8 +53,7 @@ function makeWordCategory(name,setKey,labelCase="lower"){
   const distractPool=Object.values(wordSets).flat().filter(w=>!correct.has(String(w)));
   const normalize=s=>labelCase==='title'?String(s).replace(/\b\w/g,c=>c.toUpperCase()):labelCase==='upper'?String(s).toUpperCase():String(s);
   return{
-    id:name.toLowerCase().replace(/\s+/g,'-'),
-    name,type:'word',labelCase,
+    id:name.toLowerCase().replace(/\s+/g,'-'), name, type:'word', labelCase,
     getCorrectList(){return [...correct];},
     getDistractorList(){return distractPool.slice();},
     generate:(W,H,countCorrect=12)=>{
@@ -76,7 +67,7 @@ function makeWordCategory(name,setKey,labelCase="lower"){
 }
 function numericCategory(name,predicate,{min=2,max=99}={}){
   return{
-    id:name.toLowerCase().replace(/\s+/g,'-'), name, type:'number', min, max, test:predicate,
+    id:name.toLowerCase().replace(/\s+/g,'-'), name,type:'number',min,max,test:predicate,
     generate:(W,H)=>{const total=W*H;const pool=Array.from({length:max-min+1},(_,i)=>i+min);const chosen=shuffle(pool).slice(0,total);return chosen.map(n=>({label:String(n),value:n,correct:!!predicate(n)}));}
   };
 }
@@ -92,68 +83,150 @@ const CATEGORIES=[
   makeWordCategory("Colors","colors","lower"),
   makeWordCategory("Planets","planets","lower"),
   makeWordCategory("US States","usStates","title"),
-  makeWordCategory("Chemical Elements","elements","lower")
+  makeWordCategory("Chemical Elements","elements","lower"),
 ];
 function pickRandomMathCategory(excludeId){const nums=CATEGORIES.filter(c=>c.type==='number'&&c.id!==excludeId);return choice(nums.length?nums:CATEGORIES.filter(c=>c.type==='number'));}
 function computeMathNeeded(level,base){return Math.max(1,Math.floor(base*Math.pow(2,level-1)));}
 
-/* ============== constants ============== */
+/* ===== constants ===== */
 const DIRS={UP:0,RIGHT:1,DOWN:2,LEFT:3};
 const DIR_VECT=[[0,-1],[1,0],[0,1],[-1,0]];
 const ENEMY_STEP_MS=3000;
 const TROGGLE_COLORS=['#ff3b6b','#ffb800','#00e5ff','#7cff00','#ff00e5','#ff7a00','#00ffb3','#ffd700','#00ffd0','#ff4d00'];
 
-/* ================ state ================ */
+/* ===== state ===== */
 let state={
   running:false, paused:false,
   level:1, score:0, lives:3,
-  gridW:12, gridH:8, tile:64,
+  gridW:5, gridH:5, tile:64,          // <<< fixed 5 × 5
   category:CATEGORIES[0],
   items:[], correctRemaining:0,
   player:null, enemies:[],
   freezeUntil:0, invulnUntil:0,
-  mode:'classic',
-  math:{progress:0, base:6, needed:6}
+  mode:'classic',                     // "classic" or "math"
+  math:{progress:0, base:6, needed:6},
+  single:{totalCorrectAtStart:0},     // for Classic progress
+  recent:[]                           // last 10 picks (+ headings)
 };
 
-/* ============ sizing / canvas ============ */
+/* ===== canvas sizing ===== */
 function resizeCanvas(){
   const dpr=window.devicePixelRatio||1;
   const rect=canvas.getBoundingClientRect();
   canvas.width=Math.floor(rect.width*dpr);
   canvas.height=Math.floor(rect.height*dpr);
   ctx.setTransform(dpr,0,0,dpr,0,0);
-  const sidebarW=Math.max(240, Math.floor(rect.width*0.22));
-  state.tile=Math.floor(Math.min((rect.width - sidebarW)/state.gridW, rect.height/state.gridH));
+  // leave room for right sidebar
+  const sideW = sidebarWidth(rect);
+  state.tile=Math.floor(Math.min((rect.width - sideW)/state.gridW, rect.height/state.gridH));
 }
-addEventListener("resize",resizeCanvas);
+addEventListener('resize',resizeCanvas);
 
-/* =============== board gen =============== */
-function minCorrectForBoard(W,H){
-  const need = state.mode==='math' ? state.math.needed||12 : Math.ceil(W*H*0.35);
-  return Math.min(W*H, Math.max(12, need));
+/* ===== sidebar (level bar + recent) ===== */
+function sidebarWidth(rect){ return Math.max(220, Math.floor(rect.width*0.24)); }
+function drawSidebar(rect, padX, padY, tile){
+  const sideW = sidebarWidth(rect);
+  const x = rect.width - sideW;
+  // panel
+  ctx.save();
+  ctx.translate(x,0);
+  ctx.fillStyle='rgba(255,255,255,0.04)';
+  ctx.strokeStyle='rgba(255,255,255,0.10)';
+  ctx.lineWidth=1;
+  ctx.beginPath(); roundRect(ctx, 8, 8, sideW-16, rect.height-16, 14); ctx.fill(); ctx.stroke();
+
+  // Title
+  ctx.fillStyle='#cfe0ff';
+  ctx.font='700 16px system-ui, -apple-system, Segoe UI';
+  ctx.textAlign='left'; ctx.textBaseline='top';
+  ctx.fillText('Progress', 20, 16);
+
+  // Vertical progress bar
+  const barH = Math.max(140, rect.height*0.28);
+  const barW = 22;
+  const bx = 28, by = 42;
+  ctx.save();
+  ctx.translate(0,0);
+  ctx.fillStyle='#0a1437'; ctx.strokeStyle='#20306b';
+  ctx.lineWidth=1;
+  ctx.beginPath(); roundRect(ctx, bx, by, barW, barH, 10); ctx.fill(); ctx.stroke();
+
+  let pct = 0, label = '';
+  if(state.mode==='math'){
+    pct = clamp((state.math.progress||0)/(state.math.needed||1),0,1);
+    label = `${state.math.progress||0} / ${state.math.needed||0}`;
+  }else{
+    const eatenCorrect = Math.max(0, (state.single.totalCorrectAtStart||0) - state.correctRemaining);
+    pct = state.single.totalCorrectAtStart ? clamp(eatenCorrect/state.single.totalCorrectAtStart,0,1) : 0;
+    label = `${eatenCorrect} / ${state.single.totalCorrectAtStart}`;
+  }
+  const fillH = Math.floor(barH*pct);
+  // gradient fill
+  const g=ctx.createLinearGradient(0, by+barH, 0, by+barH-fillH);
+  g.addColorStop(0,'#46d4ff'); g.addColorStop(1,'#9cff6d');
+  ctx.fillStyle=g;
+  ctx.beginPath(); roundRect(ctx, bx, by+barH-fillH, barW, fillH, 10); ctx.fill();
+
+  // percent label
+  ctx.fillStyle='#e8f2ff';
+  ctx.font='600 13px system-ui, -apple-system, Segoe UI';
+  ctx.textAlign='left';
+  ctx.fillText(label, bx+barW+12, by+barH-18);
+  ctx.restore();
+
+  // Recent picks list
+  ctx.fillStyle='#cfe0ff';
+  ctx.font='700 16px system-ui, -apple-system'; ctx.fillText('Recent Picks', 20, by+barH+18);
+  ctx.font='13px system-ui, -apple-system';
+  let ly = by+barH+40;
+  const maxShow = 10;
+  const items = state.recent.slice(-maxShow).reverse(); // newest first
+  for(const it of items){
+    if(it.type==='heading'){
+      ctx.fillStyle='#9fb7ff';
+      ctx.fillText(`— ${it.text} —`, 20, ly);
+    }else{
+      ctx.fillStyle = it.correct ? '#77ffb4' : '#ff6d8a';
+      const txt = (it.correct?'✓ ':'✗ ') + it.text;
+      ctx.fillText(txt, 20, ly);
+    }
+    ly += 18;
+    if(ly > rect.height - 24) break;
+  }
+
+  ctx.restore();
+
+  return sideW;
 }
+function pushRecentHeading(text){ state.recent.push({type:'heading', text}); trimRecent(); }
+function pushRecentPick(text, correct){ state.recent.push({type:'pick', text, correct}); trimRecent(); }
+function trimRecent(){ if(state.recent.length>60) state.recent.splice(0, state.recent.length-60); }
+
+/* ===== board ===== */
 function buildBoard(){
   const W=state.gridW,H=state.gridH;
-  const items=state.category.generate(W,H,minCorrectForBoard(W,H));
+  const need = state.mode==='math' ? Math.min(W*H, Math.max(12, state.math.needed||12)) : Math.ceil(W*H*0.35);
+  const items=state.category.generate(W,H,need);
+  // ensure a decent number of corrects
   let best=items, bestC=items.filter(t=>t.correct).length;
   const targetMin=Math.max(6,Math.floor(W*H*0.2));
   for(let i=0;i<10&&bestC<targetMin;i++){
-    const alt=state.category.generate(W,H,minCorrectForBoard(W,H));
+    const alt=state.category.generate(W,H,need);
     const c=alt.filter(t=>t.correct).length;
     if(c>bestC){best=alt;bestC=c;}
   }
   state.items=best.map((it,idx)=>({...it,eaten:false,gx:idx%W,gy:Math.floor(idx/W)}));
   state.correctRemaining=state.items.filter(t=>t.correct).length;
+  state.single.totalCorrectAtStart = state.correctRemaining; // for Classic progress
 }
 
-/* =============== entities =============== */
+/* ===== entities ===== */
 function spawnPlayer(){ state.player={gx:0,gy:0,x:0,y:0,dir:DIRS.RIGHT,moving:null}; }
 function spawnEnemies(){
   const base = state.level<=3? 2 : state.level<=6? 3 : 4;
   const n = clamp(base + (state.level>6?1:0), 2, 6);
   state.enemies=[];
-  const occupied=new Set(["0,0"]);
+  const occupied=new Set(['0,0']);
   const baseTime=now();
   for(let i=0;i<n;i++){
     let ex=randi(0,state.gridW), ey=randi(0,state.gridH), tries=0;
@@ -165,8 +238,6 @@ function spawnEnemies(){
   }
 }
 function resetEnemyTimers(){ const base=now(); state.enemies.forEach((e,i)=>{ e.nextStepAt=base+ENEMY_STEP_MS+i*150; }); }
-
-/* =============== enemy AI =============== */
 function enemyUpdate(){
   const t=now();
   const frozen=t<state.freezeUntil;
@@ -195,7 +266,7 @@ function enemyUpdate(){
   }
 }
 
-/* ============ enemy reseeding ============ */
+/* ===== enemy reseeding ===== */
 function computeSeedCorrectProb(){
   const uneaten=state.items.filter(t=>!t.eaten);
   const correct=uneaten.filter(t=>t.correct).length;
@@ -232,24 +303,24 @@ function seedTileAt(gx,gy){
   if(tile.correct) state.correctRemaining+=1;
 }
 
-/* ================= input ================= */
-document.addEventListener("keydown",e=>{
+/* ===== input ===== */
+document.addEventListener('keydown',e=>{
   const k=e.key.toLowerCase();
-  if(["arrowup","arrowdown","arrowleft","arrowright","w","a","s","d"].includes(k)){
+  if(['arrowup','arrowdown','arrowleft','arrowright','w','a','s','d'].includes(k)){
     e.preventDefault(); if(e.repeat) return; handlePlayerStep(k); return;
   }
-  if(k===" "||k==="enter"){ tryEat(); }
-  if(k==="p"){ togglePause(); }
-  if(k==="escape"){ if(!help.classList.contains("hide")) help.classList.add("hide"); else togglePause(); }
+  if(k===' '||k==='enter'){ tryEat(); }
+  if(k==='p'){ togglePause(); }
+  if(k==='escape'){ if(!help.classList.contains('hide')) help.classList.add('hide'); else togglePause(); }
 });
 function handlePlayerStep(k){
   if(!state.running||state.paused||!state.player) return;
   if(state.player.moving) return;
   let dir=null;
-  if(k==="arrowup"||k==="w")dir=DIRS.UP;
-  else if(k==="arrowright"||k==="d")dir=DIRS.RIGHT;
-  else if(k==="arrowdown"||k==="s")dir=DIRS.DOWN;
-  else if(k==="arrowleft"||k==="a")dir=DIRS.LEFT;
+  if(k==='arrowup'||k==='w')dir=DIRS.UP;
+  else if(k==='arrowright'||k==='d')dir=DIRS.RIGHT;
+  else if(k==='arrowdown'||k==='s')dir=DIRS.DOWN;
+  else if(k==='arrowleft'||k==='a')dir=DIRS.LEFT;
   if(dir==null) return;
   const[dx,dy]=DIR_VECT[dir];
   const nx=state.player.gx+dx, ny=state.player.gy+dy;
@@ -260,65 +331,79 @@ function handlePlayerStep(k){
   }
 }
 
-/* ================ flow ================ */
+/* ===== flow ===== */
 function startGame(){
   state.running=true; state.paused=false;
-  state.level=1; state.score=0; state.lives=3;
-  state.freezeUntil=0; state.invulnUntil=0;
-  nextLevel();
+  state.level=1; state.score=0; state.lives=3; state.freezeUntil=0; state.invulnUntil=0;
+  state.recent.length=0;
+  nextLevel(true);
 }
-function nextLevel(){
-  if((modeSelect?.value||"classic").toLowerCase()==="math"){
+function nextLevel(pushHeading=false){
+  // lock to 5×5 every level (ignore dropdown)
+  state.gridW=5; state.gridH=5;
+
+  if((modeSelect?.value||'classic').toLowerCase()==='math'){
+    state.mode='math';
     const prev=state.category?state.category.id:null;
     state.category=pickRandomMathCategory(prev);
     state.math.needed=computeMathNeeded(state.level,state.math.base);
     state.math.progress=0;
+  }else{
+    state.mode='classic';
   }
+
   buildBoard(); spawnPlayer(); spawnEnemies(); resetEnemyTimers(); updateHUD();
   state.invulnUntil=now()+1200;
+
+  const strong=catBadge.querySelector("strong");
+  if(strong) strong.textContent=state.category.name;
+  if(pushHeading) pushRecentHeading(state.category.name);
 }
-function levelCleared(){ state.score+=500; state.level+=1; nextLevel(); }
+function levelCleared(){ state.score+=500; state.level+=1; nextLevel(true); }
 function loseLife(){
   if(now()<state.invulnUntil) return;
-  state.lives-=1; state.invulnUntil=now()+1500; showToast("Ouch!");
+  state.lives-=1; state.invulnUntil=now()+1500; showToast('Ouch!');
   if(state.lives<=0){ gameOver(); return; }
   state.player.gx=0; state.player.gy=0; state.player.x=0; state.player.y=0; state.player.dir=DIRS.RIGHT;
 }
 function gameOver(){
   state.running=false; state.paused=false;
-  gameover.classList.remove("hide");
-  const fs=document.getElementById("finalStats"); if(fs) fs.textContent="You scored "+state.score+".";
+  gameover.classList.remove('hide');
+  document.getElementById('finalStats')?.textContent=`You scored ${state.score}.`;
 }
 
-/* ============ eat & scoring ============ */
+/* ===== eat & scoring ===== */
 function tryEat(){
   if(!state.running||state.paused) return;
   const tile=state.items.find(t=>t.gx===state.player.gx&&t.gy===state.player.gy);
   if(!tile||tile.eaten) return;
+
   tile.eaten=true;
   if(tile.correct){
     state.score+=100;
-    if(state.mode==="math"){
+    if(state.mode==='math'){
       state.math.progress=Math.min(state.math.needed,(state.math.progress||0)+1);
       if(state.math.progress>=state.math.needed) setTimeout(levelCleared,350);
     }else{
       state.correctRemaining-=1;
       if(state.correctRemaining<=0) setTimeout(levelCleared,350);
     }
+    pushRecentPick(tile.label,true);
     spawnStarBurstCell(tile.gx,tile.gy);
     if(Math.random()<0.06) spawnPowerUp(tile.gx,tile.gy);
-    showToast("Yum! +100");
+    showToast('Yum! +100');
   }else{
     state.score=Math.max(0,state.score-50);
-    if(state.mode==="math") state.math.progress=Math.max(0,(state.math.progress||0)-1);
+    if(state.mode==='math') state.math.progress=Math.max(0,(state.math.progress||0)-1);
+    pushRecentPick(tile.label,false);
     spawnDisappointAt(state.player.gx,state.player.gy);
     loseLife();
-    showToast("Wrong! −50");
+    showToast('Wrong! −50');
   }
   updateHUD();
 }
 
-/* ============ powerups & fx ============ */
+/* ===== powerups & effects ===== */
 let star=null;
 function spawnPowerUp(gx,gy){ star={gx,gy,active:true,born:now()}; }
 
@@ -382,23 +467,17 @@ function drawSFX(padX,padY,tile){
   }
 }
 
-/* ============== HUD ============== */
+/* ===== HUD ===== */
 function updateHUD(){
   levelSpan.textContent=state.level;
   scoreSpan.textContent=state.score;
   livesSpan.textContent=state.lives;
-  const strong=catBadge.querySelector("strong"); if(strong) strong.textContent=state.category?state.category.name:"–";
-  if((modeSelect?.value||"classic").toLowerCase()==="math"){
-    const pct=clamp((state.math.progress||0)/(state.math.needed||1),0,1);
-    levelProgress.style.width=Math.round(pct*100)+"%";
-  }else{
-    levelProgress.style.width="0%";
-  }
+  const strong=catBadge.querySelector("strong"); if(strong) strong.textContent=state.category?state.category.name:'–';
 }
-function showToast(msg){ toast.textContent=msg; toast.classList.remove("hide"); clearTimeout(showToast._t); showToast._t=setTimeout(()=>toast.classList.add("hide"),1200); }
-function togglePause(){ if(!state.running) return; state.paused=!state.paused; pauseBtn.textContent=state.paused?"▶️ Resume":"⏸️ Pause"; }
+function showToast(msg){ toast.textContent=msg; toast.classList.remove('hide'); clearTimeout(showToast._t); showToast._t=setTimeout(()=>toast.classList.add('hide'),1200); }
+function togglePause(){ if(!state.running) return; state.paused=!state.paused; pauseBtn.textContent=state.paused?'▶️ Resume':'⏸️ Pause'; }
 
-/* ============ collisions ============ */
+/* ===== collisions ===== */
 function checkCollisions(){
   for(const e of state.enemies){
     if(e.gx===state.player.gx && e.gy===state.player.gy){
@@ -411,7 +490,7 @@ function checkCollisions(){
   }
 }
 
-/* =============== draw =============== */
+/* ===== draw helpers ===== */
 function wrapLabel(text,maxWidth,ctx2,maxLines=4){
   const words=String(text).split(/\s+/); const lines=[]; let line="";
   for(let w of words){
@@ -431,44 +510,51 @@ function wrapLabel(text,maxWidth,ctx2,maxLines=4){
   if(line && lines.length<maxLines) lines.push(line);
   return lines;
 }
+
+/* ===== main draw ===== */
 function draw(){
   const rect=canvas.getBoundingClientRect();
-  const sidebarW=Math.max(240, Math.floor(rect.width*0.22));
-  const baseTile=Math.min((rect.width - sidebarW)/state.gridW, rect.height/state.gridH);
-  const tile=Math.min(baseTile*1.05, Math.min((rect.width - sidebarW)/state.gridW, rect.height/state.gridH));
-  const padX=(rect.width - sidebarW - state.gridW*tile)/2;
+  const sideW = sidebarWidth(rect);
+
+  // tile size & padding based on fixed 5×5 + sidebar
+  const tile=Math.min((rect.width - sideW)/state.gridW, rect.height/state.gridH);
+  const padX=(rect.width - sideW - state.gridW*tile)/2;
   const padY=(rect.height - state.gridH*tile)/2;
 
   ctx.clearRect(0,0,canvas.width,canvas.height);
 
+  // tween player
   if(state.player && state.player.moving){
     const m=state.player.moving, t=(now()-m.start)/m.dur;
     if(t>=1){state.player.x=m.toX; state.player.y=m.toY; state.player.moving=null;}
     else{const s=easeOutCubic(clamp(t,0,1)); state.player.x=m.fromX+(m.toX-m.fromX)*s; state.player.y=m.fromY+(m.toY-m.fromY)*s;}
   }
 
+  // tiles
   for(const t of state.items){
     const x=padX+t.gx*tile, y=padY+t.gy*tile;
     ctx.beginPath(); roundRect(ctx,x+2,y+2,tile-4,tile-4,16);
     const grad=ctx.createLinearGradient(x,y,x+tile,y+tile);
-    grad.addColorStop(0,t.eaten?"#0c1430":"#15204a"); grad.addColorStop(1,t.eaten?"#0a1126":"#0e1737");
+    grad.addColorStop(0,t.eaten?'#0c1430':'#15204a'); grad.addColorStop(1,t.eaten?'#0a1126':'#0e1737');
     ctx.fillStyle=grad; ctx.fill();
-    ctx.strokeStyle=t.eaten?"rgba(255,255,255,.06)":"rgba(255,255,255,.12)"; ctx.lineWidth=1.2; ctx.stroke();
+    ctx.strokeStyle=t.eaten?'rgba(255,255,255,.06)':'rgba(255,255,255,.12)'; ctx.lineWidth=1.2; ctx.stroke();
 
     if(!t.eaten){
-      ctx.save(); ctx.fillStyle="rgba(230,240,255,.96)"; const fontSize=Math.floor(tile*0.28);
-      ctx.font=fontSize+"px ui-sans-serif, system-ui, -apple-system, Segoe UI"; ctx.textAlign="center"; ctx.textBaseline="middle";
-      const maxW=tile*0.84, lineH=Math.max(12,Math.floor(fontSize*1.06));
-      const lines=wrapLabel(t.label,maxW,ctx,4); const totalH=lines.length*lineH; let ly=y+tile/2 - totalH/2 + lineH/2;
+      ctx.save(); ctx.fillStyle='rgba(230,240,255,.96)'; const fontSize=Math.floor(tile*0.30);
+      ctx.font=`${fontSize}px ui-sans-serif, system-ui, -apple-system, Segoe UI`; ctx.textAlign='center'; ctx.textBaseline='middle';
+      const maxW=tile*0.86, lineH=Math.max(12,Math.floor(fontSize*1.06));
+      const lines=wrapLabel(t.label,maxW,ctx,3); const totalH=lines.length*lineH; let ly=y+tile/2 - totalH/2 + lineH/2;
       for(const line of lines){ ctx.fillText(line,x+tile/2,ly); ly+=lineH; }
       ctx.restore();
     }else if(t.correct){
-      ctx.save(); ctx.globalAlpha=0.2; ctx.fillStyle="#9cff6d"; ctx.beginPath(); ctx.arc(x+tile/2,y+tile/2,tile*0.18,0,Math.PI*2); ctx.fill(); ctx.restore();
+      ctx.save(); ctx.globalAlpha=0.2; ctx.fillStyle='#9cff6d'; ctx.beginPath(); ctx.arc(x+tile/2,y+tile/2,tile*0.18,0,Math.PI*2); ctx.fill(); ctx.restore();
     }
   }
 
-  if(star && star.active){ const x=padX+star.gx*tile+tile/2, y=padY+star.gy*tile+tile/2; drawStar(x,y,5,tile*0.22,tile*0.09,"#ffd166"); }
+  // powerup
+  if(star && star.active){ const x=padX+star.gx*tile+tile/2, y=padY+star.gy*tile+tile/2; drawStar(x,y,5,tile*0.22,tile*0.09,'#ffd166'); }
 
+  // player
   if(state.player){
     const px=padX+state.player.x*tile+tile/2, py=padY+state.player.y*tile+tile/2;
     const inv=now()<state.invulnUntil;
@@ -476,31 +562,36 @@ function draw(){
     MooseMan.draw(ctx,px,py,tile*0.34,state.player.dir,inv,panim);
   }
 
+  // enemies
   for(const e of state.enemies){
     const ex=padX+e.x*tile+tile/2, ey=padY+e.y*tile+tile/2;
     const frozen=now()<state.freezeUntil;
-    drawTroggle(ex,ey,tile*0.34,e.dir,e.color,frozen);
+    drawTroggle(ctx,ex,ey,tile*0.34,e.dir,e.color,frozen);
   }
 
+  // overlays
   drawExplosions(padX,padY,tile);
   drawStarBursts(padX,padY,tile);
   drawSFX(padX,padY,tile);
+
+  // right sidebar (level bar + recent picks)
+  drawSidebar(rect, padX, padY, tile);
 }
-function drawTroggle(x,y,size,dir,color,frozen){
+function drawTroggle(ctx,x,y,size,dir,color,frozen){
   ctx.save(); ctx.translate(x,y); ctx.rotate([-Math.PI/2,0,Math.PI/2,Math.PI][dir]);
   const w=size*1.1, h=size*0.9;
   ctx.shadowColor=color; ctx.shadowBlur=frozen?8:18;
   ctx.beginPath(); ctx.moveTo(-w/2,h/2); ctx.lineTo(0,-h/2); ctx.lineTo(w/2,h/2); ctx.closePath();
   const grd=ctx.createLinearGradient(-w/2,-h/2,w/2,h/2);
-  grd.addColorStop(0, frozen? "#8af1ff" : color); grd.addColorStop(1,"#ffffff22");
-  ctx.fillStyle=grd; ctx.fill(); ctx.shadowBlur=0; ctx.lineWidth=2; ctx.strokeStyle="rgba(255,255,255,.35)"; ctx.stroke();
-  ctx.fillStyle="#fff"; ctx.beginPath(); ctx.arc(-size*0.2,-size*0.06,size*0.09,0,Math.PI*2); ctx.arc(size*0.2,-size*0.06,size*0.09,0,Math.PI*2); ctx.fill();
-  ctx.fillStyle="#0b1020"; ctx.beginPath(); ctx.arc(-size*0.2,-size*0.06,size*0.045,0,Math.PI*2); ctx.arc(size*0.2,-size*0.06,size*0.045,0,Math.PI*2); ctx.fill();
-  ctx.strokeStyle="rgba(255,255,255,.25)"; ctx.lineWidth=1.2; ctx.beginPath(); ctx.moveTo(-w*0.32,h*0.15); ctx.lineTo(w*0.32,h*0.15); ctx.stroke();
+  grd.addColorStop(0, frozen? '#8af1ff' : color); grd.addColorStop(1,'#ffffff22');
+  ctx.fillStyle=grd; ctx.fill(); ctx.shadowBlur=0; ctx.lineWidth=2; ctx.strokeStyle='rgba(255,255,255,.35)'; ctx.stroke();
+  ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(-size*0.2,-size*0.06,size*0.09,0,Math.PI*2); ctx.arc(size*0.2,-size*0.06,size*0.09,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#0b1020'; ctx.beginPath(); ctx.arc(-size*0.2,-size*0.06,size*0.045,0,Math.PI*2); ctx.arc(size*0.2,-size*0.06,size*0.045,0,Math.PI*2); ctx.fill();
+  ctx.strokeStyle='rgba(255,255,255,.25)'; ctx.lineWidth=1.2; ctx.beginPath(); ctx.moveTo(-w*0.32,h*0.15); ctx.lineTo(w*0.32,h*0.15); ctx.stroke();
   ctx.restore();
 }
 
-/* =============== loop =============== */
+/* ===== loop ===== */
 function loop(){
   if(state.running && !state.paused){
     enemyUpdate();
@@ -510,33 +601,32 @@ function loop(){
   requestAnimationFrame(loop);
 }
 
-/* ============ menu/setup ============ */
-function parseGridSelect(){
-  const v=gridSelect?.value||"12x8"; const m=v.match(/(\d+)\s*x\s*(\d+)/i); if(!m) return {w:12,h:8}; return {w:parseInt(m[1],10),h:parseInt(m[2],10)};
-}
+/* ===== menu & setup ===== */
 function populateCategories(){
-  categorySelect.innerHTML=CATEGORIES.map(c=>'<option value="'+c.id+'">'+c.name+'</option>').join("");
+  categorySelect.innerHTML=CATEGORIES.map(c=>`<option value="${c.id}">${c.name}</option>`).join("");
   if(CATEGORIES.length) categorySelect.value=state.category?.id||CATEGORIES[0].id;
 }
 function applyMenuSettings(){
-  const g=parseGridSelect(); state.gridW=g.w; state.gridH=g.h;
-  state.mode=(modeSelect?.value||"classic").toLowerCase()==="math"?"math":"classic";
+  state.gridW=5; state.gridH=5; // lock here too
+  const wantMath=(modeSelect?.value||'classic').toLowerCase()==='math';
+  state.mode= wantMath ? 'math' : 'classic';
   const cat=CATEGORIES.find(c=>c.id===categorySelect.value)||CATEGORIES[0];
   state.category=cat;
   state.math.base=6; state.math.progress=0; state.math.needed=computeMathNeeded(1,state.math.base);
+  state.recent.length=0; pushRecentHeading(state.category.name);
   resizeCanvas(); buildBoard(); spawnPlayer(); spawnEnemies(); resetEnemyTimers(); updateHUD();
 }
-startBtn?.addEventListener("click",()=>{ menu.classList.add("hide"); gameover.classList.add("hide"); applyMenuSettings(); state.running=true; state.paused=false; state.level=1; state.score=0; state.lives=3; state.freezeUntil=0; state.invulnUntil=0; updateHUD(); });
-againBtn?.addEventListener("click",()=>{ gameover.classList.add("hide"); menu.classList.add("hide"); applyMenuSettings(); state.running=true; state.paused=false; state.level=1; state.score=0; state.lives=3; state.freezeUntil=0; state.invulnUntil=0; updateHUD(); });
-menuBtn?.addEventListener("click",()=>{ gameover.classList.add("hide"); menu.classList.remove("hide"); state.running=false; });
-helpBtn?.addEventListener("click",()=>{ help.classList.remove("hide"); state.paused=true; pauseBtn.textContent="▶️ Resume"; });
-closeHelp?.addEventListener("click",()=> help.classList.add("hide"));
-pauseBtn?.addEventListener("click",togglePause);
-document.getElementById("shuffleBtn")?.addEventListener("click",()=>{ const r=choice(CATEGORIES); categorySelect.value=r.id; });
+startBtn?.addEventListener('click',()=>{ menu.classList.add('hide'); gameover.classList.add('hide'); applyMenuSettings(); state.running=true; state.paused=false; state.level=1; state.score=0; state.lives=3; state.freezeUntil=0; state.invulnUntil=0; updateHUD(); });
+againBtn?.addEventListener('click',()=>{ gameover.classList.add('hide'); menu.classList.add('hide'); applyMenuSettings(); state.running=true; state.paused=false; state.level=1; state.score=0; state.lives=3; state.freezeUntil=0; state.invulnUntil=0; updateHUD(); });
+menuBtn?.addEventListener('click',()=>{ gameover.classList.add('hide'); menu.classList.remove('hide'); state.running=false; });
+helpBtn?.addEventListener('click',()=>{ help.classList.remove('hide'); state.paused=true; pauseBtn.textContent='▶️ Resume'; });
+closeHelp?.addEventListener('click',()=> help.classList.add('hide'));
+pauseBtn?.addEventListener('click',togglePause);
+document.getElementById('shuffleBtn')?.addEventListener('click',()=>{ const r=choice(CATEGORIES); categorySelect.value=r.id; });
 
-/* ================ init ================ */
+/* ===== init ===== */
 (function init(){
   state.category=CATEGORIES[0];
-  state.mode=(modeSelect?.value||"classic").toLowerCase()==="math"?"math":"classic";
+  state.mode=(modeSelect?.value||'classic').toLowerCase()==='math'?'math':'classic';
   populateCategories(); resizeCanvas(); updateHUD(); requestAnimationFrame(loop);
 })();
