@@ -1,6 +1,5 @@
-// muncher.js — JSON-driven categories, 4 modes, MooseMan, effects, CSS-themed
-// Requires: MooseMan.js, categories.json, styles.css (defines CSS variables)
-
+// muncher.js — Moose Muncher core. Multi-file build.
+// Requires: MooseMan.js, categories.json, styles.css
 import MooseMan from "./MooseMan.js";
 
 /* ===================== DOM ===================== */
@@ -22,6 +21,7 @@ const shuffleBtn = document.getElementById("shuffleBtn");
 
 const categorySelect = document.getElementById("categorySelect");
 const modeSelect = document.getElementById("modeSelect");
+const catWrap = document.getElementById("categoryLabelWrap");
 
 const levelSpan = document.getElementById("level");
 const scoreSpan = document.getElementById("score");
@@ -617,17 +617,10 @@ function showToast(msg){
 function togglePause(){ if(!state.running) return; state.paused=!state.paused; pauseBtn.textContent=state.paused?'▶️ Resume':'⏸️ Pause'; }
 
 /* ===================== Text layout: no mid-word breaks ===================== */
-/**
- * Fit text without breaking words:
- * 1) Shrink font size until the longest word fits maxWidth.
- * 2) Greedy wrap by spaces.
- * 3) If lines exceed maxLines, shrink more and retry.
- */
 function layoutLabelNoBreak(ctx2, text, maxWidth, options={}){
   const { baseSize=28, minSize=10, lineHeightFactor=1.06, maxLines=3, fontFamily=THEME.fontFamily } = options;
   const words = String(text).split(/\s+/);
 
-  // helper to wrap with current font
   const wrapWithCurrentFont = ()=>{
     const lines=[]; let line='';
     for(const w of words){
@@ -636,7 +629,7 @@ function layoutLabelNoBreak(ctx2, text, maxWidth, options={}){
         line = test;
       }else{
         if(line) lines.push(line);
-        line = w; // start new line with whole word (no breaks)
+        line = w;
       }
     }
     if(line) lines.push(line);
@@ -646,21 +639,18 @@ function layoutLabelNoBreak(ctx2, text, maxWidth, options={}){
   let size = baseSize;
   while(size >= minSize){
     ctx2.font = `${size}px ${fontFamily}`;
-    // ensure even the longest word fits on a line
     const longest = words.reduce((m,w)=> Math.max(m, ctx2.measureText(w).width), 0);
     if(longest > maxWidth){ size -= 1; continue; }
 
     let lines = wrapWithCurrentFont();
     if(lines.length > maxLines){ size -= 1; continue; }
 
-    // success
     return { lines, fontSize:size, lineHeight: Math.max(12, Math.floor(size*lineHeightFactor)) };
   }
 
-  // Fallback: tiny font, still don't break words—truncate extra lines
   ctx2.font = `${minSize}px ${fontFamily}`;
-  const lines = layoutLabelNoBreak(ctx2, text, maxWidth, {baseSize:minSize, minSize, lineHeightFactor, maxLines: 99, fontFamily}).lines || [text];
-  return { lines: lines.slice(0, maxLines), fontSize:minSize, lineHeight:Math.max(12, Math.floor(minSize*lineHeightFactor)) };
+  const lines = [String(text)];
+  return { lines, fontSize:minSize, lineHeight:Math.max(12, Math.floor(minSize*lineHeightFactor)) };
 }
 
 /* ===================== Draw ===================== */
@@ -690,7 +680,6 @@ function draw(){
     ctx.strokeStyle=t.eaten?THEME.tileStrokeEaten:THEME.tileStroke; ctx.lineWidth=1.2; ctx.stroke();
 
     if(!t.eaten){
-      // No mid-word breaks: shrink-to-fit + wrap by spaces only
       ctx.save(); ctx.fillStyle=THEME.textPrimary;
       const baseSize = Math.floor(tile*0.30);
       const { lines, fontSize, lineHeight } = layoutLabelNoBreak(ctx, t.label, tile*0.86, {
@@ -779,20 +768,13 @@ function populateCategories(){
   if(state.category){ categorySelect.value=state.category.id; }
 }
 function populateModes(){
-  const options = [
-    {val:'single', label:'Single Category'},
-    {val:'math',   label:'Math only'},
-    {val:'words',  label:'Words only'},
-    {val:'any',    label:'Anything Goes'},
-  ];
-  modeSelect.innerHTML = options.map(o=>`<option value="${o.val}">${o.label}</option>`).join('');
-  modeSelect.value = 'any'; // default
+  // The menu already has the options; just set defaults here
+  modeSelect.value = 'any'; // default Anything Goes
   state.mode = 'any';
 }
 function readModeFromSelect(){
   const v=(modeSelect?.value||'any').toLowerCase();
   if(v==='classic') return 'single';
-  if(v==='math') return 'math';
   if(['single','words','any','math'].includes(v)) return v;
   return 'any';
 }
@@ -800,6 +782,7 @@ function syncCategorySelectDisabled(){
   const disable = state.mode !== 'single';
   categorySelect.disabled = disable;
   categorySelect.title = disable ? 'Category is chosen automatically each level in this mode.' : '';
+  if(catWrap){ catWrap.style.display = disable ? 'none' : ''; } // hide on menu unless Single
 }
 function applyMenuSettings(){
   state.gridW=5; state.gridH=5;
