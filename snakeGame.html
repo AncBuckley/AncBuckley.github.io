@@ -90,7 +90,7 @@
   <div id="overlay" class="overlay" hidden>
     <div class="modal">
       <h2 id="modalTitle">Settings</h2>
-      <div id="resultStats" class="card" style="display:none; margin-bottom:8px"></div>
+      <div id="resultStats" class="card" style="display:none; margin-bottom:8px; flex-wrap:wrap; gap:10px"></div>
       <div class="controlsRow ops">
         <label class="toggle"><input type="checkbox" id="opAdd" checked> Addition (+)</label>
         <label class="toggle"><input type="checkbox" id="opSub" checked> Subtraction (−)</label>
@@ -214,7 +214,11 @@
       // show results + settings
       modalTitle.textContent = 'Game Over';
       resultStats.style.display = 'flex';
-      resultStats.innerHTML = `<span class="label">Results:</span> <span class="value">Correct: ${STATE.correct}</span> <span class="value" style="margin-left:8px">Wrong: ${STATE.wrong}</span>`;
+      resultStats.innerHTML = `<span class="label">Results</span>
+        <span class="value">Score: ${STATE.score}</span>
+        <span class="value">Best: ${STATE.high}</span>
+        <span class="value">Correct: ${STATE.correct}</span>
+        <span class="value">Wrong: ${STATE.wrong}</span>`;
       showOverlay();
     }
 
