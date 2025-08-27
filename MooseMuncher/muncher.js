@@ -1,4 +1,4 @@
-// muncher.js — responsive canvas + 5×5 grid + sidebar progress + recent picks
+// muncher.js — modular build
 import MooseMan from "./MooseMan.js";
 
 /* ===== DOM ===== */
@@ -118,10 +118,9 @@ function resizeCanvas(){
   ctx.setTransform(dpr,0,0,dpr,0,0);
 }
 window.addEventListener('resize', resizeCanvas);
-// react to layout changes that don't fire window.resize
 new ResizeObserver(resizeCanvas).observe(canvas);
 
-/* ===== sidebar (level bar + recent) ===== */
+/* ===== sidebar (progress + recent picks) ===== */
 function sidebarWidth(rect){ return Math.max(220, Math.floor(rect.width*0.24)); }
 function drawSidebar(rect){
   const sideW = sidebarWidth(rect);
@@ -279,19 +278,18 @@ function seedTileAt(gx,gy){
     const labelCase=state.category.labelCase||'lower';
     const normalized=labelCase==='title'?String(pick).replace(/\b\w/g,c=>c.toUpperCase()):labelCase==='upper'?String(pick).toUpperCase():String(pick);
     tile.label=normalized; tile.value=String(pick); tile.correct=makeCorrect;
+    if(makeCorrect) state.correctRemaining+=1;
   }else{
-    const c=state.category; let n=0;
+    const c=state.category; let n=0, correct=false;
     if(Math.random()<pCorrect){
-      for(let i=0;i<50;i++){n=randi(c.min,c.max+1); if(c.test(n)) break;}
-      tile.correct=true;
+      for(let i=0;i<50;i++){n=randi(c.min,c.max+1); if(c.test(n)){correct=true;break;}}
     }else{
-      for(let i=0;i<50;i++){n=randi(c.min,c.max+1); if(!c.test(n)) break;}
-      tile.correct=false;
+      for(let i=0;i<50;i++){n=randi(c.min,c.max+1); if(!c.test(n)){correct=false;break;}}
     }
-    tile.label=String(n); tile.value=n;
+    tile.label=String(n); tile.value=n; tile.correct=correct;
+    if(correct) state.correctRemaining+=1;
   }
   tile.eaten=false;
-  if(tile.correct) state.correctRemaining+=1;
 }
 
 /* ===== input ===== */
@@ -330,7 +328,7 @@ function startGame(){
   nextLevel(true);
 }
 function nextLevel(pushHeading=false){
-  state.gridW=5; state.gridH=5; // lock
+  state.gridW=5; state.gridH=5; // lock grid size
   if((modeSelect?.value||'classic').toLowerCase()==='math'){
     state.mode='math';
     const prev=state.category?state.category.id:null;
@@ -355,7 +353,8 @@ function loseLife(){
 function gameOver(){
   state.running=false; state.paused=false;
   gameover.classList.remove('hide');
-  document.getElementById('finalStats')?.textContent=`You scored ${state.score}.`;
+  const el = document.getElementById('finalStats');
+  if (el) el.textContent = `You scored ${state.score}.`;
 }
 
 /* ===== eat & scoring ===== */
@@ -368,6 +367,7 @@ function tryEat(){
   tile.eaten=true;
   if(tile.correct){
     state.score+=100;
+    pushRecentPick(tile.label,true);
     if(state.mode==='math'){
       state.math.progress=Math.min(state.math.needed,(state.math.progress||0)+1);
       if(state.math.progress>=state.math.needed) setTimeout(levelCleared,350);
@@ -375,7 +375,6 @@ function tryEat(){
       state.correctRemaining-=1;
       if(state.correctRemaining<=0) setTimeout(levelCleared,350);
     }
-    pushRecentPick(tile.label,true);
     spawnStarBurstCell(tile.gx,tile.gy);
     if(Math.random()<0.06) spawnPowerUp(tile.gx,tile.gy);
     showToast('Yum! +100');
@@ -445,8 +444,9 @@ function drawSFX(padX,padY,tile){
       const n=4; for(let i=0;i<n;i++){const off=(i-(n-1)/2)*tile*0.08; const len=tile*0.22*(1-p); ctx.beginPath(); ctx.moveTo(cx+off, cy - tile*0.2); ctx.lineTo(cx+off, cy - tile*0.2 + len); ctx.stroke();}
       ctx.restore();
       ctx.save(); ctx.globalAlpha=1-p; ctx.fillStyle="#46d4ff";
-      ctx.beginPath(); ctx.moveTo(cx + tile*0.18, cy - tile*0.06);
-      ctx.quadraticCurveTo(cx + tile*0.24, cy + 0.02, cx + tile*0.14, cy + 0.10);
+      ctx.beginPath();
+      ctx.moveTo(cx + tile*0.18, cy - tile*0.06);
+      ctx.quadraticCurveTo(cx + tile*0.24, cy + 0.02, cx + 0.14*tile, cy + 0.10*tile);
       ctx.quadraticCurveTo(cx + tile*0.28, cy + 0.00, cx + tile*0.18, cy - tile*0.06);
       ctx.fill(); ctx.restore();
     }
@@ -502,7 +502,6 @@ function draw(){
   const rect=canvas.getBoundingClientRect();
   const sideW = sidebarWidth(rect);
 
-  // compute tile size from actual CSS size each frame
   const tile=Math.min((rect.width - sideW)/state.gridW, rect.height/state.gridH);
   const padX=(rect.width - sideW - state.gridW*tile)/2;
   const padY=(rect.height - state.gridH*tile)/2;
@@ -556,9 +555,10 @@ function draw(){
   }
 
   // overlays
-  drawExplosions(padX,padY,tile);
-  drawStarBursts(padX,padY,tile);
-  drawSFX(padX,padY,tile);
+  const _padX=padX,_padY=padY,_tile=tile;
+  drawExplosions(_padX,_padY,_tile);
+  drawStarBursts(_padX,_padY,_tile);
+  drawSFX(_padX,_padY,_tile);
 
   // right sidebar
   drawSidebar(rect);
