@@ -118,7 +118,7 @@ function resizeCanvas(){
   ctx.setTransform(dpr,0,0,dpr,0,0);
 }
 window.addEventListener('resize', resizeCanvas);
-// react to layout/font changes that don't fire window.resize
+// react to layout changes that don't fire window.resize
 new ResizeObserver(resizeCanvas).observe(canvas);
 
 /* ===== sidebar (level bar + recent) ===== */
@@ -280,7 +280,7 @@ function seedTileAt(gx,gy){
     const normalized=labelCase==='title'?String(pick).replace(/\b\w/g,c=>c.toUpperCase()):labelCase==='upper'?String(pick).toUpperCase():String(pick);
     tile.label=normalized; tile.value=String(pick); tile.correct=makeCorrect;
   }else{
-    const c=state.category; let n;
+    const c=state.category; let n=0;
     if(Math.random()<pCorrect){
       for(let i=0;i<50;i++){n=randi(c.min,c.max+1); if(c.test(n)) break;}
       tile.correct=true;
@@ -359,9 +359,10 @@ function gameOver(){
 }
 
 /* ===== eat & scoring ===== */
+function getTileAt(gx,gy){ return state.items.find(t=>t.gx===gx && t.gy===gy); }
 function tryEat(){
   if(!state.running||state.paused) return;
-  const tile=state.items.find(t=>t.gx===state.player.gx&&t.gy===state.player.gy);
+  const tile=getTileAt(state.player.gx,state.player.gy);
   if(!tile||tile.eaten) return;
 
   tile.eaten=true;
@@ -592,7 +593,7 @@ function populateCategories(){
   if(CATEGORIES.length) categorySelect.value=state.category?.id||CATEGORIES[0].id;
 }
 function applyMenuSettings(){
-  state.gridW=5; state.gridH=5; // lock
+  state.gridW=5; state.gridH=5; // lock grid size
   const wantMath=(modeSelect?.value||'classic').toLowerCase()==='math';
   state.mode= wantMath ? 'math' : 'classic';
   const cat=CATEGORIES.find(c=>c.id===categorySelect.value)||CATEGORIES[0];
