@@ -1,5 +1,5 @@
 // muncher.js — Moose Muncher core. Multi-file build.
-// Requires: MooseMan.js, categories.json, styles.css
+// Requires: MooseMan.js, categories.json, styles.css, prefs.js loaded earlier
 import MooseMan from "./MooseMan.js";
 
 /* ===================== DOM ===================== */
@@ -14,6 +14,7 @@ const toast = document.getElementById("toast");
 const startBtn = document.getElementById("startBtn");
 const againBtn = document.getElementById("againBtn");
 const menuBtn = document.getElementById("menuBtn");
+const mainMenuBtn = document.getElementById("mainMenuBtn");
 const pauseBtn = document.getElementById("pauseBtn");
 const helpBtn = document.getElementById("helpBtn");
 const closeHelp = document.getElementById("closeHelp");
@@ -48,7 +49,7 @@ function readTheme(){
   const rootStyle = getComputedStyle(document.documentElement);
   const bodyStyle = getComputedStyle(document.body);
   const get = (name, fb='') => (rootStyle.getPropertyValue(name)||'').trim() || fb;
-  const parseCSV = (v)=>v.split(',').map(s=>s.trim()).filter(Boolean);
+  const parseCSV = v => v.split(',').map(s=>s.trim()).filter(Boolean);
 
   return {
     fontFamily: bodyStyle.fontFamily || 'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Inter, Arial, sans-serif',
@@ -188,7 +189,20 @@ async function loadCategoriesFromJSON(jsonRelPath='./categories.json'){
 
 /* ===================== Modes & helpers ===================== */
 const isBarMode = ()=> state.mode==='math' || state.mode==='words' || state.mode==='any';
-function computeMathNeeded(level,base){ return Math.max(1, Math.floor(base * Math.pow(2, level-1))); }
+
+// Every 5 levels, the per-level increment increases by +2.
+// Levels 1–5:   +2 per level
+// Levels 6–10:  +4 per level
+// Levels 11–15: +6 per level
+function computeMathNeeded(level, base, stepBase=2, bandSize=5){
+  let needed = Math.max(1, Math.floor(base)); // base is requirement for level 1
+  for (let L = 2; L <= level; L++) {
+    const incPerLevel = stepBase * Math.ceil(L / bandSize);
+    needed += incPerLevel;
+  }
+  return needed;
+}
+
 function pickRandomMathCategory(excludeId){ const nums=NUM_CATS.filter(c=>c.id!==excludeId); return choice(nums.length?nums:NUM_CATS); }
 function pickRandomWordCategory(excludeId){ const ws=WORD_CATS.filter(c=>c.id!==excludeId); return choice(ws.length?ws:WORD_CATS); }
 function pickRandomAnyCategory(excludeId){ const cs=CATEGORIES.filter(c=>c.id!==excludeId); return choice(cs.length?cs:CATEGORIES); }
@@ -768,13 +782,13 @@ function populateCategories(){
   if(state.category){ categorySelect.value=state.category.id; }
 }
 function populateModes(){
-  // The menu already has the options; just set defaults here
+  // menu already lists modes; set defaults here
   modeSelect.value = 'any'; // default Anything Goes
   state.mode = 'any';
 }
 function readModeFromSelect(){
   const v=(modeSelect?.value||'any').toLowerCase();
-  if(v==='classic') return 'single';
+  if(v==='classic') return 'single'; // legacy
   if(['single','words','any','math'].includes(v)) return v;
   return 'any';
 }
@@ -805,6 +819,9 @@ categorySelect?.addEventListener('change',()=>{ if(state.mode==='single'){ state
 startBtn?.addEventListener('click',()=>{ menu.classList.add('hide'); gameover.classList.add('hide'); applyMenuSettings(); state.running=true; state.paused=false; updateHUD(); });
 againBtn?.addEventListener('click',()=>{ gameover.classList.add('hide'); menu.classList.add('hide'); applyMenuSettings(); state.running=true; state.paused=false; updateHUD(); });
 menuBtn?.addEventListener('click',()=>{ gameover.classList.add('hide'); menu.classList.remove('hide'); state.running=false; });
+mainMenuBtn?.addEventListener('click',()=>{ // HUD Main Menu button
+  menu.classList.remove('hide'); gameover.classList.add('hide'); state.running=false; state.paused=false; pauseBtn.textContent='⏸️ Pause';
+});
 helpBtn?.addEventListener('click',()=>{ help.classList.remove('hide'); state.paused=true; pauseBtn.textContent='▶️ Resume'; });
 closeHelp?.addEventListener('click',()=> help.classList.add('hide'));
 pauseBtn?.addEventListener('click', togglePause);

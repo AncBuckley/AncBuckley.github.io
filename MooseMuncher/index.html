@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>MuncherJS — Moose Muncher</title>
+  <title>Moose Muncher</title>
   <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
@@ -18,6 +18,7 @@
         <div class="stat">Lives <span id="lives">3</span></div>
       </div>
       <div class="hud-right row" style="justify-content:flex-end; flex:1 1 auto">
+        <button class="btn" id="mainMenuBtn">🏠 Main Menu</button>
         <button class="btn" id="pauseBtn">⏸️ Pause</button>
         <button class="btn" id="helpBtn">❓ Help</button>
       </div>
@@ -32,10 +33,10 @@
           <h1>🦌 Moose Muncher</h1>
           <p>Eat tiles that match the category. Avoid the Troggles!</p>
 
-          <!-- Menu options: Mode left, Category right -->
+          <!-- Mode on the left; Category on the right; Category visible only in Single Category mode -->
           <div class="row" style="margin:10px 0 6px">
             <label>
-              <div style="opacity:.75; font-size:12px">Mode</div>
+              <div class="label">Mode</div>
               <select id="modeSelect" class="select">
                 <option value="single">Single Category</option>
                 <option value="math">Math only</option>
@@ -43,21 +44,18 @@
                 <option value="any" selected>Anything Goes</option>
               </select>
             </label>
-
             <label id="categoryLabelWrap" style="margin-left:auto">
-              <div style="opacity:.75; font-size:12px">Category</div>
+              <div class="label">Category</div>
               <select id="categorySelect" class="select"></select>
             </label>
           </div>
-
-          <!-- (Progress bar removed from menu by request) -->
 
           <div class="row" style="margin-top:14px">
             <button class="btn" id="startBtn">▶️ Start</button>
             <button class="btn" id="shuffleBtn">🔀 Random Category</button>
           </div>
 
-          <div style="opacity:.75; font-size:12px; margin-top:10px">
+          <div class="footer-help">
             Use <span class="kbd">Arrow Keys</span> or <span class="kbd">WASD</span> to move (one tile per press). Press <span class="kbd">Space</span> to munch.
           </div>
         </div>
@@ -74,7 +72,8 @@
             <div><strong>Beware:</strong> Troggles step once every 3 seconds.</div>
             <div><strong>Power-ups:</strong> Stars freeze Troggles briefly.</div>
             <div><strong>Scoring:</strong> +100 correct, −50 wrong, +500 level bonus.</div>
-            <div><strong>Bar Modes:</strong> Math/Words/Anything-Goes use a right-side meter; each level needs 2× more correct answers; wrong picks drain the meter.</div>
+            <div><strong>Bar Modes:</strong> Each level needs more correct answers. Every 5 levels the step increases:
+              +2/level (Lv 1–5), +4/level (Lv 6–10), +6/level (Lv 11–15), etc.</div>
           </div>
           <div class="row"><button class="btn" id="closeHelp">Close</button></div>
         </div>
@@ -96,7 +95,7 @@
     </div>
   </div>
 
-  <!-- Toggle category visibility on menu based on mode -->
+  <!-- Menu behavior: show Category only when “Single Category” is selected -->
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       const modeSel = document.getElementById('modeSelect');
@@ -108,6 +107,13 @@
       modeSel.addEventListener('change', sync);
       sync();
     });
+  </script>
+
+  <!-- Preferences first (so theme applies before game boot) -->
+  <script type="module">
+    import { applyPreferences, loadPreferences } from './prefs.js';
+    // Load saved prefs (if any), else defaults in prefs.js handle it.
+    applyPreferences(loadPreferences());
   </script>
 
   <!-- Game -->

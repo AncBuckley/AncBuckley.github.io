@@ -1,62 +1,63 @@
-// prefs.js — shared UI preferences (fonts + colors) for multiple games
+// prefs.js — Theme & font preferences
+// Exposes: applyPreferences(), loadPreferences(), savePreferences(), DEFAULT_PREFS
 
-// Default theme you can tweak
-export const defaultPreferences = {
-  fontBase: 16,                     // base font size in px
-  radius: 18,                       // corner radius in px
-  shadow: '0 10px 30px rgba(0,0,0,.4)',
+const ROOT = document.documentElement;
+const VARS_COLOR = [
+  '--bg','--panel','--muted','--accent','--accent2','--danger','--warning','--good',
+  '--tile','--tile2','--tile-eaten','--tile-eaten2','--tile-stroke','--tile-stroke-eaten','--tile-text',
+  '--progress-empty','--progress-border','--progress-start','--progress-end',
+  '--correct-halo','--troggle-colors'
+];
+
+export const DEFAULT_PREFS = {
+  fontScale: 1,
+  fontFamily: null, // leave null to keep CSS default
   colors: {
-    bg: '#0b1020',
-    panel: '#121a33',
-    muted: '#8ea0d0',
-    accent: '#6de2ff',
-    accent2: '#9cff6d',
-    danger: '#ff6d8a',
-    warning: '#ffd166',
-    good: '#77ffb4',
-    tile: '#141e3f',
-    tile2: '#1b2753',
-    text: '#e8eeff'
+    // leave undefined to keep CSS defaults; set any subset to override
+    // Example: bg: '#10192b', accent: '#7cd4ff', ...
   }
 };
 
-// Apply a preferences object by writing CSS variables to :root
-export function applyPreferences(prefs) {
-  if (!prefs) return;
-  const root = document.documentElement;
-
-  // Scalars
-  if (prefs.fontBase != null) root.style.setProperty('--font-base', `${prefs.fontBase}px`);
-  if (prefs.radius   != null) root.style.setProperty('--radius', `${prefs.radius}px`);
-  if (prefs.shadow)            root.style.setProperty('--shadow', prefs.shadow);
-
+export function applyPreferences(prefs = {}) {
+  const p = { ...DEFAULT_PREFS, ...prefs };
+  // Font scale (scales most UI text; canvas text is sized by tile, not UI scale)
+  if (typeof p.fontScale === 'number' && isFinite(p.fontScale) && p.fontScale > 0) {
+    ROOT.style.setProperty('--font-scale', String(p.fontScale));
+  }
+  // Optional font family
+  if (p.fontFamily && typeof p.fontFamily === 'string') {
+    ROOT.style.setProperty('--font-family', p.fontFamily);
+  }
   // Colors
-  const c = prefs.colors || {};
-  const set = (name, val) => { if (val != null) root.style.setProperty(`--${name}`, val); };
-  set('bg', c.bg);
-  set('panel', c.panel);
-  set('muted', c.muted);
-  set('accent', c.accent);
-  set('accent2', c.accent2);
-  set('danger', c.danger);
-  set('warning', c.warning);
-  set('good', c.good);
-  set('tile', c.tile);
-  set('tile2', c.tile2);
-  set('text', c.text);
+  if (p.colors && typeof p.colors === 'object') {
+    for (const key of Object.keys(p.colors)) {
+      const cssVar = '--' + key.replace(/[A-Z]/g, m => '-' + m.toLowerCase()); // camelCase -> --camel-case
+      if (VARS_COLOR.includes(cssVar)) {
+        ROOT.style.setProperty(cssVar, String(p.colors[key]));
+      }
+    }
+    // Special case: troggle colors array
+    if (Array.isArray(p.colors.troggleColors)) {
+      ROOT.style.setProperty('--troggle-colors', p.colors.troggleColors.join(','));
+    }
+  }
 }
 
-// Helper to create a new prefs object by merging overrides into the default
-export function makePreferences(overrides = {}) {
-  const deepMerge = (a, b) => {
-    const out = { ...a };
-    for (const k in b) {
-      const av = a[k], bv = b[k];
-      out[k] = (av && typeof av === 'object' && !Array.isArray(av))
-        ? deepMerge(av, bv)
-        : bv;
-    }
-    return out;
-  };
-  return deepMerge(defaultPreferences, overrides);
+const LS_KEY = 'moose-muncher:prefs';
+
+export function loadPreferences() {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (!raw) return { ...DEFAULT_PREFS };
+    const parsed = JSON.parse(raw);
+    return { ...DEFAULT_PREFS, ...parsed };
+  } catch {
+    return { ...DEFAULT_PREFS };
+  }
+}
+
+export function savePreferences(prefs) {
+  try {
+    localStorage.setItem(LS_KEY, JSON.stringify(prefs));
+  } catch {}
 }
