@@ -20,12 +20,12 @@
     .value{font-variant-numeric: tabular-nums; font-weight:700}
     button{appearance:none; border:0; padding:8px 12px; border-radius:12px; font-weight:700; background:linear-gradient(180deg,#2a2f61,#1c2147); color:white; cursor:pointer; box-shadow:var(--shadow); border:1px solid rgba(255,255,255,.06)}
 
-    .gameRow{display:grid; grid-template-columns: 1fr 320px; gap:12px; align-items:start}
+    .gameRow{display:grid; grid-template-columns: 1fr; gap:12px; align-items:start}
     .canvasWrap{position:relative}
     canvas{width:100%; height:auto; display:block; background:#0b0e20; border-radius:var(--radius); border:1px solid rgba(255,255,255,.06); touch-action:none}
 
-    .sidebar{padding:14px}
-    .problemBig{font-weight:800; line-height:1.05; font-size: clamp(34px, 7vmin, 68px); letter-spacing:.5px}
+    
+    
 
     /* Touch D‑pad (shown on touch devices only) */
     .touchPad{display:grid; grid-template-columns:repeat(3,64px); grid-template-rows:repeat(3,64px); gap:10px; justify-content:center; padding:10px}
@@ -82,10 +82,7 @@
           <span class="spacer"></span>
         </div>
       </div>
-      <aside class="panel sidebar">
-        <div class="label">Problem</div>
-        <div id="problemText" class="problemBig">—</div>
-      </aside>
+      
     </div>
   </div>
 
@@ -122,7 +119,7 @@
 
     const STATE = {
       grid: 21,
-      cell: 22,
+      cell: 30,
       running:false, paused:false, wrap:true,
       direction:{x:1,y:0}, nextDirection:{x:1,y:0}, dirLocked:false,
       snake:[], score:0,
@@ -151,7 +148,7 @@
     const highEl = document.getElementById('high');
     const speedValTop = document.getElementById('speedVal');
 
-    const problemText = document.getElementById('problemText');
+    
 
     // Overlay + settings
     const overlay = document.getElementById('overlay');
@@ -278,7 +275,7 @@
       } while(attempts<5 && !isFinite(sol));
 
       STATE.problem = {a,b,op,sol};
-      problemText.textContent = `${a} ${op} ${b}`; // no "= ?"
+       // no "= ?"
     }
 
     function freeCell(x,y){ return !STATE.snake.some(p=>p.x===x && p.y===y) && !STATE.targets.some(t=>t.x===x && t.y===y); }
