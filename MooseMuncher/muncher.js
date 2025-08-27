@@ -800,18 +800,51 @@ function syncCategorySelectDisabled(){
 }
 function applyMenuSettings(){
   state.gridW=5; state.gridH=5;
+
+  // Read mode first and sync the Category dropdown visibility/disabled state.
   state.mode = readModeFromSelect();
   syncCategorySelectDisabled();
 
-  const selected = CATEGORIES.find(c=>c.id===categorySelect.value) || CATEGORIES[0];
-  state.category = selected || null;
+  // Choose the category based strictly on mode:
+  if (state.mode === 'single') {
+    // Single Category = whatever the user picked from the dropdown
+    const selected = CATEGORIES.find(c => c.id === categorySelect.value) || CATEGORIES[0];
+    state.category = selected || null;
+  } else if (state.mode === 'words') {
+    // Words only = RANDOM *word* category (never numbers)
+    state.category = pickRandomWordCategory();
+  } else if (state.mode === 'math') {
+    // Math only = RANDOM *numeric* category
+    state.category = pickRandomMathCategory();
+  } else { // 'any'
+    // Anything Goes = mix of word + numeric
+    state.category = pickRandomAnyCategory();
+  }
 
+  // Reset core state
   state.level=1; state.score=0; state.lives=3; state.freezeUntil=0; state.invulnUntil=0;
-  state.math.base=6; state.math.progress=0; state.math.needed=computeMathNeeded(1,state.math.base);
-  state.recent.length=0; if(state.category) pushRecentHeading(state.category.name);
 
-  buildBoard(); spawnPlayer(); spawnEnemies(); resetEnemyTimers(); updateHUD();
+  // Bar-mode setup (Words/Math/Any use the level bar)
+  state.math.base = 6;
+  state.math.progress = 0;
+  state.math.needed = computeMathNeeded(1, state.math.base);
+
+  // Recent list heading for the starting category
+  state.recent.length = 0;
+  if (state.category) pushRecentHeading(state.category.name);
+
+  // Build board & spawn entities
+  buildBoard();
+  spawnPlayer();
+  spawnEnemies();
+  resetEnemyTimers();
+  updateHUD();
+
+  // Update HUD badge text immediately
+  const strong = catBadge?.querySelector("strong");
+  if (strong) strong.textContent = state.category ? state.category.name : '–';
 }
+
 
 modeSelect?.addEventListener('change',()=>{ state.mode = readModeFromSelect(); syncCategorySelectDisabled(); });
 categorySelect?.addEventListener('change',()=>{ if(state.mode==='single'){ state.category = CATEGORIES.find(c=>c.id===categorySelect.value) || state.category; const strong=catBadge.querySelector("strong"); if(strong) strong.textContent=state.category?.name||'–'; } });
