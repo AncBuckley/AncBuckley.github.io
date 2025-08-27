@@ -442,11 +442,33 @@
       ctx.restore();
     }
 
+    // Watermark: current equation behind the board
+    function drawProblemWatermark(){
+      const g=STATE.grid, s=STATE.cell; const W=g*s, H=g*s;
+      const text = STATE.problem ? (STATE.problem.a + ' ' + STATE.problem.op + ' ' + STATE.problem.b) : '';
+      if(!text) return;
+      ctx.save();
+      ctx.translate(W/2, H/2);
+      ctx.textAlign='center'; ctx.textBaseline='middle';
+      const base=100; ctx.font= base + 'px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial';
+      const metrics = ctx.measureText(text);
+      const target = W*0.85;
+      let size = Math.min(base * (target / Math.max(metrics.width,1)), H*0.7);
+      size = Math.max(24, size);
+      ctx.font = size + 'px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial';
+      // outline then fill for contrast
+      ctx.globalAlpha = 0.22; ctx.strokeStyle='black'; ctx.lineWidth = Math.max(2, size*0.06); ctx.strokeText(text,0,0);
+      ctx.globalAlpha = 0.10; ctx.fillStyle='#ffffff'; ctx.fillText(text,0,0);
+      ctx.restore();
+    }
+
     // Rendering
     function draw(){
       const g=STATE.grid, s=STATE.cell; ctx.clearRect(0,0,canvas.width,canvas.height);
       // grid lines faint
       ctx.save(); ctx.globalAlpha=.5; for(let i=0;i<=g;i++){ ctx.fillStyle = i%2? 'rgba(255,255,255,.02)' : 'rgba(255,255,255,.03)'; ctx.fillRect(0,i*s,g*s,1); ctx.fillRect(i*s,0,1,g*s);} ctx.restore();
+
+      drawProblemWatermark();
 
       // draw answer tiles (all same color)
       for(const t of STATE.targets){ drawCell(t.x, t.y, ANSWER_COLOR); drawNumber(t.x, t.y, String(t.value)); }
