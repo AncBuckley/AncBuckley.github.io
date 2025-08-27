@@ -1,4 +1,4 @@
-// muncher.js — 5x5 grid + right sidebar (level bar + recent picks)
+// muncher.js — responsive canvas + 5×5 grid + sidebar progress + recent picks
 import MooseMan from "./MooseMan.js";
 
 /* ===== DOM ===== */
@@ -98,60 +98,58 @@ const TROGGLE_COLORS=['#ff3b6b','#ffb800','#00e5ff','#7cff00','#ff00e5','#ff7a00
 let state={
   running:false, paused:false,
   level:1, score:0, lives:3,
-  gridW:5, gridH:5, tile:64,          // <<< fixed 5 × 5
+  gridW:5, gridH:5, tile:64,          // fixed 5×5
   category:CATEGORIES[0],
   items:[], correctRemaining:0,
   player:null, enemies:[],
   freezeUntil:0, invulnUntil:0,
   mode:'classic',                     // "classic" or "math"
   math:{progress:0, base:6, needed:6},
-  single:{totalCorrectAtStart:0},     // for Classic progress
-  recent:[]                           // last 10 picks (+ headings)
+  single:{totalCorrectAtStart:0},
+  recent:[]
 };
 
-/* ===== canvas sizing ===== */
+/* ===== responsive canvas buffer ===== */
 function resizeCanvas(){
-  const dpr=window.devicePixelRatio||1;
-  const rect=canvas.getBoundingClientRect();
-  canvas.width=Math.floor(rect.width*dpr);
-  canvas.height=Math.floor(rect.height*dpr);
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width  = Math.floor(rect.width  * dpr);
+  canvas.height = Math.floor(rect.height * dpr);
   ctx.setTransform(dpr,0,0,dpr,0,0);
-  // leave room for right sidebar
-  const sideW = sidebarWidth(rect);
-  state.tile=Math.floor(Math.min((rect.width - sideW)/state.gridW, rect.height/state.gridH));
 }
-addEventListener('resize',resizeCanvas);
+window.addEventListener('resize', resizeCanvas);
+// react to layout/font changes that don't fire window.resize
+new ResizeObserver(resizeCanvas).observe(canvas);
 
 /* ===== sidebar (level bar + recent) ===== */
 function sidebarWidth(rect){ return Math.max(220, Math.floor(rect.width*0.24)); }
-function drawSidebar(rect, padX, padY, tile){
+function drawSidebar(rect){
   const sideW = sidebarWidth(rect);
   const x = rect.width - sideW;
-  // panel
+
   ctx.save();
   ctx.translate(x,0);
+
+  // panel
   ctx.fillStyle='rgba(255,255,255,0.04)';
   ctx.strokeStyle='rgba(255,255,255,0.10)';
   ctx.lineWidth=1;
   ctx.beginPath(); roundRect(ctx, 8, 8, sideW-16, rect.height-16, 14); ctx.fill(); ctx.stroke();
 
-  // Title
+  // header
   ctx.fillStyle='#cfe0ff';
   ctx.font='700 16px system-ui, -apple-system, Segoe UI';
   ctx.textAlign='left'; ctx.textBaseline='top';
   ctx.fillText('Progress', 20, 16);
 
-  // Vertical progress bar
+  // vertical progress bar
   const barH = Math.max(140, rect.height*0.28);
   const barW = 22;
   const bx = 28, by = 42;
-  ctx.save();
-  ctx.translate(0,0);
-  ctx.fillStyle='#0a1437'; ctx.strokeStyle='#20306b';
-  ctx.lineWidth=1;
+  ctx.fillStyle='#0a1437'; ctx.strokeStyle='#20306b'; ctx.lineWidth=1;
   ctx.beginPath(); roundRect(ctx, bx, by, barW, barH, 10); ctx.fill(); ctx.stroke();
 
-  let pct = 0, label = '';
+  let pct=0, label='';
   if(state.mode==='math'){
     pct = clamp((state.math.progress||0)/(state.math.needed||1),0,1);
     label = `${state.math.progress||0} / ${state.math.needed||0}`;
@@ -161,41 +159,32 @@ function drawSidebar(rect, padX, padY, tile){
     label = `${eatenCorrect} / ${state.single.totalCorrectAtStart}`;
   }
   const fillH = Math.floor(barH*pct);
-  // gradient fill
   const g=ctx.createLinearGradient(0, by+barH, 0, by+barH-fillH);
   g.addColorStop(0,'#46d4ff'); g.addColorStop(1,'#9cff6d');
   ctx.fillStyle=g;
   ctx.beginPath(); roundRect(ctx, bx, by+barH-fillH, barW, fillH, 10); ctx.fill();
 
-  // percent label
   ctx.fillStyle='#e8f2ff';
   ctx.font='600 13px system-ui, -apple-system, Segoe UI';
-  ctx.textAlign='left';
-  ctx.fillText(label, bx+barW+12, by+barH-18);
-  ctx.restore();
+  ctx.textAlign='left'; ctx.fillText(label, bx+barW+12, by+barH-18);
 
-  // Recent picks list
+  // Recent picks
   ctx.fillStyle='#cfe0ff';
   ctx.font='700 16px system-ui, -apple-system'; ctx.fillText('Recent Picks', 20, by+barH+18);
   ctx.font='13px system-ui, -apple-system';
   let ly = by+barH+40;
-  const maxShow = 10;
-  const items = state.recent.slice(-maxShow).reverse(); // newest first
+  const items = state.recent.slice(-10).reverse(); // newest first
   for(const it of items){
     if(it.type==='heading'){
-      ctx.fillStyle='#9fb7ff';
-      ctx.fillText(`— ${it.text} —`, 20, ly);
+      ctx.fillStyle='#9fb7ff'; ctx.fillText(`— ${it.text} —`, 20, ly);
     }else{
       ctx.fillStyle = it.correct ? '#77ffb4' : '#ff6d8a';
-      const txt = (it.correct?'✓ ':'✗ ') + it.text;
-      ctx.fillText(txt, 20, ly);
+      ctx.fillText((it.correct?'✓ ':'✗ ') + it.text, 20, ly);
     }
-    ly += 18;
-    if(ly > rect.height - 24) break;
+    ly += 18; if(ly > rect.height - 24) break;
   }
 
   ctx.restore();
-
   return sideW;
 }
 function pushRecentHeading(text){ state.recent.push({type:'heading', text}); trimRecent(); }
@@ -203,21 +192,23 @@ function pushRecentPick(text, correct){ state.recent.push({type:'pick', text, co
 function trimRecent(){ if(state.recent.length>60) state.recent.splice(0, state.recent.length-60); }
 
 /* ===== board ===== */
+function minCorrectForBoard(W,H){
+  const need = state.mode==='math' ? state.math.needed||12 : Math.ceil(W*H*0.35);
+  return Math.min(W*H, Math.max(12, need));
+}
 function buildBoard(){
   const W=state.gridW,H=state.gridH;
-  const need = state.mode==='math' ? Math.min(W*H, Math.max(12, state.math.needed||12)) : Math.ceil(W*H*0.35);
-  const items=state.category.generate(W,H,need);
-  // ensure a decent number of corrects
+  const items=state.category.generate(W,H,minCorrectForBoard(W,H));
   let best=items, bestC=items.filter(t=>t.correct).length;
   const targetMin=Math.max(6,Math.floor(W*H*0.2));
   for(let i=0;i<10&&bestC<targetMin;i++){
-    const alt=state.category.generate(W,H,need);
+    const alt=state.category.generate(W,H,minCorrectForBoard(W,H));
     const c=alt.filter(t=>t.correct).length;
     if(c>bestC){best=alt;bestC=c;}
   }
   state.items=best.map((it,idx)=>({...it,eaten:false,gx:idx%W,gy:Math.floor(idx/W)}));
   state.correctRemaining=state.items.filter(t=>t.correct).length;
-  state.single.totalCorrectAtStart = state.correctRemaining; // for Classic progress
+  state.single.totalCorrectAtStart = state.correctRemaining;
 }
 
 /* ===== entities ===== */
@@ -238,6 +229,8 @@ function spawnEnemies(){
   }
 }
 function resetEnemyTimers(){ const base=now(); state.enemies.forEach((e,i)=>{ e.nextStepAt=base+ENEMY_STEP_MS+i*150; }); }
+
+/* ===== enemy AI (3s per step) + reseeding ===== */
 function enemyUpdate(){
   const t=now();
   const frozen=t<state.freezeUntil;
@@ -265,8 +258,6 @@ function enemyUpdate(){
     }
   }
 }
-
-/* ===== enemy reseeding ===== */
 function computeSeedCorrectProb(){
   const uneaten=state.items.filter(t=>!t.eaten);
   const correct=uneaten.filter(t=>t.correct).length;
@@ -339,9 +330,7 @@ function startGame(){
   nextLevel(true);
 }
 function nextLevel(pushHeading=false){
-  // lock to 5×5 every level (ignore dropdown)
-  state.gridW=5; state.gridH=5;
-
+  state.gridW=5; state.gridH=5; // lock
   if((modeSelect?.value||'classic').toLowerCase()==='math'){
     state.mode='math';
     const prev=state.category?state.category.id:null;
@@ -351,12 +340,9 @@ function nextLevel(pushHeading=false){
   }else{
     state.mode='classic';
   }
-
   buildBoard(); spawnPlayer(); spawnEnemies(); resetEnemyTimers(); updateHUD();
   state.invulnUntil=now()+1200;
-
-  const strong=catBadge.querySelector("strong");
-  if(strong) strong.textContent=state.category.name;
+  const strong=catBadge.querySelector("strong"); if(strong) strong.textContent=state.category.name;
   if(pushHeading) pushRecentHeading(state.category.name);
 }
 function levelCleared(){ state.score+=500; state.level+=1; nextLevel(true); }
@@ -408,7 +394,6 @@ let star=null;
 function spawnPowerUp(gx,gy){ star={gx,gy,active:true,born:now()}; }
 
 let explosions=[]; let starBursts=[]; let sfx=[];
-
 function spawnExplosion(gx,gy){
   const N=18,parts=[]; for(let i=0;i<N;i++) parts.push({ang:rand(0,Math.PI*2),spd:rand(0.6,1.1)});
   explosions.push({gx,gy,born:now(),duration:650,parts});
@@ -467,7 +452,7 @@ function drawSFX(padX,padY,tile){
   }
 }
 
-/* ===== HUD ===== */
+/* ===== HUD & helpers ===== */
 function updateHUD(){
   levelSpan.textContent=state.level;
   scoreSpan.textContent=state.score;
@@ -490,7 +475,7 @@ function checkCollisions(){
   }
 }
 
-/* ===== draw helpers ===== */
+/* ===== label wrapping ===== */
 function wrapLabel(text,maxWidth,ctx2,maxLines=4){
   const words=String(text).split(/\s+/); const lines=[]; let line="";
   for(let w of words){
@@ -511,12 +496,12 @@ function wrapLabel(text,maxWidth,ctx2,maxLines=4){
   return lines;
 }
 
-/* ===== main draw ===== */
+/* ===== draw ===== */
 function draw(){
   const rect=canvas.getBoundingClientRect();
   const sideW = sidebarWidth(rect);
 
-  // tile size & padding based on fixed 5×5 + sidebar
+  // compute tile size from actual CSS size each frame
   const tile=Math.min((rect.width - sideW)/state.gridW, rect.height/state.gridH);
   const padX=(rect.width - sideW - state.gridW*tile)/2;
   const padY=(rect.height - state.gridH*tile)/2;
@@ -566,7 +551,7 @@ function draw(){
   for(const e of state.enemies){
     const ex=padX+e.x*tile+tile/2, ey=padY+e.y*tile+tile/2;
     const frozen=now()<state.freezeUntil;
-    drawTroggle(ctx,ex,ey,tile*0.34,e.dir,e.color,frozen);
+    drawTroggle(ex,ey,tile*0.34,e.dir,e.color,frozen);
   }
 
   // overlays
@@ -574,10 +559,10 @@ function draw(){
   drawStarBursts(padX,padY,tile);
   drawSFX(padX,padY,tile);
 
-  // right sidebar (level bar + recent picks)
-  drawSidebar(rect, padX, padY, tile);
+  // right sidebar
+  drawSidebar(rect);
 }
-function drawTroggle(ctx,x,y,size,dir,color,frozen){
+function drawTroggle(x,y,size,dir,color,frozen){
   ctx.save(); ctx.translate(x,y); ctx.rotate([-Math.PI/2,0,Math.PI/2,Math.PI][dir]);
   const w=size*1.1, h=size*0.9;
   ctx.shadowColor=color; ctx.shadowBlur=frozen?8:18;
@@ -607,14 +592,14 @@ function populateCategories(){
   if(CATEGORIES.length) categorySelect.value=state.category?.id||CATEGORIES[0].id;
 }
 function applyMenuSettings(){
-  state.gridW=5; state.gridH=5; // lock here too
+  state.gridW=5; state.gridH=5; // lock
   const wantMath=(modeSelect?.value||'classic').toLowerCase()==='math';
   state.mode= wantMath ? 'math' : 'classic';
   const cat=CATEGORIES.find(c=>c.id===categorySelect.value)||CATEGORIES[0];
   state.category=cat;
   state.math.base=6; state.math.progress=0; state.math.needed=computeMathNeeded(1,state.math.base);
   state.recent.length=0; pushRecentHeading(state.category.name);
-  resizeCanvas(); buildBoard(); spawnPlayer(); spawnEnemies(); resetEnemyTimers(); updateHUD();
+  buildBoard(); spawnPlayer(); spawnEnemies(); resetEnemyTimers(); updateHUD();
 }
 startBtn?.addEventListener('click',()=>{ menu.classList.add('hide'); gameover.classList.add('hide'); applyMenuSettings(); state.running=true; state.paused=false; state.level=1; state.score=0; state.lives=3; state.freezeUntil=0; state.invulnUntil=0; updateHUD(); });
 againBtn?.addEventListener('click',()=>{ gameover.classList.add('hide'); menu.classList.add('hide'); applyMenuSettings(); state.running=true; state.paused=false; state.level=1; state.score=0; state.lives=3; state.freezeUntil=0; state.invulnUntil=0; updateHUD(); });
