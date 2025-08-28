@@ -11,7 +11,7 @@ import {
 } from './enemies.js';
 
 // ───────────────────────────────────────────────
-// DOM references (all optional-safe)
+// DOM references
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 
@@ -33,11 +33,10 @@ const toastEl = document.getElementById('toast');
 
 const categorySelect = document.getElementById('categorySelect');
 const modeSelect = document.getElementById('modeSelect');
-
-const recentAnswersEl = document.getElementById('recentAnswers'); // optional
+const recentAnswersEl = document.getElementById('recentAnswers'); // optional, safe
 
 // ───────────────────────────────────────────────
-// Small helpers
+// Helpers
 const rand = (a,b)=> Math.random()*(b-a)+a;
 const randi = (a,b)=> (Math.random()*(b-a)+a)|0;
 const choice = (arr)=> arr[(Math.random()*arr.length)|0];
@@ -134,7 +133,7 @@ async function loadWordCategories(url = './categories.json') {
     };
     return {
       id: cat.toLowerCase().replace(/\s+/g, '-'),
-      name: cat.replace(/\b\w/g, c => c.toUpperCase()),
+      name: cat.replace(/\b\w/g, c=>c.toUpperCase()),
       type: 'word',
       generate: (W, H, countCorrect = Math.ceil(W * H * 0.4)) => {
         const total = W * H;
@@ -200,13 +199,12 @@ function setCategoryDropdownVisible(visible){
 }
 
 // ───────────────────────────────────────────────
-// Level requirements pattern:
-// 1-4 => 4; 5-9 => 6; 10-14 => 10; 15-19 => 18; ... (+2, +4, +8, ... every 5 levels)
+// Level requirement pattern: 1-4 => 4; 5-9 => 6; 10-14 => 10; 15-19 => 18; ...
 function neededForLevel(level){
   if (level <= 4) return 4;
-  const t = Math.floor((level - 5) / 5) + 1; // checkpoints passed: 5,10,15...
+  const t = Math.floor((level - 5) / 5) + 1; // checkpoints: 5,10,15...
   let inc = 0;
-  for (let i=0;i<t;i++) inc += (2 << i); // 2,4,8,16...
+  for (let i=0;i<t;i++) inc += (2 << i); // 2,4,8,16,...
   return 4 + inc;
 }
 
@@ -367,9 +365,17 @@ function pushRecent(text, correct){
 }
 function renderRecentAnswers(){
   if(!recentAnswersEl) return;
-  recentAnswersEl.innerHTML = state.recentAnswers.map(r =>
-    `<div class="ans ${r.correct?'good':'bad'}"><span class="lab">${escapeHtml(r.text)}</span></div>`
-  ).join('');
+  // Group with a heading when category changes
+  const items = [];
+  let lastCat = null;
+  for(const r of state.recentAnswers.slice().reverse()){
+    if(r.categoryName !== lastCat){
+      items.push(`<div class="ans head">${escapeHtml(r.categoryName)} (Lvl ${r.level})</div>`);
+      lastCat = r.categoryName;
+    }
+    items.push(`<div class="ans ${r.correct?'good':'bad'}">${escapeHtml(r.text)}</div>`);
+  }
+  recentAnswersEl.innerHTML = items.join('');
 }
 
 function tryEat(){
@@ -627,29 +633,68 @@ function drawExplosions(padX,padY,tile){
 }
 
 // ───────────────────────────────────────────────
-// Render
-function wrapLabel(ctx, text, maxWidth, maxLines=2){
-  const words = String(text).split(/\s+/);
-  const lines=[]; let line='';
-  for(const w of words){
-    const test = line ? `${line} ${w}` : w;
-    if(ctx.measureText(test).width <= maxWidth){ line = test; }
-    else {
-      if(line) lines.push(line);
-      else {
-        // single super-long word: hard clip
-        let cut = w.length;
-        while(cut>1 && ctx.measureText(w.slice(0,cut)).width>maxWidth) cut--;
-        lines.push(w.slice(0,cut));
+// Text fitting (no mid-word breaks, no duplicates)
+function fitLabel(ctx, text, maxWidth, maxLines, baseFontSize){
+  let fontSize = baseFontSize;
+  const family = 'ui-sans-serif, system-ui, -apple-system, Segoe UI';
+
+  // Split into words
+  const words = String(text).split(/\s+/).filter(Boolean);
+
+  // Try to reduce font until lines <= maxLines without mid-word breaks
+  function layout(){
+    ctx.font = `${fontSize}px ${family}`;
+    const lines = [];
+    let line = '';
+    for(const w of words){
+      const test = line ? `${line} ${w}` : w;
+      if(ctx.measureText(test).width <= maxWidth){
+        line = test;
+      } else {
+        if(line) lines.push(line);
+        else {
+          // a single word too long at this size; signal to shrink
+          return null;
+        }
+        line = w;
+        if(lines.length >= maxLines) return null; // overflow, try smaller
       }
-      line = w;
-      if(lines.length>=maxLines) break;
+    }
+    if(line) lines.push(line);
+    if(lines.length > maxLines) return null;
+    return lines;
+  }
+
+  let lines = layout();
+  while(!lines && fontSize > 10){
+    fontSize -= 1;
+    lines = layout();
+  }
+
+  if(!lines){
+    // As a last resort, ellipsize at smallest font
+    fontSize = Math.max(10, fontSize);
+    ctx.font = `${fontSize}px ${family}`;
+    const textWidth = ctx.measureText(text).width;
+    if(textWidth <= maxWidth){
+      lines = [text];
+    } else {
+      // build ellipsis line
+      const ell = '…';
+      let s = '';
+      for(const ch of text){
+        const nxt = s + ch;
+        if(ctx.measureText(nxt + ell).width <= maxWidth) s = nxt; else break;
+      }
+      lines = [s + ell];
     }
   }
-  if(line && lines.length<maxLines) lines.push(line);
-  return lines;
+
+  return { lines, fontSize };
 }
 
+// ───────────────────────────────────────────────
+// Render
 function drawLevelBar(rect, barArea){
   const x0 = rect.width - barArea;
   const y0 = 12;
@@ -726,11 +771,11 @@ function draw(){
     if(!t.eaten){
       ctx.save();
       ctx.fillStyle = 'rgba(230,240,255,.95)';
-      const fontSize = Math.floor(tile*0.25);
+      const baseFont = Math.floor(tile*0.25);
+      const maxWidth = tile*0.84;
+      const {lines, fontSize} = fitLabel(ctx, t.label, maxWidth, 2, baseFont);
       ctx.font = `${fontSize}px ui-sans-serif, system-ui, -apple-system, Segoe UI`;
       ctx.textAlign='center'; ctx.textBaseline='middle';
-      const maxWidth = tile*0.84;
-      const lines = wrapLabel(ctx, t.label, maxWidth, 2);
       const lh = Math.max(14, Math.floor(fontSize*1.05));
       const totalH = lines.length*lh;
       let ly = y + tile/2 - totalH/2 + lh/2;
@@ -770,7 +815,6 @@ function draw(){
 let rafId = 0; let lastTs = 0;
 
 function tick(ts){
-  const dt = lastTs ? (ts - lastTs) : 16;
   lastTs = ts;
 
   if(state.running && !state.paused){
@@ -780,7 +824,6 @@ function tick(ts){
       stepMs: ENEMY_STEP_MS,
       freezeUntil: state.freezeUntil,
       passable,
-      onCatch: (idx)=>{}, // handled via hooks
       clampTo: (gx,gy)=> ({gx: clamp(gx,0,state.gridW-1), gy: clamp(gy,0,state.gridH-1)})
     });
   }
