@@ -1,363 +1,329 @@
-// enemies.js — enemy creation, AI, drawing (ES module)
+// enemies.js — enemy creation, AI, updates, and drawing
+// Exports:
+//   createEnemies({gridW,gridH,level,stepMs})
+//   updateEnemies(enemies, {gridW,gridH,player,stepMs,freezeUntil,passable,clampTo})
+//   drawEnemies(ctx, enemies, {padX,padY,tile})
+//   notifyBoardHooksForEnemies(hooks)  // { isCellEmpty(gx,gy), placeWordAt(gx,gy), onPlayerCaught(index) }
+//   moveEnemyToBottomRight(enemies, index, gridW, gridH)
 
-const DIRS = { UP:0, RIGHT:1, DOWN:2, LEFT:3 };
-const DIR_VECT = [[0,-1],[1,0],[0,1],[-1,0]];
-
+const now = () => performance.now();
+const randi = (a,b)=> (Math.random()*(b-a)+a)|0;
+const rand  = (a,b)=> Math.random()*(b-a)+a;
+const choice = (arr)=> arr[(Math.random()*arr.length)|0];
 const clamp = (v,a,b)=> Math.min(b, Math.max(a,v));
+const DIRS = { UP:0, RIGHT:1, DOWN:2, LEFT:3 };
+const DIR_VECT = [ [0,-1],[1,0],[0,1],[-1,0] ];
 
-// Hooks provided by the board
 let boardHooks = {
-  isCellEmpty: (gx,gy)=>false,
-  placeWordAt: (gx,gy)=>{},
-  onPlayerCaught: (idx)=>{}
+  isCellEmpty: null,
+  placeWordAt: null,
+  onPlayerCaught: null
 };
 
-export function notifyBoardHooksForEnemies(hooks = {}){
+export function notifyBoardHooksForEnemies(hooks){
   boardHooks = { ...boardHooks, ...hooks };
 }
 
-/**
- * Create enemies: alternates AI chaser (slime) and forager (owl)
- */
-export function createEnemies({gridW, gridH, level = 1, stepMs = 3000}){
-  const list = [];
-  const count = Math.min(6, 2 + Math.floor((level - 1) / 2)); // 2..6
-  const t0 = performance.now();
+export function createEnemies({gridW, gridH, level, stepMs}){
+  const base = level<=3? 2 : level<=6? 3 : 4;
+  const n = clamp(base + (level>8?1:0), 2, 6);
 
-  for(let i=0;i<count;i++){
-    const ai = (i % 2 === 0) ? 'chaser' : 'forager';
-    const type = ai === 'chaser' ? 'slime' : 'owl';
+  const enemies = [];
+  const occupied = new Set([`0,0`]);
+  const baseTime = now();
 
-    let gx = (Math.random()*gridW)|0;
-    let gy = (Math.random()*gridH)|0;
-    if (gx === 0 && gy === 0){ gx = gridW - 1; gy = gridH - 1; }
+  for(let i=0;i<n;i++){
+    let gx = randi(0,gridW), gy = randi(0,gridH), tries=0;
+    // keep away from the player spawn (0,0) and avoid duplicate spawns
+    while(((Math.abs(gx-0)+Math.abs(gy-0)) < Math.floor((gridW+gridH)/4)) || occupied.has(`${gx},${gy}`)){
+      gx = randi(0,gridW); gy = randi(0,gridH); if(++tries>60) break;
+    }
+    occupied.add(`${gx},${gy}`);
 
-    list.push({
-      ai, type,
+    // Assign AI/type: half slimes (chase), half owls (seek empties)
+    const kind = Math.random()<0.5 ? 'slime' : 'owl';
+
+    enemies.push({
+      kind,                // 'slime' or 'owl'
       gx, gy, x: gx, y: gy,
-      dir: DIRS.LEFT,
-      stepMs,
-      nextStepAt: t0 + stepMs * (0.35 + 0.12*i),
-
-      wobbleSeed: Math.random()*Math.PI*2,
-      wingSeed: Math.random()*Math.PI*2,
-      blinkSeed: Math.random()*1000
+      dir: randi(0,4),
+      nextStepAt: baseTime + stepMs + i*150
     });
   }
-  return list;
+
+  return enemies;
 }
 
-/**
- * Advance enemy logic; checks collision both before and after stepping.
- */
-export function updateEnemies(enemies, opts){
-  const {
-    gridW, gridH,
-    player,
-    stepMs = 3000,
-    freezeUntil = 0,
-    passable = ()=>true,
-    clampTo = (gx,gy)=>({gx,gy})
-  } = opts;
+function manhattan(ax,ay,bx,by){ return Math.abs(ax-bx)+Math.abs(ay-by); }
 
-  const tnow = performance.now();
+function bestStepToward(gx,gy, tx,ty, gridW,gridH, passable){
+  let best = {gx,gy, dir:null, score: Infinity};
+  const opts = [
+    {dir:DIRS.UP,    nx:gx,   ny:gy-1},
+    {dir:DIRS.RIGHT, nx:gx+1, ny:gy  },
+    {dir:DIRS.DOWN,  nx:gx,   ny:gy+1},
+    {dir:DIRS.LEFT,  nx:gx-1, ny:gy  },
+  ];
+  for(const o of opts){
+    if(o.nx<0||o.ny<0||o.nx>=gridW||o.ny>=gridH) continue;
+    if(passable && !passable(o.nx,o.ny)) continue;
+    const d = manhattan(o.nx,o.ny, tx,ty);
+    if(d < best.score){ best = {gx:o.nx, gy:o.ny, dir:o.dir, score:d}; }
+  }
+  return best.dir==null ? {gx,gy,dir:null} : best;
+}
+
+function bestStepTowardEmpty(gx,gy, gridW,gridH, passable){
+  // Prefer moving toward any empty/eaten cell (boardHooks.isCellEmpty) with BFS ring search (radius up to 3)
+  const isEmpty = boardHooks.isCellEmpty || (()=>false);
+  let target = null;
+  for(let radius=1; radius<=3 && !target; radius++){
+    for(let dy=-radius; dy<=radius; dy++){
+      for(let dx=-radius; dx<=radius; dx++){
+        const nx = gx+dx, ny = gy+dy;
+        if(nx<0||ny<0||nx>=gridW||ny>=gridH) continue;
+        if(isEmpty(nx,ny)){ target = {tx:nx,ty:ny}; break; }
+      }
+      if(target) break;
+    }
+  }
+  if(!target){
+    // fallback: random legal step
+    const opts = [
+      {dir:DIRS.UP,    nx:gx,   ny:gy-1},
+      {dir:DIRS.RIGHT, nx:gx+1, ny:gy  },
+      {dir:DIRS.DOWN,  nx:gx,   ny:gy+1},
+      {dir:DIRS.LEFT,  nx:gx-1, ny:gy  },
+    ].filter(o => !(o.nx<0||o.ny<0||o.nx>=gridW||o.ny>=gridH) && (!passable || passable(o.nx,o.ny)));
+    return opts.length ? choice(opts) : {nx:gx,ny:gy,dir:null};
+  }
+  const res = bestStepToward(gx,gy, target.tx, target.ty, gridW,gridH, passable);
+  return { nx: res.gx, ny: res.gy, dir: res.dir };
+}
+
+export function updateEnemies(enemies, {gridW,gridH,player,stepMs,freezeUntil,passable,clampTo}){
+  const frozen = freezeUntil && now() < freezeUntil;
 
   for(let i=0;i<enemies.length;i++){
     const e = enemies[i];
-    e.stepMs = stepMs;
+    if(frozen) continue;
+    if(now() < e.nextStepAt) continue;
 
-    // Pre-step collision (catch if spawned on player or arrived earlier)
-    if (player && player.gx === e.gx && player.gy === e.gy){
-      try { boardHooks.onPlayerCaught && boardHooks.onPlayerCaught(i); } catch(_){}
+    let nx=e.gx, ny=e.gy, ndir=e.dir;
+
+    if(e.kind==='slime' && player){
+      const best = bestStepToward(e.gx, e.gy, player.gx, player.gy, gridW,gridH, passable);
+      nx = best.gx; ny = best.gy; ndir = best.dir ?? e.dir;
+    } else if(e.kind==='owl'){
+      const b = bestStepTowardEmpty(e.gx, e.gy, gridW,gridH, passable);
+      nx = b.nx; ny = b.ny; ndir = b.dir ?? e.dir;
+    } else {
+      // fallback random step
+      const opts = [
+        {dir:DIRS.UP,    nx:e.gx,   ny:e.gy-1},
+        {dir:DIRS.RIGHT, nx:e.gx+1, ny:e.gy  },
+        {dir:DIRS.DOWN,  nx:e.gx,   ny:e.gy+1},
+        {dir:DIRS.LEFT,  nx:e.gx-1, ny:e.gy  },
+      ].filter(o => !(o.nx<0||o.ny<0||o.nx>=gridW||o.ny>=gridH) && (!passable || passable(o.nx,o.ny)));
+      if(opts.length){ const o = choice(opts); nx=o.nx; ny=o.ny; ndir=o.dir; }
     }
 
-    if (tnow < freezeUntil) continue;
-
-    if (tnow >= (e.nextStepAt || 0)){
-      let dir = decideDir(e, {gridW,gridH,player,passable});
-      if (dir == null) dir = (Math.random()*4)|0;
-
-      const [dx,dy] = DIR_VECT[dir];
-      let nx = e.gx + dx, ny = e.gy + dy;
-      ({gx:nx, gy:ny} = clampTo(nx,ny));
-
-      if (passable(nx,ny)){
-        e.gx = nx; e.gy = ny; e.x = nx; e.y = ny; e.dir = dir;
-
-        // If landed on an empty cell, let the board place a word
-        try{
-          if (boardHooks.isCellEmpty && boardHooks.isCellEmpty(nx,ny)){
-            boardHooks.placeWordAt && boardHooks.placeWordAt(nx,ny);
-          }
-        }catch(_){}
-      }
-
-      // Post-step collision
-      if (player && player.gx === e.gx && player.gy === e.gy){
-        try { boardHooks.onPlayerCaught && boardHooks.onPlayerCaught(i); } catch(_){}
-      }
-
-      e.nextStepAt = tnow + e.stepMs;
+    if(clampTo){
+      const c = clampTo(nx,ny); nx = c.gx; ny = c.gy;
     }
+
+    e.gx = nx; e.gy = ny; e.x = nx; e.y = ny; e.dir = ndir;
+    e.nextStepAt = now() + stepMs;
+
+    // Landing on an empty square: let the board place a new word
+    if(boardHooks.isCellEmpty && boardHooks.isCellEmpty(nx,ny) && boardHooks.placeWordAt){
+      boardHooks.placeWordAt(nx,ny);
+    }
+
+    // Player collision is handled by the main loop, but you can ping here if desired:
+    // if(player && player.gx===nx && player.gy===ny && boardHooks.onPlayerCaught){ boardHooks.onPlayerCaught(i); }
   }
 }
 
-function decideDir(e, {gridW,gridH,player,passable}){
-  const DIRS_ARR = [DIRS.UP, DIRS.RIGHT, DIRS.DOWN, DIRS.LEFT];
-
-  // Occasional randomness
-  if (Math.random() < 0.14) return DIRS_ARR[(Math.random()*4)|0];
-
-  if (e.ai === 'chaser' && player){
-    const best = DIRS_ARR
-      .map(d=>({ d, nx:e.gx + DIR_VECT[d][0], ny: e.gy + DIR_VECT[d][1] }))
-      .filter(s=>passable(s.nx,s.ny))
-      .sort((a,b)=>{
-        const da = Math.abs(a.nx - player.gx) + Math.abs(a.ny - player.gy);
-        const db = Math.abs(b.nx - player.gx) + Math.abs(b.ny - player.gy);
-        return da - db;
-      });
-    if (best.length) return best[0].d;
-  }
-
-  if (e.ai === 'forager'){
-    const cand = DIRS_ARR
-      .map(d=>({ d, nx:e.gx + DIR_VECT[d][0], ny: e.gy + DIR_VECT[d][1] }))
-      .filter(s=>passable(s.nx,s.ny));
-
-    if (boardHooks.isCellEmpty){
-      const empties = cand.filter(s=>boardHooks.isCellEmpty(s.nx,s.ny));
-      if (empties.length) return empties[(Math.random()*empties.length)|0].d;
-    }
-    if (cand.length) return cand[(Math.random()*cand.length)|0].d;
-  }
-
-  return null;
-}
-
-/** Teleport the specified enemy to bottom-right corner. */
-export function moveEnemyToBottomRight(enemies, idx, gridW, gridH){
-  const e = enemies[idx];
-  if (!e) return;
-  e.gx = gridW - 1; e.gy = gridH - 1;
-  e.x = e.gx; e.y = e.gy;
-  e.dir = DIRS.LEFT;
-  e.nextStepAt = performance.now() + (e.stepMs || 3000);
-}
-
-/** Draw all enemies. Owls are upright (feet down), smaller, purple with glasses.
- *  Slimes are rounder and gloopy with extra drips. */
 export function drawEnemies(ctx, enemies, {padX, padY, tile}){
-  const t = performance.now()/1000;
+  const frozen = false; // purely visual tint handled inside draw if needed; main "freeze" handled in update timing
   for(const e of enemies){
     const x = padX + e.x*tile + tile/2;
     const y = padY + e.y*tile + tile/2;
-    if (e.type === 'slime'){
-      drawSlimeGloopy(ctx, x, y, tile*0.40, e.dir, t + (e.wobbleSeed||0));
-    } else {
-      drawOwlPurpleGlasses(ctx, x, y, tile*0.38, e.dir, t + (e.wingSeed||0), e.blinkSeed||0);
-    }
+    if(e.kind==='slime') drawSlime(ctx, x, y, tile, frozen);
+    else drawOwl(ctx, x, y, tile, frozen);
   }
 }
 
-// ─────────────────── Visuals ───────────────────
-
-function drawSlimeGloopy(ctx, x, y, r, dir, t){
-  ctx.save();
-  ctx.translate(x,y);
-  ctx.rotate([ -Math.PI/2, 0, Math.PI/2, Math.PI ][dir|0]);
-
-  // wobble & squish
-  const wob = Math.sin(t*3.0)*0.08 + Math.sin(t*1.7 + 0.8)*0.05;
-  const w = r*2.0*(1+wob), h = r*1.6*(1-wob);
-
-  // body
-  const grd = ctx.createLinearGradient(-w/2,-h/2, w/2,h/2);
-  grd.addColorStop(0,'#2df2a8');
-  grd.addColorStop(0.6,'#17c990');
-  grd.addColorStop(1,'#0a8c5d');
-
-  ctx.fillStyle = grd;
-  ctx.beginPath();
-  ctx.moveTo(-w*0.58, h*0.42);
-  ctx.quadraticCurveTo(-w*0.66, -h*0.05, 0, -h*0.56);
-  ctx.quadraticCurveTo(w*0.66, -h*0.05, w*0.58, h*0.42);
-  ctx.quadraticCurveTo(w*0.18, h*0.64, 0, h*0.66);
-  ctx.quadraticCurveTo(-w*0.18, h*0.64, -w*0.58, h*0.42);
-  ctx.closePath();
-  ctx.fill();
-
-  // thick glossy highlight
-  ctx.globalAlpha = 0.2;
-  ctx.fillStyle = '#ffffff';
-  ctx.beginPath(); ctx.ellipse(-w*0.12, -h*0.36, w*0.36, h*0.18, 0.35, 0, Math.PI*2); ctx.fill();
-  ctx.globalAlpha = 1;
-
-  // gloopy drips
-  ctx.globalAlpha = 0.45;
-  ctx.fillStyle = '#11d48e';
-  for(let i=0;i<4;i++){
-    const dx = (-w*0.32 + i*(w*0.21)) + Math.sin(t*2.2 + i)*w*0.03;
-    const dy = h*0.50 + Math.sin(t*2.9 + i*0.7)*h*0.06;
-    ctx.beginPath(); ctx.ellipse(dx, dy, w*0.08, h*0.10, 0, 0, Math.PI*2); ctx.fill();
-  }
-  ctx.globalAlpha = 1;
-
-  // eyes
-  ctx.fillStyle = '#fff';
-  ctx.beginPath();
-  ctx.arc(-w*0.20, -h*0.10, r*0.15, 0, Math.PI*2);
-  ctx.arc( w*0.20, -h*0.10, r*0.15, 0, Math.PI*2);
-  ctx.fill();
-
-  const px = Math.sin(t*2.1)*r*0.035;
-  const py = Math.cos(t*1.8)*r*0.025;
-  ctx.fillStyle = '#0b1020';
-  ctx.beginPath();
-  ctx.arc(-w*0.20+px, -h*0.10+py, r*0.08, 0, Math.PI*2);
-  ctx.arc( w*0.20+px, -h*0.10+py, r*0.08, 0, Math.PI*2);
-  ctx.fill();
-
-  // rim light arc
-  ctx.globalAlpha = 0.33;
-  ctx.strokeStyle = '#a6ffe0';
-  ctx.lineWidth = 1.4;
-  ctx.beginPath();
-  ctx.ellipse(0, 0, w*0.54, h*0.60, 0, 0.2, Math.PI*1.8);
-  ctx.stroke();
-  ctx.globalAlpha = 1;
-
-  ctx.restore();
+export function moveEnemyToBottomRight(enemies, index, gridW, gridH){
+  const e = enemies[index]; if(!e) return;
+  e.gx = gridW-1; e.gy = gridH-1; e.x = e.gx; e.y = e.gy; e.dir = DIRS.LEFT;
+  e.nextStepAt = now() + 400; // slight delay before it starts again
 }
 
-function drawOwlPurpleGlasses(ctx, x, y, r, dir, t, blinkSeed){
+// ───────────────────────────────────────────────
+// Drawing helpers
+
+// Slimier, 25% smaller slime with downward drips (orientation invariant)
+function drawSlime(ctx, cx, cy, tile, frozen){
+  const scale = 0.75;                   // 25% smaller
+  const size = tile * 0.34 * scale;
+  const w = size * 1.5, h = size * 1.25;
+
   ctx.save();
-  ctx.translate(x,y);
-  // Owls: always upright (feet down) — do NOT rotate body by dir.
+  ctx.translate(cx, cy);
 
-  const w = r*1.6, h = r*1.75;
+  // Body blob (no rotation; drips always straight down)
+  const jiggle = Math.sin(performance.now()/220) * (h*0.04);
+  ctx.beginPath();
+  ctx.moveTo(-w*0.45,  -h*0.10 + jiggle);
+  ctx.bezierCurveTo(-w*0.60, -h*0.55 + jiggle,  w*0.60, -h*0.55 + jiggle,  w*0.45, -h*0.10 + jiggle);
+  ctx.bezierCurveTo( w*0.55,  h*0.35,           -w*0.55,  h*0.35,          -w*0.45, -h*0.10 + jiggle);
 
-  // body (purple)
-  const bodyGrad = ctx.createLinearGradient(0, -h*0.5, 0, h*0.7);
-  bodyGrad.addColorStop(0, '#8d64e8'); // lighter purple
-  bodyGrad.addColorStop(1, '#5a3aa8'); // darker purple
+  const bodyGrad = ctx.createLinearGradient(-w, -h, w, h);
+  bodyGrad.addColorStop(0, frozen ? '#aef7ff' : '#3ff1c8');
+  bodyGrad.addColorStop(1, frozen ? '#7fe9ff' : '#1ec49e');
   ctx.fillStyle = bodyGrad;
-  ctx.beginPath();
-  ctx.ellipse(0, 0, w*0.46, h*0.55, 0, 0, Math.PI*2);
+  ctx.shadowColor = frozen ? '#9defff' : '#1ec49e';
+  ctx.shadowBlur = frozen ? 8 : 14;
   ctx.fill();
+  ctx.shadowBlur = 0;
 
-  // belly
+  // Gloss
   ctx.save();
+  ctx.globalAlpha = 0.55;
+  ctx.fillStyle = '#ffffff';
   ctx.beginPath();
-  ctx.ellipse(0, h*0.02, w*0.36, h*0.36, 0, 0, Math.PI*2);
-  ctx.clip();
-  ctx.fillStyle = '#e8defc';
-  ctx.beginPath(); ctx.rect(-w, -h, w*2, h*2); ctx.fill();
-  ctx.strokeStyle = 'rgba(110,90,160,.45)';
-  ctx.lineWidth = Math.max(1, r*0.05);
-  for(let i=0;i<5;i++){
-    ctx.beginPath();
-    const yy = -h*0.10 + i*(h*0.10);
-    ctx.moveTo(-w*0.28, yy); ctx.quadraticCurveTo(0, yy+h*0.05, w*0.28, yy);
-    ctx.stroke();
-  }
+  ctx.ellipse(-w*0.18, -h*0.22 + jiggle, w*0.35, h*0.22, -0.35, 0, Math.PI*2);
+  ctx.fill();
   ctx.restore();
 
-  // wings (gentle flap)
-  const flap = Math.sin(t*5.8)*0.12;
-  ctx.fillStyle = '#6f4bd0';
-  ctx.save();
-  ctx.translate(-w*0.42, -h*0.02);
-  ctx.rotate(-0.08 + flap);
-  ctx.beginPath();
-  ctx.ellipse(0, 0, w*0.24, h*0.34, 0.1, 0, Math.PI*2); ctx.fill();
-  ctx.restore();
-
-  ctx.save();
-  ctx.translate( w*0.42, -h*0.02);
-  ctx.rotate(0.08 - flap);
-  ctx.beginPath();
-  ctx.ellipse(0, 0, w*0.24, h*0.34, -0.1, 0, Math.PI*2); ctx.fill();
-  ctx.restore();
-
-  // head (slight yaw suggestion only)
-  const headYaw = (dir === DIRS.LEFT ? -0.10 : dir === DIRS.RIGHT ? 0.10 : 0);
-  ctx.save();
-  ctx.translate(0, -h*0.36);
-  ctx.rotate(headYaw);
-
-  ctx.fillStyle = '#8d64e8';
-  ctx.beginPath(); ctx.ellipse(0, 0, w*0.28, h*0.20, 0, 0, Math.PI*2); ctx.fill();
-
-  // ear tufts
-  ctx.fillStyle = '#6f4bd0';
-  ctx.beginPath();
-  ctx.moveTo(-w*0.22, -h*0.06); ctx.lineTo(-w*0.12, -h*0.14); ctx.lineTo(-w*0.06, -h*0.02); ctx.closePath(); ctx.fill();
-  ctx.beginPath();
-  ctx.moveTo( w*0.22, -h*0.06); ctx.lineTo( w*0.12, -h*0.14); ctx.lineTo( w*0.06, -h*0.02); ctx.closePath(); ctx.fill();
-
-  // eyes
-  const blink = (Math.sin(t*2.1 + blinkSeed) > 0.92) ? 0.2 : 1.0;
+  // Eyes (symmetric)
   ctx.fillStyle = '#fff';
+  const eyeR = size*0.13;
   ctx.beginPath();
-  ctx.arc(-w*0.11, -h*0.02, r*0.14, 0, Math.PI*2);
-  ctx.arc( w*0.11, -h*0.02, r*0.14, 0, Math.PI*2);
+  ctx.arc(-size*0.28, -size*0.08 + jiggle, eyeR, 0, Math.PI*2);
+  ctx.arc( size*0.28, -size*0.08 + jiggle, eyeR, 0, Math.PI*2);
   ctx.fill();
-
-  // glasses frames
-  ctx.strokeStyle = '#2a1a5e';
-  ctx.lineWidth = Math.max(1.5, r*0.06);
-  ctx.beginPath();
-  ctx.arc(-w*0.11, -h*0.02, r*0.16, 0, Math.PI*2);
-  ctx.arc( w*0.11, -h*0.02, r*0.16, 0, Math.PI*2);
-  ctx.stroke();
-  // bridge
-  ctx.beginPath();
-  ctx.moveTo(-w*0.11 + r*0.16, -h*0.02);
-  ctx.lineTo( w*0.11 - r*0.16, -h*0.02);
-  ctx.stroke();
-
-  // pupils (blink)
   ctx.fillStyle = '#0b1020';
   ctx.beginPath();
-  ctx.ellipse(-w*0.11, -h*0.02, r*0.07, r*0.07*blink, 0, 0, Math.PI*2);
-  ctx.ellipse( w*0.11, -h*0.02, r*0.07, r*0.07*blink, 0, 0, Math.PI*2);
+  ctx.arc(-size*0.28, -size*0.08 + jiggle, eyeR*0.55, 0, Math.PI*2);
+  ctx.arc( size*0.28, -size*0.08 + jiggle, eyeR*0.55, 0, Math.PI*2);
   ctx.fill();
 
-  // beak
-  ctx.fillStyle = '#e4a11b';
+  // Mouth
+  ctx.strokeStyle = 'rgba(0,0,0,.5)'; ctx.lineWidth = Math.max(1.2, size*0.08);
   ctx.beginPath();
-  ctx.moveTo(0, 0);
-  ctx.lineTo(-r*0.10, r*0.12);
-  ctx.lineTo( r*0.10, r*0.12);
-  ctx.closePath();
+  ctx.arc(0, size*0.05 + jiggle, size*0.22, 0.15*Math.PI, 0.85*Math.PI);
+  ctx.stroke();
+
+  // 3 animated drips straight down
+  const dripCount = 3;
+  for(let i=0;i<dripCount;i++){
+    const t = (performance.now()/700 + i*0.27) % 1;
+    const dx = -w*0.25 + i*(w*0.25);
+    const len = h*0.28 * (0.25 + 0.75*(1 - Math.abs(2*t-1)));
+    const tip = h*0.38 + len;
+
+    ctx.strokeStyle = frozen ? 'rgba(160,240,255,0.9)' : 'rgba(48,220,180,0.9)';
+    ctx.lineWidth = size*0.10;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(dx, h*0.30);
+    ctx.lineTo(dx, tip);
+    ctx.stroke();
+
+    ctx.fillStyle = frozen ? '#bdf2ff' : '#4ef0c7';
+    ctx.beginPath();
+    ctx.ellipse(dx, tip + size*0.10, size*0.10, size*0.16, 0, 0, Math.PI*2);
+    ctx.fill();
+  }
+
+  // Subtle rim light
+  ctx.globalAlpha = 0.35;
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(-w*0.48, -h*0.12 + jiggle);
+  ctx.lineTo(-w*0.10, -h*0.38 + jiggle);
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+// Owl with symmetric eyes, purple body, glasses; feet point downwards
+function drawOwl(ctx, cx, cy, tile, frozen){
+  const size = tile * 0.34;
+  const w = size*1.45, h = size*1.7;
+
+  ctx.save();
+  ctx.translate(cx, cy);
+
+  // Body (upright)
+  const grad = ctx.createLinearGradient(0, -h, 0, h);
+  grad.addColorStop(0, frozen ? '#b9a7ff' : '#a78bfa'); // purple
+  grad.addColorStop(1, frozen ? '#907cfe' : '#7c5cf6');
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.ellipse(0, 0, w*0.55, h*0.52, 0, 0, Math.PI*2);
   ctx.fill();
 
-  ctx.restore(); // end head
+  // Wings
+  ctx.fillStyle = 'rgba(0,0,0,.12)';
+  ctx.beginPath(); ctx.ellipse(-w*0.48, 0, w*0.26, h*0.35, 0, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse( w*0.48, 0, w*0.26, h*0.35, 0, 0, Math.PI*2); ctx.fill();
 
-  // feet (always down)
-  ctx.strokeStyle = '#e4a11b';
-  ctx.lineWidth = Math.max(1.2, r*0.06);
-  ctx.lineCap = 'round';
-  const fy = h*0.50;
-  // left foot
+  // Eyes (left and right identical sizing/placement relative to center)
+  const eyeR = size*0.16;
+  ctx.fillStyle = '#fff';
   ctx.beginPath();
-  ctx.moveTo(-w*0.16, fy); ctx.lineTo(-w*0.22, fy + r*0.18);
-  ctx.moveTo(-w*0.16, fy); ctx.lineTo(-w*0.12, fy + r*0.18);
-  ctx.moveTo(-w*0.16, fy); ctx.lineTo(-w*0.06, fy + r*0.18);
+  ctx.arc(-size*0.26, -size*0.10, eyeR, 0, Math.PI*2);
+  ctx.arc( size*0.26, -size*0.10, eyeR, 0, Math.PI*2);
+  ctx.fill();
+  ctx.fillStyle = '#111827';
+  ctx.beginPath();
+  ctx.arc(-size*0.26, -size*0.10, eyeR*0.55, 0, Math.PI*2);
+  ctx.arc( size*0.26, -size*0.10, eyeR*0.55, 0, Math.PI*2);
+  ctx.fill();
+
+  // Glasses
+  ctx.strokeStyle = '#2e1065';
+  ctx.lineWidth = Math.max(1.5, size*0.07);
+  ctx.beginPath();
+  ctx.arc(-size*0.26, -size*0.10, eyeR*1.05, 0, Math.PI*2);
+  ctx.arc( size*0.26, -size*0.10, eyeR*1.05, 0, Math.PI*2);
   ctx.stroke();
-  // right foot
   ctx.beginPath();
-  ctx.moveTo( w*0.16, fy); ctx.lineTo( w*0.22, fy + r*0.18);
-  ctx.moveTo( w*0.16, fy); ctx.lineTo( w*0.12, fy + r*0.18);
-  ctx.moveTo( w*0.16, fy); ctx.lineTo( w*0.06, fy + r*0.18);
+  ctx.moveTo(-size*0.12, -size*0.10);
+  ctx.lineTo( size*0.12, -size*0.10);
   ctx.stroke();
 
-  // shadow
-  ctx.globalAlpha = 0.25;
-  ctx.fillStyle = '#000';
-  ctx.beginPath(); ctx.ellipse(0, h*0.58, w*0.30, h*0.06, 0, 0, Math.PI*2); ctx.fill();
-  ctx.globalAlpha = 1;
+  // Beak
+  ctx.fillStyle = '#f59e0b';
+  ctx.beginPath();
+  ctx.moveTo(0, -size*0.02);
+  ctx.lineTo(size*0.12,  size*0.18);
+  ctx.lineTo(-size*0.12, size*0.18);
+  ctx.closePath(); ctx.fill();
+
+  // Feet (always down)
+  ctx.fillStyle = '#fbbf24';
+  const fy = h*0.48;
+  for(const sx of [-1, 1]){
+    ctx.beginPath();
+    ctx.moveTo(sx*size*0.22, fy);
+    ctx.lineTo(sx*size*0.10, fy + size*0.18);
+    ctx.lineTo(sx*size*0.34, fy + size*0.18);
+    ctx.closePath(); ctx.fill();
+  }
+
+  // Rim light
+  ctx.globalAlpha = 0.3;
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.arc(0, 0, w*0.54, -Math.PI*0.2, Math.PI*0.2);
+  ctx.stroke();
 
   ctx.restore();
 }
