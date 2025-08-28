@@ -1,378 +1,476 @@
 // muncher.js — main game module (multi-file build)
-// Requires: MooseMan.js, enemies.js, categories.json (compact schema)
-
+// Imports
+import { applyPreferences } from './prefs.js';
 import MooseMan from './MooseMan.js';
-import {
-  createEnemies,
-  updateEnemies,
-  drawEnemies,
-  notifyBoardHooksForEnemies,
-  moveEnemyToBottomRight
-} from './enemies.js';
+import { stepEnemies, resetEnemyTimers, spawnTroggles, drawEnemy } from './enemies.js';
 
-// ───────────────────────────────────────────────
-// DOM references (all optional-safe)
+// ---------- DOM ----------
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 
-const menuEl = document.getElementById('menu');
-const startBtn = document.getElementById('startBtn');
-const pauseBtn = document.getElementById('pauseBtn');
-const helpBtn = document.getElementById('helpBtn');
-const helpEl = document.getElementById('help');
-const closeHelpBtn = document.getElementById('closeHelp');
-const againBtn = document.getElementById('againBtn');
-const menuBtn = document.getElementById('menuBtn');
+// HUD
+const catBadge = document.getElementById('categoryBadge'); // <div id="categoryBadge"><strong>…</strong></div>
+const levelEl  = document.getElementById('level');
+const scoreEl  = document.getElementById('score');
+const livesEl  = document.getElementById('lives');
+const toastEl  = document.getElementById('toast');
+
+// Overlays & buttons
+const menuEl     = document.getElementById('menu');
+const helpEl     = document.getElementById('help');
+const gameoverEl = document.getElementById('gameover');
+
+const startBtn   = document.getElementById('startBtn');
+const againBtn   = document.getElementById('againBtn');
+const menuBtn    = document.getElementById('menuBtn');
+const helpBtn    = document.getElementById('helpBtn');
+const closeHelp  = document.getElementById('closeHelp');
+
+const modeSelect = document.getElementById('modeSelect');      // 'single' | 'words' | 'math' | 'any' (Anything Goes default)
+const catSelect  = document.getElementById('categorySelect');  // loaded from categories.json
+const pauseBtn   = document.getElementById('pauseBtn');
 const shuffleBtn = document.getElementById('shuffleBtn');
 
-const categoryBadge = document.getElementById('categoryBadge');
-const levelSpan = document.getElementById('level');
-const scoreSpan = document.getElementById('score');
-const livesSpan = document.getElementById('lives');
-const toastEl = document.getElementById('toast');
-
-const categorySelect = document.getElementById('categorySelect');
-const modeSelect = document.getElementById('modeSelect');
-
-const recentAnswersEl = document.getElementById('recentAnswers'); // optional
-
-// ───────────────────────────────────────────────
-// Small helpers
-const rand = (a,b)=> Math.random()*(b-a)+a;
-const randi = (a,b)=> (Math.random()*(b-a)+a)|0;
-const choice = (arr)=> arr[(Math.random()*arr.length)|0];
-const clamp = (v,a,b)=> Math.min(b, Math.max(a,v));
+// ---------- Utils ----------
 const now = ()=> performance.now();
+const clamp = (v,a,b)=> Math.min(b, Math.max(a,v));
+const choice = arr => arr[Math.floor(Math.random()*arr.length)];
+function shuffle(arr){ for(let i=arr.length-1;i>0;i--){ const j=(Math.random()*(i+1))|0; [arr[i],arr[j]]=[arr[j],arr[i]]; } return arr; }
 const easeOutCubic = t => 1 - Math.pow(1 - t, 3);
-function shuffle(arr){ const a=arr.slice(); for(let i=a.length-1;i>0;i--){ const j=(Math.random()*(i+1))|0; [a[i],a[j]]=[a[j],a[i]] } return a; }
-function lerp(a,b,t){ return a + (b-a)*t; }
-function show(el){ if(el) el.classList.remove('hide'); }
-function hide(el){ if(el) el.classList.add('hide'); }
-function setText(el, txt){ if(el) el.textContent = txt; }
-function escapeHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
-// ───────────────────────────────────────────────
-// Game constants
-const GRID_W = 5;
-const GRID_H = 5;
-const DIRS = { UP:0, RIGHT:1, DOWN:2, LEFT:3 };
-const DIR_VECT = [ [0,-1],[1,0],[0,1],[-1,0] ];
-const ENEMY_STEP_MS = 3000; // 1 tile every 3s
-const TELEPORT_MS   = 800;  // ignore inputs during teleport
-
-// ───────────────────────────────────────────────
-// Numeric categories (Math)
-const isPrime = n => {
-  if (n < 2) return false;
-  if (n % 2 === 0) return n === 2;
-  const r = Math.floor(Math.sqrt(n));
-  for (let i = 3; i <= r; i += 2) if (n % i === 0) return false;
-  return true;
-};
-
-function numericCategory(name, predicate, opts = {}) {
-  return {
-    id: name.toLowerCase().replace(/\s+/g, '-'),
-    name,
-    type: 'number',
-    generate: (W, H) => {
-      const total = W * H;
-      const min = opts.min ?? 1;
-      const max = opts.max ?? 200;
-      const pool = Array.from({ length: max - min + 1 }, (_, i) => i + min);
-      const take = shuffle(pool).slice(0, total);
-      return take.map(n => ({ label: String(n), value: n, correct: !!predicate(n) }));
-    }
-  };
+function roundRect(ctx, x,y,w,h,r){
+  const rr = Math.min(r, w/2, h/2);
+  ctx.moveTo(x+rr,y); ctx.arcTo(x+w,y,x+w,y+h,rr);
+  ctx.arcTo(x+w,y+h,x,y+h,rr); ctx.arcTo(x,y+h,x,y,rr); ctx.arcTo(x,y,x+w,y,rr);
 }
 
-export const NUMERIC_CATEGORIES = [
-  numericCategory('Multiples of 3', n => n % 3 === 0, { min: 3, max: 180 }),
-  numericCategory('Even Numbers', n => n % 2 === 0, { min: 2, max: 120 }),
-  numericCategory('Odd Numbers', n => n % 2 !== 0, { min: 1, max: 119 }),
-  numericCategory('Prime Numbers', n => isPrime(n), { min: 2, max: 199 }),
-  numericCategory('Perfect Squares', n => Number.isInteger(Math.sqrt(n)), { min: 1, max: 196 })
-];
+function showToast(text, ms=1200){
+  if(!toastEl) return;
+  toastEl.textContent = text;
+  toastEl.classList.remove('hide');
+  const t0 = now();
+  const id = setInterval(()=>{
+    if(now()-t0 > ms){ clearInterval(id); toastEl.classList.add('hide'); }
+  }, 60);
+}
 
-// ───────────────────────────────────────────────
-// Compact words importer (from categories.json)
-const CASE_RULES = new Map([
-  ['countries','title'],
-  ['continents','title']
-]);
+// ---------- Directions ----------
+const DIRS = { UP:0, RIGHT:1, DOWN:2, LEFT:3 };
+const DIR_VECT = [ [0,-1],[1,0],[0,1],[-1,0] ];
 
-export let WORD_CATEGORY_DEFS = [];
-export let CATEGORIES = [];
+// ---------- Categories (from categories.json) ----------
+let CATEGORIES = [];   // mixed list (numbers + words)
+let WORD_CATS = [];
+let MATH_CATS = [];
+let CROSS_HINTS = {};
 
-async function loadWordCategories(url = './categories.json') {
-  const res = await fetch(url, { cache: 'no-store' });
-  if (!res.ok) throw new Error(`Failed to load categories.json (${res.status})`);
+async function loadCategories(){
+  const res = await fetch('./categories.json', {cache:'no-store'});
   const data = await res.json();
-  const rows = Array.isArray(data) ? data : Array.isArray(data.words) ? data.words : [];
 
-  const catMap = new Map(); // cat -> Set(words)
-  for (const row of rows) {
-    if (!row || !row.text || !Array.isArray(row.categories)) continue;
-    const w = String(row.text).trim();
-    for (const raw of row.categories) {
-      const c = String(raw).trim();
-      if (!catMap.has(c)) catMap.set(c, new Set());
-      catMap.get(c).add(w);
+  // Build word maps with cross hints
+  const wordSets = structuredClone(data.wordSets || {});
+  CROSS_HINTS = data.crossHints || {};
+
+  // Promote cross-hints words into multiple sets
+  for(const [word, sets] of Object.entries(CROSS_HINTS)){
+    for(const setKey of sets){
+      if(!wordSets[setKey]) wordSets[setKey] = [];
+      if(!wordSets[setKey].includes(word)) wordSets[setKey].push(word);
     }
   }
-  const allWords = new Set();
-  for (const s of catMap.values()) for (const w of s) allWords.add(w);
 
-  WORD_CATEGORY_DEFS = Array.from(catMap.entries()).map(([cat, set]) => {
-    const caseRule = CASE_RULES.get(cat.toLowerCase()) || 'lower';
-    const correctSet = new Set(set);
-    const distractPool = [...allWords].filter(w => !correctSet.has(w));
-    const normalize = (s) => {
-      if (caseRule === 'title') return s.replace(/\b\w/g, c => c.toUpperCase());
-      if (caseRule === 'upper') return s.toUpperCase();
-      return s.toLowerCase();
-    };
+  // Word categories
+  WORD_CATS = (data.words || []).map(wc => {
+    const set = wordSets[wc.set] || [];
+    const labCase = wc.case || 'lower';
+    const normalize = s => labCase==='title'
+      ? s.replace(/\b\w/g, c=>c.toUpperCase())
+      : (labCase==='upper' ? s.toUpperCase() : s.toLowerCase());
     return {
-      id: cat.toLowerCase().replace(/\s+/g, '-'),
-      name: cat.replace(/\b\w/g, c => c.toUpperCase()),
+      id: wc.id,
+      name: wc.name,
       type: 'word',
-      generate: (W, H, countCorrect = Math.ceil(W * H * 0.4)) => {
-        const total = W * H;
-        const corr = shuffle([...correctSet]).slice(0, Math.min(countCorrect, correctSet.size));
-        const need = Math.max(0, total - corr.length);
-        const dist = shuffle(distractPool).slice(0, need);
-        return shuffle([...corr, ...dist]).map(w => ({
-          label: normalize(w),
-          value: w,
-          correct: correctSet.has(w)
-        }));
+      case: labCase,
+      generate(W,H, wantCorrect = Math.floor(W*H*0.4)){
+        const total = W*H;
+        const correctPool = [...set];
+        const otherPools = Object.keys(wordSets)
+          .filter(k => k !== wc.set)
+          .flatMap(k => wordSets[k]);
+
+        const chosenCorrect = shuffle(correctPool).slice(0, Math.min(wantCorrect, correctPool.length));
+        const distractNeed  = Math.max(0, total - chosenCorrect.length);
+        const chosenDistract= shuffle(otherPools.filter(x => !chosenCorrect.includes(x))).slice(0, distractNeed);
+
+        const items = shuffle([
+          ...chosenCorrect.map(label => ({ label: normalize(label), value: label, correct: true })),
+          ...chosenDistract.map(label => ({ label: normalize(label), value: label, correct: false }))
+        ]);
+        return items;
       }
     };
   });
-}
 
-export async function bootCategories(jsonUrl = './categories.json') {
-  await loadWordCategories(jsonUrl);
-  CATEGORIES = [...NUMERIC_CATEGORIES, ...WORD_CATEGORY_DEFS];
-  populateCategoryDropdown();
-}
+  // Number categories
+  const isPrime = n => {
+    if (n<2) return false; if (n%2===0) return n===2; const r=Math.sqrt(n)|0;
+    for(let i=3;i<=r;i+=2){ if(n%i===0) return false } return true;
+  };
+  MATH_CATS = (data.numbers || []).map(nc => {
+    let pred;
+    if(nc.kind === 'even') pred = n => n%2===0;
+    else if(nc.kind === 'odd') pred = n => n%2!==0;
+    else if(nc.kind === 'prime') pred = n => isPrime(n);
+    else if(nc.kind === 'multipleOf') pred = n => n % (nc.k||2) === 0;
+    else if(nc.kind === 'square') pred = n => Number.isInteger(Math.sqrt(n));
+    else pred = _ => false;
 
-function populateCategoryDropdown() {
-  if (!categorySelect) return;
-  categorySelect.innerHTML = '';
-  for (const c of CATEGORIES) {
-    const opt = document.createElement('option');
-    opt.value = c.id; opt.textContent = c.name;
-    categorySelect.appendChild(opt);
+    const min = nc.min ?? 1;
+    const max = nc.max ?? 199;
+    return {
+      id: nc.id,
+      name: nc.name,
+      type: 'number',
+      generate(W,H){
+        const total = W*H;
+        const pool = Array.from({length:max-min+1}, (_,i)=> i+min);
+        const pick = shuffle(pool).slice(0,total);
+        return pick.map(n => ({ label: String(n), value: n, correct: !!pred(n) }));
+      }
+    };
+  });
+
+  CATEGORIES = [...MATH_CATS, ...WORD_CATS];
+
+  // Populate dropdown (for Single Category mode only)
+  if(catSelect){
+    catSelect.innerHTML = WORD_CATS.concat(MATH_CATS)
+      .map(c => `<option value="${c.id}">${c.name}</option>`)
+      .join('');
   }
 }
 
-export function getCategoryById(id) {
-  return CATEGORIES.find(c => c.id === id) || null;
-}
-
-function pickRandomCategory(excludeId) {
-  const pool = CATEGORIES.filter(c => c.id !== excludeId);
-  return choice(pool.length ? pool : CATEGORIES);
-}
-function pickRandomWordCategory(excludeId) {
-  const pool = WORD_CATEGORY_DEFS.filter(c => c.id !== excludeId);
-  return choice(pool.length ? pool : WORD_CATEGORY_DEFS);
-}
-function pickRandomMathCategory(excludeId) {
-  const pool = NUMERIC_CATEGORIES.filter(c => c.id !== excludeId);
-  return choice(pool.length ? pool : NUMERIC_CATEGORIES);
-}
-
-// ───────────────────────────────────────────────
-// Modes
-const MODES = Object.freeze({
-  SINGLE: 'single',      // user-picked category
-  MATH: 'math',          // numbers only
-  WORDS: 'words',        // words only (new category per level)
-  ANY: 'any'             // any category (default)
-});
-
-function setCategoryDropdownVisible(visible){
-  if (!categorySelect) return;
-  const label = categorySelect.closest('label') || categorySelect;
-  label.style.display = visible ? '' : 'none';
-}
-
-// ───────────────────────────────────────────────
-// Level requirements pattern:
-// 1-4 => 4; 5-9 => 6; 10-14 => 10; 15-19 => 18; ... (+2, +4, +8, ... every 5 levels)
-function neededForLevel(level){
-  if (level <= 4) return 4;
-  const t = Math.floor((level - 5) / 5) + 1; // checkpoints passed: 5,10,15...
-  let inc = 0;
-  for (let i=0;i<t;i++) inc += (2 << i); // 2,4,8,16...
-  return 4 + inc;
-}
-
-// ───────────────────────────────────────────────
-// State
+// ---------- Game State ----------
 const state = {
-  running:false,
-  paused:false,
-  mode: MODES.ANY,
-  level:1,
-  score:0,
-  lives:3,
-  gridW: GRID_W,
-  gridH: GRID_H,
+  running: false,
+  paused: false,
+
+  gridW: 5,
+  gridH: 5,
   tile: 64,
 
+  level: 1,
+  score: 0,
+  lives: 3,
+
+  mode: 'any',             // 'single' | 'words' | 'math' | 'any' (Anything Goes default)
   category: null,
-  items: [],
+
+  items: [],               // tiles
   correctRemaining: 0,
 
   player: null,
-  teleportingUntil: 0,
-
   enemies: [],
 
-  progress: 0,
-  needed: 4,
-
-  invulnUntil: 0,
   freezeUntil: 0,
+  invulnUntil: 0,
 
-  recentAnswers: [] // [{text,correct,categoryName,level,time}]
+  // level progress bar config
+  math: { needed: 4, progress: 0 },
+
+  // Catch animation + teleport
+  catchAnim: null,
+
+  // Recent answers
+  recent: []
 };
 
-// ───────────────────────────────────────────────
-// Board
+const RECENT_RENDER_MAX = 10;
+
+// ---------- Recent panel ----------
+function pushRecentHeading(text){ state.recent.push({ type:'heading', text:String(text), ts: now() }); trimRecent(); }
+function pushRecentAnswer(text, correct){ state.recent.push({ type:'answer', text:String(text), correct:!!correct, ts: now() }); trimRecent(); }
+function trimRecent(){ const MAX=30; if(state.recent.length>MAX) state.recent.splice(0, state.recent.length-MAX); }
+
+// ---------- Canvas & Resize ----------
+function resizeCanvas(){
+  const dpr = devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = Math.floor(rect.width * dpr);
+  canvas.height = Math.floor(rect.height * dpr);
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+
+  // Fixed 5×5 grid — compute tile from available area
+  const barW = needsBar() ? Math.max(90, rect.width*0.08) : 0;
+  state.tile = Math.floor(Math.min((rect.width - barW)/state.gridW, rect.height/state.gridH));
+}
+addEventListener('resize', resizeCanvas);
+
+// ---------- UI helpers ----------
+function needsBar(){ return true; } // keep bar visible in all modes
+
+function updateHUD(){
+  if(levelEl) levelEl.textContent = String(state.level);
+  if(scoreEl) scoreEl.textContent = String(state.score);
+  if(livesEl) livesEl.textContent = String(state.lives);
+  const strong = catBadge?.querySelector('strong');
+  if(strong) strong.textContent = state.category ? state.category.name : '—';
+}
+
+function readModeFromSelect(){
+  if(!modeSelect) return state.mode;
+  const v = modeSelect.value;
+  if(v==='single') return 'single';
+  if(v==='words')  return 'words';
+  if(v==='math')   return 'math';
+  return 'any';
+}
+
+function syncCategorySelectDisabled(){
+  if(!catSelect) return;
+  const single = state.mode === 'single';
+  catSelect.disabled = !single;
+  catSelect.parentElement?.classList.toggle('hide', !single);
+}
+
+function pickRandom(arr, excludeId){
+  const pool = excludeId ? arr.filter(c => c.id !== excludeId) : arr;
+  return pool.length ? choice(pool) : null;
+}
+const pickRandomAnyCategory  = prevId => pickRandom(CATEGORIES, prevId);
+const pickRandomWordCategory = prevId => pickRandom(WORD_CATS, prevId);
+const pickRandomMathCategory = prevId => pickRandom(MATH_CATS, prevId);
+
+// === Level requirement: base 4, +2 every 5 levels ===
+// 1–4 → 4, 5–9 → 6, 10–14 → 10, 15–19 → 18, …
+function computeNeededPerLevel(level){
+  const block = Math.floor((level - 1) / 5);
+  return 2 * ((1 << block) + 1);
+}
+
+// ---------- Word-wrap helpers (no mid-word breaking with auto font scaling) ----------
+const TILE_FONT_FAMILY = "ui-sans-serif, system-ui, -apple-system, Segoe UI";
+function measureLongestWordPx(text, ctx){
+  let m = 0; for(const w of String(text).split(/\s+/).filter(Boolean)){ m = Math.max(m, ctx.measureText(w).width); } return m;
+}
+function fitFontPxForWidth(text, ctx, basePx, minPx, maxWidth){
+  let px = basePx; ctx.font = `${px}px ${TILE_FONT_FAMILY}`;
+  while(px > minPx && measureLongestWordPx(text, ctx) > maxWidth){ px -= 1; ctx.font = `${px}px ${TILE_FONT_FAMILY}`; }
+  return px;
+}
+function wrapNoBreak(text, ctx, maxWidth, maxLines){
+  const words = String(text).split(/\s+/).filter(Boolean);
+  const lines = []; let line = '';
+  for(const w of words){
+    const test = line ? (line + ' ' + w) : w;
+    if(ctx.measureText(test).width <= maxWidth){
+      line = test;
+    }else{
+      if(line){ lines.push(line); line = w; } else { lines.push(w); line=''; }
+      if(lines.length >= maxLines){
+        let last = lines[lines.length-1];
+        while(last.length && ctx.measureText(last + '…').width > maxWidth){ last = last.slice(0, -1); }
+        lines[lines.length-1] = last + '…';
+        return lines;
+      }
+    }
+  }
+  if(line){
+    if(lines.length < maxLines) lines.push(line);
+    else{
+      let last = lines[lines.length-1];
+      while(last.length && ctx.measureText(last + '…').width > maxWidth){ last = last.slice(0, -1); }
+      lines[lines.length-1] = last + '…';
+    }
+  }
+  return lines;
+}
+function layoutTextBlock({text, ctx, maxWidth, maxLines, basePx, minPx, lineHeightFactor=1.05}){
+  const fontPx = fitFontPxForWidth(text, ctx, basePx, minPx, maxWidth);
+  ctx.font = `${fontPx}px ${TILE_FONT_FAMILY}`;
+  const lineHeight = Math.max(12, Math.floor(fontPx * lineHeightFactor));
+  const lines = wrapNoBreak(text, ctx, maxWidth, maxLines);
+  return { fontPx, lineHeight, lines };
+}
+
+// ---------- Board & Entities ----------
 function buildBoard(){
   const W = state.gridW, H = state.gridH;
-  const wantCorrect = Math.ceil(W*H*0.4);
-  const raw = state.category.generate(W,H, wantCorrect);
-  state.items = raw.map((it, idx)=>({
+  const wantCorrect = Math.min(W*H, Math.max(8, state.math.needed||8));
+  const items = state.category.generate(W,H, wantCorrect).slice(0, W*H);
+
+  state.items = items.map((it, idx)=>({
     ...it,
     eaten:false,
     gx: idx % W,
-    gy: Math.floor(idx / W)
+    gy: (idx / W) | 0
   }));
-  state.correctRemaining = state.items.filter(t=>t.correct && !t.eaten).length;
+  state.correctRemaining = state.items.filter(t=>t.correct).length;
 }
 
-function getTileAt(gx,gy){ return state.items.find(t=>t.gx===gx && t.gy===gy); }
-function passable(gx,gy){ return gx>=0 && gy>=0 && gx<state.gridW && gy<state.gridH; }
-
-// ───────────────────────────────────────────────
-// Entities
 function spawnPlayer(){
   state.player = { gx:0, gy:0, x:0, y:0, dir:DIRS.RIGHT, moving:null };
 }
-function teleportPlayerTo(gx,gy){
-  if(!state.player) return;
-  state.player.gx = gx; state.player.gy = gy;
-  state.player.x = gx;  state.player.y = gy;
-  state.player.moving = null;
-  state.player.dir = DIRS.RIGHT;
-}
 
-function spawnEnemies(){
-  state.enemies = createEnemies({
-    gridW: state.gridW,
-    gridH: state.gridH,
-    level: state.level,
-    stepMs: ENEMY_STEP_MS
-  });
-}
+// ---------- Game Flow ----------
+function applyMenuSettings(){
+  state.gridW = 5; state.gridH = 5;
 
-function enemySyncHooks(){
-  notifyBoardHooksForEnemies({
-    isCellEmpty: (gx,gy)=> {
-      const t = getTileAt(gx,gy);
-      return !t || t.eaten;
-    },
-    placeWordAt: (gx,gy)=>{
-      const total = state.gridW*state.gridH;
-      const currentCorrect = state.items.filter(t=>t.correct && !t.eaten).length;
-      const targetCorrect = Math.ceil(total*0.4);
-      let bias = clamp((targetCorrect - currentCorrect) / targetCorrect, -0.35, 0.85);
-      const roll = Math.random();
+  state.mode = readModeFromSelect();
+  syncCategorySelectDisabled();
 
-      // sample from current category
-      const sample = state.category.generate(1,1,1)[0];
-      const isCorrect = roll < 0.45 + bias;
-
-      const idx = state.items.findIndex(t=>t.gx===gx && t.gy===gy);
-      const obj = { label: sample.label, value: sample.value, correct: isCorrect, eaten:false, gx, gy };
-      if(idx>=0) state.items[idx] = obj; else state.items.push(obj);
-      state.correctRemaining = state.items.filter(t=>t.correct && !t.eaten).length;
-    },
-    onPlayerCaught: (catcherIndex)=>{
-      spawnExplosionAt(state.player.gx, state.player.gy);
-      state.teleportingUntil = now() + TELEPORT_MS;
-      state.invulnUntil = state.teleportingUntil + 500;
-      setTimeout(()=>{
-        teleportPlayerTo(0,0);
-        if(typeof catcherIndex === 'number'){
-          moveEnemyToBottomRight(state.enemies, catcherIndex, state.gridW, state.gridH);
-        }
-      }, TELEPORT_MS);
-      loseLife();
-    }
-  });
-}
-
-// ───────────────────────────────────────────────
-// Input
-document.addEventListener('keydown', (e)=>{
-  const k = e.key.toLowerCase();
-
-  if(k==='escape'){
-    if(!helpEl?.classList.contains('hide')){ hide(helpEl); return; }
-    togglePause(); return;
+  if (state.mode === 'single'){
+    const selected = CATEGORIES.find(c => c.id === catSelect?.value) || CATEGORIES[0];
+    state.category = selected || null;
+  } else if (state.mode === 'words'){
+    state.category = pickRandomWordCategory();
+  } else if (state.mode === 'math'){
+    state.category = pickRandomMathCategory();
+  } else { // any
+    state.category = pickRandomAnyCategory();
   }
-  if(!state.running || state.paused) return;
-  if(now() < state.teleportingUntil) return; // ignore during teleport
 
+  // Reset stats
+  state.level = 1; state.score = 0; state.lives = 3;
+  state.freezeUntil = 0; state.invulnUntil = 0;
+
+  state.math.progress = 0;
+  state.math.needed = computeNeededPerLevel(1);
+
+  // Recent header for starting category
+  state.recent.length = 0;
+  if (state.category) pushRecentHeading(state.category.name);
+
+  buildBoard();
+  spawnPlayer();
+  state.enemies.length = 0;
+  spawnTroggles(state);
+  resetEnemyTimers(state);
+  updateHUD();
+}
+
+function startGame(){
+  menuEl?.classList.add('hide');
+  gameoverEl?.classList.add('hide');
+
+  applyMenuSettings();
+  state.running = true;
+  state.paused = false;
+  state.invulnUntil = now() + 1200;
+}
+
+function nextLevel(){
+  const prev = state.category ? state.category.id : null;
+  if (state.mode === 'single'){
+    const sel = CATEGORIES.find(c => c.id === catSelect?.value) || state.category;
+    state.category = sel || state.category;
+  } else if (state.mode === 'words'){
+    state.category = pickRandomWordCategory(prev);
+  } else if (state.mode === 'math'){
+    state.category = pickRandomMathCategory(prev);
+  } else {
+    state.category = pickRandomAnyCategory(prev);
+  }
+
+  state.level += 1;
+  state.math.needed = computeNeededPerLevel(state.level);
+  state.math.progress = 0;
+
+  if (state.category) pushRecentHeading(state.category.name);
+
+  buildBoard();
+  spawnPlayer();
+  state.enemies.length = 0;
+  spawnTroggles(state);
+  resetEnemyTimers(state);
+  state.invulnUntil = now() + 1000;
+  updateHUD();
+}
+
+function levelCleared(){
+  state.score += 500;
+  nextLevel();
+}
+
+function loseLife(){
+  if (now() < state.invulnUntil) return;
+  state.lives -= 1;
+  state.invulnUntil = now() + 1500;
+  showToast('Ouch!');
+  if(state.lives <= 0){ gameOver(); return; }
+
+  if(state.player){
+    state.player.gx=0; state.player.gy=0;
+    state.player.x=0;  state.player.y=0;
+    state.player.dir = DIRS.RIGHT;
+    state.player.moving = null;
+  }
+  updateHUD();
+}
+
+function gameOver(){
+  state.running = false;
+  state.paused  = false;
+
+  const finalStats = document.getElementById('finalStats');
+  if(finalStats) finalStats.textContent = `You scored ${state.score}.`;
+  gameoverEl?.classList.remove('hide');
+}
+
+// ---------- Input ----------
+function inputLocked(){ return !!state.catchAnim; }
+
+document.addEventListener('keydown', e=>{
+  if(inputLocked()) return; // ignore all inputs during catch teleport
+  const k = e.key.toLowerCase();
   if(['arrowup','arrowdown','arrowleft','arrowright','w','a','s','d'].includes(k)){
     e.preventDefault();
     if(e.repeat) return;
     handlePlayerStep(k);
     return;
   }
-  if(k===' ' || k==='enter'){ e.preventDefault(); tryEat(); }
+  if(k===' ' || k==='enter'){ tryEat(); }
+  if(k==='p'){ togglePause(); }
+  if(k==='escape'){
+    if(!helpEl?.classList.contains('hide')) helpEl?.classList.add('hide');
+    else togglePause();
+  }
 });
 
 function handlePlayerStep(k){
-  if(!state.player || state.player.moving) return;
+  if(!state.running || state.paused || !state.player) return;
+  if(state.player.moving || inputLocked()) return;
   let dir = null;
   if(k==='arrowup'||k==='w') dir = DIRS.UP;
   else if(k==='arrowright'||k==='d') dir = DIRS.RIGHT;
   else if(k==='arrowdown'||k==='s') dir = DIRS.DOWN;
   else if(k==='arrowleft'||k==='a') dir = DIRS.LEFT;
   if(dir==null) return;
+
   const [dx,dy] = DIR_VECT[dir];
   const nx = state.player.gx + dx;
   const ny = state.player.gy + dy;
-  if(!passable(nx,ny)) return;
-
-  const fromX = state.player.x, fromY = state.player.y;
-  state.player.gx = nx; state.player.gy = ny;
-  state.player.dir = dir;
-  state.player.moving = { fromX, fromY, toX:nx, toY:ny, start: now(), dur: 180 };
+  if(inBounds(nx,ny)){
+    const fromX = state.player.x, fromY = state.player.y;
+    state.player.gx = nx; state.player.gy = ny;
+    state.player.dir = dir;
+    state.player.moving = { fromX, fromY, toX:nx, toY:ny, start: now(), dur: 200 };
+  }
 }
 
-// ───────────────────────────────────────────────
-// Eating & scoring
-function pushRecent(text, correct){
-  state.recentAnswers.unshift({ text, correct, categoryName: state.category.name, level: state.level, time: Date.now() });
-  if(state.recentAnswers.length>10) state.recentAnswers.length = 10;
-  renderRecentAnswers();
+function togglePause(){
+  if(!state.running) return;
+  state.paused = !state.paused;
+  pauseBtn && (pauseBtn.textContent = state.paused ? '▶️ Resume' : '⏸️ Pause');
 }
-function renderRecentAnswers(){
-  if(!recentAnswersEl) return;
-  recentAnswersEl.innerHTML = state.recentAnswers.map(r =>
-    `<div class="ans ${r.correct?'good':'bad'}"><span class="lab">${escapeHtml(r.text)}</span></div>`
-  ).join('');
-}
+
+// ---------- Eat ----------
+function getTileAt(gx,gy){ return state.items.find(t => t.gx===gx && t.gy===gy); }
+function inBounds(gx,gy){ return gx>=0 && gy>=0 && gx<state.gridW && gy<state.gridH; }
 
 function tryEat(){
+  if(!state.running || state.paused || inputLocked()) return;
   const tile = getTileAt(state.player.gx, state.player.gy);
   if(!tile || tile.eaten) return;
 
@@ -380,476 +478,340 @@ function tryEat(){
 
   if(tile.correct){
     state.score += 100;
-    pushRecent(tile.label, true);
-
-    if(state.mode===MODES.MATH || state.mode===MODES.SINGLE){
-      state.progress = Math.min(state.needed, state.progress + 1);
-    } else {
-      state.correctRemaining = Math.max(0, state.correctRemaining - 1);
-    }
-
-    spawnStarBurstCell(tile.gx, tile.gy);
+    state.math.progress = Math.min(state.math.needed, (state.math.progress||0) + 1);
+    state.correctRemaining = Math.max(0, state.correctRemaining - 1);
     showToast('Yum! +100');
 
-    if(state.mode===MODES.MATH || state.mode===MODES.SINGLE){
-      if(state.progress >= state.needed){ setTimeout(levelCleared, 350); }
-    } else {
-      if(state.correctRemaining<=0){ setTimeout(levelCleared, 350); }
+    pushRecentAnswer(tile.label, true);
+
+    if(state.math.progress >= state.math.needed || state.correctRemaining<=0){
+      setTimeout(levelCleared, 350);
     }
   } else {
     state.score = Math.max(0, state.score - 50);
-    pushRecent(tile.label, false);
+    showToast('Wrong! −50');
+    state.math.progress = Math.max(0, (state.math.progress||0) - 1);
 
-    if(state.mode===MODES.MATH || state.mode===MODES.SINGLE){
-      state.progress = Math.max(0, state.progress - 1);
-    }
-
-    spawnDisappointAt(state.player.gx, state.player.gy);
-    showToast('Oops! −50');
+    pushRecentAnswer(tile.label, false);
   }
 
   updateHUD();
 }
 
-// ───────────────────────────────────────────────
-// Level flow
-function startGame(){
-  state.running = true;
-  state.paused = false;
-  state.level = 1;
-  state.score = 0;
-  state.lives = 3;
-  state.invulnUntil = 0;
-  state.recentAnswers = [];
-  renderRecentAnswers();
-
-  pickStartingCategory();
-  state.needed = neededForLevel(state.level);
-  state.progress = 0;
-
-  buildBoard();
-  spawnPlayer();
-  spawnEnemies();
-  enemySyncHooks();
-  hide(menuEl);
-  updateHUD();
-}
-
-function pickStartingCategory(){
-  if(state.mode===MODES.SINGLE){
-    const id = categorySelect?.value;
-    state.category = id ? getCategoryById(id) : pickRandomWordCategory(null) || pickRandomCategory(null);
-  } else if(state.mode===MODES.MATH){
-    state.category = pickRandomMathCategory(null);
-  } else if(state.mode===MODES.WORDS){
-    state.category = pickRandomWordCategory(null);
-  } else {
-    state.category = pickRandomCategory(null);
-  }
-}
-
-function levelCleared(){
-  state.score += 500;
-  state.level += 1;
-
-  const prev = state.category?.id || null;
-  if(state.mode===MODES.MATH){
-    state.category = pickRandomMathCategory(prev);
-  } else if(state.mode===MODES.WORDS){
-    state.category = pickRandomWordCategory(prev);
-  } else if(state.mode===MODES.ANY){
-    state.category = pickRandomCategory(prev);
-  } // SINGLE keeps same category
-
-  state.needed = neededForLevel(state.level);
-  state.progress = 0;
-
-  buildBoard();
-  spawnPlayer();
-  spawnEnemies();
-  enemySyncHooks();
-
-  state.invulnUntil = now() + 1000;
-  updateHUD();
-}
-
-function loseLife(){
-  if(now() < state.invulnUntil) return;
-  state.lives -= 1;
-  state.invulnUntil = now() + 1200;
-  if(state.lives <= 0){ gameOver(); return; }
-  teleportPlayerTo(0,0);
-  updateHUD();
-}
-
-function gameOver(){
-  state.running=false;
-  state.paused=false;
-  show(document.getElementById('gameover'));
-  const finalStats = document.getElementById('finalStats');
-  if(finalStats) finalStats.textContent = `You scored ${state.score}. Level ${state.level}.`;
-}
-
-// ───────────────────────────────────────────────
-// HUD / UI
-function updateHUD(){
-  if(levelSpan) setText(levelSpan, String(state.level));
-  if(scoreSpan) setText(scoreSpan, String(state.score));
-  if(livesSpan) setText(livesSpan, String(state.lives));
-  if(categoryBadge){
-    const strong = categoryBadge.querySelector('strong');
-    if(strong) strong.textContent = state.category?.name || '–';
-  }
-}
-
-function showToast(text, ms=1200){
-  if(!toastEl) return;
-  toastEl.textContent = text;
-  show(toastEl);
-  setTimeout(()=> hide(toastEl), ms);
-}
-
-// ───────────────────────────────────────────────
-// Resize/layout (fit to screen)
-function resizeCanvas(){
-  const dpr = window.devicePixelRatio || 1;
-  const rect = canvas.getBoundingClientRect();
-  canvas.width = Math.floor(rect.width*dpr);
-  canvas.height = Math.floor(rect.height*dpr);
-  ctx.setTransform(dpr,0,0,dpr,0,0);
-  state.tile = Math.floor(Math.min(rect.width/state.gridW, rect.height/state.gridH));
-}
-window.addEventListener('resize', resizeCanvas);
-
-// ───────────────────────────────────────────────
-// Effects (stars / disappoint / explosions)
-let starBursts = []; // [{gx,gy,born,duration,parts:[{ang,spd}]}]
-let sfx = [];        // [{type:'disappoint', gx,gy, born, duration}]
-let explosions = []; // [{gx,gy,born,duration,parts:[{ang,spd}]}]
-
-function spawnStarBurstCell(gx,gy){
-  const N=12; const parts=[];
-  for(let i=0;i<N;i++) parts.push({ ang: rand(0, Math.PI*2), spd: rand(0.6,1.05) });
-  starBursts.push({ gx, gy, born: now(), duration: 700, parts });
-}
-function drawStarBursts(padX,padY,tile){
-  const tnow = now();
-  starBursts = starBursts.filter(s => tnow - s.born < s.duration);
-  for(const sb of starBursts){
-    const p = clamp((tnow - sb.born)/sb.duration, 0, 1);
-    const cx = padX + sb.gx*tile + tile/2;
-    const cy = padY + sb.gy*tile + tile/2;
-    for(const pr of sb.parts){
-      const dist = easeOutCubic(p) * pr.spd * tile * 0.95;
-      const x = cx + Math.cos(pr.ang)*dist;
-      const y = cy + Math.sin(pr.ang)*dist;
-      drawStar(ctx, x, y, 5, Math.max(2, tile*0.10*(1-p)), Math.max(1, tile*0.05*(1-p)), '#ffd166', 1-p);
+// ---------- Collisions & Catch Animation ----------
+function checkCollisions(){
+  if(state.catchAnim) return; // don't retrigger mid-animation
+  for(let i=0;i<state.enemies.length;i++){
+    const e = state.enemies[i];
+    if(e.gx === state.player.gx && e.gy === state.player.gy){
+      startCatchAnimation(i);
+      return;
     }
   }
 }
-function drawStar(ctx, cx, cy, spikes, outerR, innerR, color, alpha=1){
-  const step = Math.PI / spikes;
-  let rot = -Math.PI/2;
+
+function startCatchAnimation(enemyIndex){
+  const e = state.enemies[enemyIndex];
+  state.catchAnim = {
+    active: true,
+    enemyIndex,
+    start: now(),
+    duration: 900,
+    gx: e.gx, gy: e.gy
+  };
+}
+
+function finalizeCatchAnimation(){
+  const ca = state.catchAnim;
+  if(!ca) return;
+
+  // Teleport: enemy to bottom-right, player respawn top-left
+  const e = state.enemies[ca.enemyIndex];
+  if(e){
+    e.gx = state.gridW - 1;
+    e.gy = state.gridH - 1;
+    e.x = e.gx; e.y = e.gy;
+    e.dir = DIRS.LEFT;
+  }
+
+  loseLife();
+  resetEnemyTimers(state);
+  state.catchAnim = null;
+}
+
+// ---------- Draw helpers ----------
+function drawLevelBar(ctx, rect, barArea){
+  const barW = Math.max(22, Math.floor(barArea*0.5));
+  const x = rect.width - barArea + (barArea - barW)/2;
+  const y = 16;
+  const h = rect.height - 32;
+
   ctx.save();
-  ctx.globalAlpha = alpha;
-  ctx.beginPath();
-  for(let i=0;i<spikes;i++){
-    ctx.lineTo(cx + Math.cos(rot)*outerR, cy + Math.sin(rot)*outerR); rot += step;
-    ctx.lineTo(cx + Math.cos(rot)*innerR, cy + Math.sin(rot)*innerR); rot += step;
-  }
-  ctx.closePath();
-  ctx.fillStyle = color; ctx.fill();
+  ctx.fillStyle = '#0a1437'; ctx.strokeStyle = '#20306b'; ctx.lineWidth = 1;
+  ctx.beginPath(); roundRect(ctx, x, y, barW, h, 10); ctx.fill(); ctx.stroke();
+
+  const p = clamp(state.math.progress / (state.math.needed || 1), 0, 1);
+  const fillH = Math.floor((h-6) * p);
+  const grd = ctx.createLinearGradient(0,y+h-3-fillH, 0, y+h-3);
+  grd.addColorStop?.(0, '#46d4ff'); grd.addColorStop?.(1, '#9cff6d');
+  ctx.fillStyle = grd;
+  ctx.fillRect(x+3, y+h-3-fillH, barW-6, fillH);
   ctx.restore();
 }
 
-function spawnDisappointAt(gx,gy){ sfx.push({ type:'disappoint', gx, gy, born: now(), duration: 800 }); }
-function drawSFX(padX,padY,tile){
-  const tnow = now();
-  sfx = sfx.filter(e => tnow - e.born < e.duration);
-  for(const e of sfx){
-    if(e.type==='disappoint'){
-      const p = clamp((tnow - e.born)/e.duration, 0, 1);
-      const cx = padX + e.gx*tile + tile/2;
-      const cy = padY + e.gy*tile + tile/2 - tile*0.2;
+function drawRecentList(ctx, rect, padX, tile, barArea){
+  const gridLeft  = padX;
+  const gridRight = padX + state.gridW*tile;
+  const left = Math.floor(gridRight + 8);
+  const right = Math.floor(rect.width - barArea - 8);
+  const width = right - left;
 
-      // vertical blue stress lines
-      ctx.save(); ctx.strokeStyle = 'rgba(70,212,255,0.9)'; ctx.lineWidth = 2;
-      const n=4; for(let i=0;i<n;i++){
-        const off = (i - (n-1)/2) * tile*0.08;
-        const len = tile*0.22 * (1 - p);
-        ctx.beginPath(); ctx.moveTo(cx + off, cy - tile*0.2); ctx.lineTo(cx + off, cy - tile*0.2 + len); ctx.stroke();
-      }
-      ctx.restore();
+  if(width < 90) return;
 
-      // little sweat drop
-      ctx.save(); ctx.globalAlpha = 1-p; ctx.fillStyle = '#46d4ff';
-      ctx.beginPath();
-      ctx.moveTo(cx + tile*0.18, cy - tile*0.06);
-      ctx.quadraticCurveTo(cx + tile*0.24, cy + tile*0.02, cx + tile*0.14, cy + tile*0.10);
-      ctx.quadraticCurveTo(cx + tile*0.28, cy + tile*0.00, cx + tile*0.18, cy - tile*0.06);
-      ctx.fill(); ctx.restore();
+  const top = 16;
+  const height = Math.floor(rect.height - 32);
+  ctx.save();
+  ctx.fillStyle = 'rgba(12,20,43,0.85)';
+  ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); roundRect(ctx, left, top, width, height, 10); ctx.fill(); ctx.stroke();
+
+  ctx.fillStyle = '#cfe2ff';
+  const titlePx = Math.max(12, Math.floor(width*0.12));
+  ctx.font = `700 ${titlePx}px ${TILE_FONT_FAMILY}`;
+  ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+  ctx.fillText('Recent', left + 10, top + 8);
+
+  const innerX = left + 10;
+  const innerY = top + 8 + titlePx + 6;
+  const innerW = width - 20;
+
+  const entries = state.recent.slice(-RECENT_RENDER_MAX);
+  let y = innerY;
+
+  for(const ent of entries){
+    if (ent.type === 'heading'){
+      ctx.fillStyle = '#9bb6ff';
+      const basePx = 13;
+      const { fontPx, lineHeight, lines } = layoutTextBlock({
+        text: ent.text, ctx, maxWidth: innerW, maxLines: 2, basePx, minPx: 10, lineHeightFactor: 1.05
+      });
+      ctx.font = `600 ${fontPx}px ${TILE_FONT_FAMILY}`;
+      for(const ln of lines){ ctx.fillText(ln, innerX, y); y += lineHeight; }
+      ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(innerX, y+2); ctx.lineTo(innerX + innerW, y+2); ctx.stroke();
+      y += 6;
+    } else if (ent.type === 'answer'){
+      ctx.fillStyle = ent.correct ? '#75ff9b' : '#ff6d8a';
+      const basePx = 13;
+      const { fontPx, lineHeight, lines } = layoutTextBlock({
+        text: ent.text, ctx, maxWidth: innerW, maxLines: 2, basePx, minPx: 10, lineHeightFactor: 1.05
+      });
+      ctx.font = `500 ${fontPx}px ${TILE_FONT_FAMILY}`;
+      for(const ln of lines){ ctx.fillText(ln, innerX, y); y += lineHeight; }
+      y += 2;
     }
+    if (y > top + height - 10) break;
   }
+
+  ctx.restore();
 }
 
-function spawnExplosionAt(gx,gy){
-  const N=16; const parts = [];
-  for(let i=0;i<N;i++) parts.push({ ang: rand(0, Math.PI*2), spd: rand(0.6,1.2) });
-  explosions.push({ gx, gy, born: now(), duration: 600, parts });
-}
-function drawExplosions(padX,padY,tile){
-  const tnow = now();
-  explosions = explosions.filter(ex => tnow - ex.born < ex.duration);
-  for(const ex of explosions){
-    const p = clamp((tnow - ex.born)/ex.duration, 0, 1);
-    const cx = padX + ex.gx*tile + tile/2;
-    const cy = padY + ex.gy*tile + tile/2;
+function drawCatchAnimation(padX, padY, tile){
+  const ca = state.catchAnim; if(!ca) return;
+  const t = clamp((now() - ca.start) / ca.duration, 0, 1);
+  const cx = padX + ca.gx * tile + tile/2;
+  const cy = padY + ca.gy * tile + tile/2;
 
-    // flash ring
+  // Pulse rings
+  for(let i=0;i<2;i++){
+    const p = clamp(t*1.15 - i*0.22, 0, 1);
+    const r = tile * (0.25 + 0.55 * easeOutCubic(p));
+    const a = 0.55 * (1 - p);
+    if(a<=0) continue;
     ctx.save();
-    ctx.globalAlpha = 0.5*(1-p);
-    ctx.beginPath(); ctx.arc(cx, cy, tile*0.15 + tile*0.4*easeOutCubic(p), 0, Math.PI*2);
+    ctx.globalAlpha = a;
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2);
     ctx.strokeStyle = '#ff6d8a'; ctx.lineWidth = 2; ctx.stroke();
     ctx.restore();
+  }
 
-    // particles
-    for(const pr of ex.parts){
-      const dist = easeOutCubic(p) * pr.spd * tile * 0.9;
-      const x = cx + Math.cos(pr.ang)*dist;
-      const y = cy + Math.sin(pr.ang)*dist;
-      ctx.save();
-      ctx.globalAlpha = 1-p;
-      ctx.fillStyle = '#ff6d8a';
-      ctx.beginPath(); ctx.arc(x, y, Math.max(1.5, 3*(1-p)), 0, Math.PI*2); ctx.fill();
-      ctx.restore();
-    }
+  // Player shrink/fade (fits inside cell)
+  if(state.player){
+    const k = 1 - 0.85 * t;
+    const alpha = 1 - t * 0.8;
+    const px = padX + state.player.x * tile + tile/2;
+    const py = padY + state.player.y * tile + tile/2;
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, alpha);
+    ctx.translate(px, py);
+    ctx.scale(k, k);
+    const anim = MooseMan.computeAnim(state.player, DIR_VECT);
+    MooseMan.draw(ctx, 0, 0, tile*0.28, state.player.dir, false, anim);
+    ctx.restore();
   }
 }
 
-// ───────────────────────────────────────────────
-// Render
-function wrapLabel(ctx, text, maxWidth, maxLines=2){
-  const words = String(text).split(/\s+/);
-  const lines=[]; let line='';
-  for(const w of words){
-    const test = line ? `${line} ${w}` : w;
-    if(ctx.measureText(test).width <= maxWidth){ line = test; }
-    else {
-      if(line) lines.push(line);
-      else {
-        // single super-long word: hard clip
-        let cut = w.length;
-        while(cut>1 && ctx.measureText(w.slice(0,cut)).width>maxWidth) cut--;
-        lines.push(w.slice(0,cut));
-      }
-      line = w;
-      if(lines.length>=maxLines) break;
-    }
-  }
-  if(line && lines.length<maxLines) lines.push(line);
-  return lines;
-}
-
-function drawLevelBar(rect, barArea){
-  const x0 = rect.width - barArea;
-  const y0 = 12;
-  const barW = Math.max(20, Math.floor(barArea*0.5));
-  const x = x0 + (barArea - barW)/2;
-  const h = rect.height - y0*2;
-
-  ctx.save();
-  // frame
-  ctx.fillStyle = '#0a1437';
-  ctx.strokeStyle = '#20306b';
-  ctx.lineWidth = 1.5;
-  ctx.beginPath(); roundRect(ctx, x, y0, barW, h, 10); ctx.fill(); ctx.stroke();
-
-  // fill
-  const p = clamp(state.progress / Math.max(1,state.needed), 0, 1);
-  const fh = Math.floor((h-4) * p);
-  const fy = y0 + h - 2 - fh;
-  const grad = ctx.createLinearGradient(x, fy, x+barW, fy+fh);
-  grad.addColorStop(0, '#46d4ff'); grad.addColorStop(1, '#9cff6d');
-  ctx.fillStyle = grad;
-  ctx.beginPath(); roundRect(ctx, x+2, fy, barW-4, fh, 8); ctx.fill();
-
-  // text
-  ctx.fillStyle = '#cfe2ff';
-  ctx.font = '700 12px system-ui, -apple-system';
-  ctx.textAlign='center'; ctx.textBaseline='middle';
-  ctx.fillText(`${state.progress}/${state.needed}`, x + barW/2, y0 + 12);
-
-  ctx.restore();
-}
-
-function roundRect(ctx, x,y,w,h,r){
-  const rr = Math.min(r, w/2, h/2);
-  ctx.moveTo(x+rr,y); ctx.arcTo(x+w,y,x+w,y+h,rr); ctx.arcTo(x+w,y+h,x,y+h,rr);
-  ctx.arcTo(x,y+h,x,y,rr); ctx.arcTo(x,y,x+w,y,rr);
-}
-
+// ---------- Draw ----------
 function draw(){
   const rect = canvas.getBoundingClientRect();
-
-  const hasBar = (state.mode===MODES.MATH || state.mode===MODES.SINGLE);
-  const barArea = hasBar ? Math.max(90, Math.floor(rect.width*0.08)) : 0;
-
+  const barArea = needsBar() ? Math.max(90, rect.width*0.08) : 0;
   const tile = Math.min((rect.width - barArea)/state.gridW, rect.height/state.gridH);
   const padX = Math.floor((rect.width - barArea - state.gridW*tile)/2);
   const padY = Math.floor((rect.height - state.gridH*tile)/2);
 
-  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.clearRect(0,0,canvas.width, canvas.height);
 
-  // tween player
-  if(state.player && state.player.moving){
+  // Update player tween
+  if(state.player?.moving){
     const m = state.player.moving;
     const t = (now()-m.start)/m.dur;
-    if(t>=1){ state.player.x = m.toX; state.player.y = m.toY; state.player.moving=null; }
-    else {
+    if(t>=1){
+      state.player.x = m.toX; state.player.y = m.toY; state.player.moving = null;
+    } else {
       const s = easeOutCubic(clamp(t,0,1));
-      state.player.x = lerp(m.fromX, m.toX, s);
-      state.player.y = lerp(m.fromY, m.toY, s);
+      state.player.x = m.fromX + (m.toX - m.fromX)*s;
+      state.player.y = m.fromY + (m.toY - m.fromY)*s;
     }
   }
 
-  // tiles
+  // Tiles
   for(const t of state.items){
-    const x = padX + t.gx*tile; const y = padY + t.gy*tile;
-    ctx.beginPath(); roundRect(ctx, x+2, y+2, tile-4, tile-4, Math.min(14, tile*0.18));
-    const grad = ctx.createLinearGradient(x,y,x+tile,y+tile);
-    grad.addColorStop(0, t.eaten? '#0c1430' : '#15204a');
-    grad.addColorStop(1, t.eaten? '#0a1126' : '#0e1737');
+    const x = padX + t.gx*tile;
+    const y = padY + t.gy*tile;
+    ctx.beginPath();
+    roundRect(ctx, x+2, y+2, tile-4, tile-4, 12);
+    const grad = ctx.createLinearGradient(x,y, x+tile, y+tile);
+    grad.addColorStop(0, t.eaten ? '#0c1430' : '#15204a');
+    grad.addColorStop(1, t.eaten ? '#0a1126' : '#0e1737');
     ctx.fillStyle = grad; ctx.fill();
-    ctx.strokeStyle = t.eaten? 'rgba(255,255,255,.06)' : 'rgba(255,255,255,.12)';
+    ctx.strokeStyle = t.eaten ? 'rgba(255,255,255,.06)' : 'rgba(255,255,255,.12)';
     ctx.lineWidth = 1.2; ctx.stroke();
 
     if(!t.eaten){
       ctx.save();
       ctx.fillStyle = 'rgba(230,240,255,.95)';
-      const fontSize = Math.floor(tile*0.25);
-      ctx.font = `${fontSize}px ui-sans-serif, system-ui, -apple-system, Segoe UI`;
-      ctx.textAlign='center'; ctx.textBaseline='middle';
       const maxWidth = tile*0.84;
-      const lines = wrapLabel(ctx, t.label, maxWidth, 2);
-      const lh = Math.max(14, Math.floor(fontSize*1.05));
-      const totalH = lines.length*lh;
-      let ly = y + tile/2 - totalH/2 + lh/2;
-      for(const line of lines){ ctx.fillText(line, x+tile/2, ly); ly += lh; }
+      const basePx = Math.floor(tile*0.23);
+      const minPx  = Math.max(10, Math.floor(tile*0.12));
+      const { fontPx, lineHeight, lines } = layoutTextBlock({
+        text: t.label, ctx, maxWidth, maxLines: 3, basePx, minPx, lineHeightFactor: 1.05
+      });
+      ctx.font = `${fontPx}px ${TILE_FONT_FAMILY}`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      const totalH = lines.length * lineHeight;
+      let ly = y + tile/2 - totalH/2 + lineHeight/2;
+      for(const line of lines){ ctx.fillText(line, x+tile/2, ly); ly += lineHeight; }
       ctx.restore();
     } else if (t.correct){
-      ctx.save(); ctx.globalAlpha = 0.18; ctx.fillStyle='#9cff6d';
+      ctx.save();
+      ctx.globalAlpha = 0.18;
+      ctx.fillStyle = '#9cff6d';
       ctx.beginPath(); ctx.arc(x+tile/2, y+tile/2, tile*0.18, 0, Math.PI*2); ctx.fill();
       ctx.restore();
     }
   }
 
-  // enemies
-  drawEnemies(ctx, state.enemies, {padX, padY, tile});
-
-  // player (fit inside tile)
-  if(state.player){
+  // Player (fit inside the cell)
+  if(state.player && !state.catchAnim){
     const px = padX + state.player.x*tile + tile/2;
     const py = padY + state.player.y*tile + tile/2;
     const inv = now() < state.invulnUntil;
-    const anim = MooseMan.computeAnim(state.player, DIR_VECT);
-    const radius = tile*0.42; // fits inside a cell
-    MooseMan.draw(ctx, px, py, radius, state.player.dir, inv, anim);
+    const panim = MooseMan.computeAnim(state.player, DIR_VECT);
+    MooseMan.draw(ctx, px, py, tile*0.28, state.player.dir, inv, panim);
   }
 
-  // effects
-  drawStarBursts(padX,padY,tile);
-  drawSFX(padX,padY,tile);
-  drawExplosions(padX,padY,tile);
+  // Enemies (slime for chasers, owl for grazers)
+  for(const e of state.enemies){
+    const ex = padX + e.x*tile + tile/2;
+    const ey = padY + e.y*tile + tile/2;
+    const frozen = now() < state.freezeUntil;
+    drawEnemy(ctx, ex, ey, tile*0.34, e.dir, e, frozen);
+  }
 
-  // progress bar
-  if(hasBar) drawLevelBar(rect, barArea);
+  // Catch overlay
+  if(state.catchAnim){
+    drawCatchAnimation(padX, padY, tile);
+  }
+
+  // Recent answers panel
+  if(needsBar()){
+    drawRecentList(ctx, rect, padX, tile, barArea);
+  }
+
+  // Level bar
+  if(needsBar()){
+    drawLevelBar(ctx, rect, barArea);
+  }
 }
 
-// ───────────────────────────────────────────────
-// Update loop
-let rafId = 0; let lastTs = 0;
-
-function tick(ts){
-  const dt = lastTs ? (ts - lastTs) : 16;
-  lastTs = ts;
-
+// ---------- Loop ----------
+function tick(){
   if(state.running && !state.paused){
-    updateEnemies(state.enemies, {
-      gridW: state.gridW, gridH: state.gridH,
-      player: state.player,
-      stepMs: ENEMY_STEP_MS,
-      freezeUntil: state.freezeUntil,
-      passable,
-      onCatch: (idx)=>{}, // handled via hooks
-      clampTo: (gx,gy)=> ({gx: clamp(gx,0,state.gridW-1), gy: clamp(gy,0,state.gridH-1)})
-    });
-  }
+    stepEnemies(state);
+    checkCollisions();
 
-  draw();
-  rafId = requestAnimationFrame(tick);
-}
-
-// ───────────────────────────────────────────────
-// Buttons / menu
-startBtn?.addEventListener('click', ()=>{
-  const mVal = (modeSelect?.value||'any').toLowerCase();
-  let mode = MODES.ANY;
-  if(mVal.includes('single')) mode = MODES.SINGLE;
-  else if(mVal.includes('math')) mode = MODES.MATH;
-  else if(mVal.includes('word')) mode = MODES.WORDS;
-  else mode = MODES.ANY;
-  state.mode = mode;
-  setCategoryDropdownVisible(mode===MODES.SINGLE);
-  startGame();
-});
-shuffleBtn?.addEventListener('click', ()=>{
-  if(!categorySelect) return;
-  const pool = (state.mode===MODES.MATH) ? NUMERIC_CATEGORIES
-              : (state.mode===MODES.WORDS) ? WORD_CATEGORY_DEFS
-              : CATEGORIES;
-  const pick = choice(pool);
-  categorySelect.value = pick.id;
-});
-pauseBtn?.addEventListener('click', ()=> togglePause());
-helpBtn?.addEventListener('click', ()=> show(helpEl));
-closeHelpBtn?.addEventListener('click', ()=> hide(helpEl));
-againBtn?.addEventListener('click', ()=> { hide(againBtn?.closest('.overlay')); show(menuEl); });
-menuBtn?.addEventListener('click', ()=> { show(menuEl); state.running=false; state.paused=false; });
-
-modeSelect?.addEventListener('change', ()=>{
-  const v = modeSelect.value.toLowerCase();
-  const isSingle = v.includes('single');
-  setCategoryDropdownVisible(isSingle);
-});
-
-// Pause
-function togglePause(){
-  if(!state.running) return;
-  state.paused = !state.paused;
-  pauseBtn && (pauseBtn.textContent = state.paused ? '▶️ Resume' : '⏸️ Pause');
-}
-
-// ───────────────────────────────────────────────
-// Boot
-function onReady(){
-  resizeCanvas();
-  bootCategories().then(()=>{
-    // default mode: Anything Goes
-    if(modeSelect){
-      const opt = Array.from(modeSelect.options).find(o=>o.value.toLowerCase().includes('any'));
-      if(opt) modeSelect.value = opt.value;
+    if(state.catchAnim && (now() - state.catchAnim.start >= state.catchAnim.duration)){
+      finalizeCatchAnimation();
     }
-    setCategoryDropdownVisible((modeSelect?.value||'').toLowerCase().includes('single'));
-  }).catch(err=> console.error(err));
-  cancelAnimationFrame(rafId); lastTs = 0; rafId = requestAnimationFrame(tick);
+
+    draw();
+  }
+  requestAnimationFrame(tick);
 }
 
-if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', onReady);
-else onReady();
+// ---------- Wiring ----------
+function bindUI(){
+  startBtn?.addEventListener('click', () => {
+    menuEl?.classList.add('hide');
+    gameoverEl?.classList.add('hide');
+    startGame();
+  });
 
-// expose for debugging
-window.CategoryAPI = {
-  get CATEGORIES(){ return CATEGORIES; },
-  get WORD_CATEGORY_DEFS(){ return WORD_CATEGORY_DEFS; },
-  pickRandomCategory, pickRandomWordCategory, pickRandomMathCategory
-};
+  againBtn?.addEventListener('click', () => {
+    gameoverEl?.classList.add('hide');
+    startGame();
+  });
+
+  menuBtn?.addEventListener('click', () => {
+    gameoverEl?.classList.add('hide');
+    menuEl?.classList.remove('hide');
+    state.running = false;
+  });
+
+  helpBtn?.addEventListener('click', () => helpEl?.classList.remove('hide'));
+  closeHelp?.addEventListener('click', () => helpEl?.classList.add('hide'));
+
+  pauseBtn?.addEventListener('click', togglePause);
+
+  shuffleBtn?.addEventListener('click', ()=>{
+    if(!catSelect) return;
+    const all = WORD_CATS.concat(MATH_CATS);
+    const pick = choice(all);
+    catSelect.value = pick?.id || catSelect.value;
+  });
+
+  modeSelect?.addEventListener('change', ()=>{
+    state.mode = readModeFromSelect();
+    syncCategorySelectDisabled();
+  });
+}
+
+async function boot(){
+  applyPreferences?.(); // theme/fonts
+  bindUI();
+  await loadCategories();
+  // Default mode is "any" (Anything Goes)
+  if(modeSelect) modeSelect.value = 'any';
+  state.mode = readModeFromSelect();
+  syncCategorySelectDisabled();
+
+  resizeCanvas();
+  updateHUD();
+  requestAnimationFrame(tick);
+}
+boot();
+
+// Exports
+export { state, DIRS, DIR_VECT, inBounds, getTileAt, startGame, nextLevel, tryEat };
