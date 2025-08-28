@@ -11,13 +11,16 @@
     "colors": ["red","blue","green","yellow","purple","orange","pink","black","white","gray","silver","gold","copper","maroon","beige","teal","cyan","magenta","navy","olive","indigo","violet","brown","scarlet","salmon"],
     "fruits": ["apple","pear","mango","plum","orange","grape","banana","cherry","peach","pineapple","lemon","lime","kiwi","apricot","blueberry","strawberry","raspberry","watermelon","cantaloupe","papaya"],
     "vegetables": ["carrot","potato","onion","cabbage","lettuce","celery","spinach","kale","pepper","tomato","cucumber","zucchini","broccoli","cauliflower","eggplant","beet","radish","garlic","ginger","pea","corn"],
-    "elements": ["hydrogen","helium","lithium","beryllium","boron","carbon","nitrogen","oxygen","fluorine","neon","sodium","magnesium","aluminum","silicon","phosphorus","sulfur","chlorine","argon","potassium","calcium","iron","copper","silver","gold","tin","lead","zinc","nickel","mercury","platinum"],
+    "elements": ["hydrogen","helium","lithium","beryllium","boron","carbon","nitrogen","oxygen","fluorine","neon","sodium","magnesium","aluminum","silicon","phosphorus","sulfur","chlorine","argon","potassium","calcium","iron","copper","silver","gold","tin","lead","zinc","nickel","mercury","platinum","bromine"],
     "metals": ["iron","copper","silver","gold","tin","lead","zinc","nickel","aluminum","mercury","platinum","titanium","chromium","cobalt","magnesium"],
-    "animals": ["dog","cat","horse","cow","sheep","goat","pig","lion","tiger","bear","wolf","fox","zebra","giraffe","elephant","rhino","hippo","kangaroo","panda","otter"],
-    "mammals": ["dog","cat","whale","bat","elephant","lion","tiger","bear","wolf","fox","otter","kangaroo","panda","horse","cow","sheep","goat","pig"],
+    "animals": ["dog","cat","horse","cow","sheep","goat","pig","lion","tiger","bear","wolf","fox","zebra","giraffe","elephant","rhino","hippo","kangaroo","panda","otter","koala","wallaby","wombat","opossum"],
+    "mammals": ["dog","cat","whale","bat","elephant","lion","tiger","bear","wolf","fox","otter","kangaroo","panda","horse","cow","sheep","goat","pig","koala","wallaby","wombat","opossum"],
     "birds": ["eagle","sparrow","robin","owl","hawk","parrot","penguin","flamingo","peacock","swan","goose","duck"],
     "fish": ["salmon","tuna","trout","cod","herring","sardine","shark","ray","carp","goldfish"],
     "insects": ["ant","bee","wasp","beetle","butterfly","moth","fly","mosquito","dragonfly","grasshopper","termite","ladybug"],
+    "reptiles": ["snake","lizard","crocodile","alligator","turtle","tortoise","chameleon","gecko","iguana","python","cobra"],
+    "amphibians": ["frog","toad","salamander","newt","axolotl","caecilian"],
+    "marsupials": ["kangaroo","koala","wallaby","wombat","opossum","quokka","quoll","tasmanian devil"],
     "trees": ["oak","pine","maple","birch","willow","cherry","apple","walnut","cedar","spruce","chestnut"],
     "shapes": ["circle","square","triangle","rectangle","pentagon","hexagon","octagon","oval","star","diamond"],
     "planets": ["mercury","venus","earth","mars","jupiter","saturn","uranus","neptune"],
@@ -33,7 +36,12 @@
     "bodyparts": ["head","arm","leg","hand","foot","eye","ear","nose","mouth","back","chest","knee","elbow"],
     "flowers": ["rose","tulip","daisy","lily","orchid","sunflower","violet","iris","peony","lavender"],
     "gemstones": ["diamond","ruby","sapphire","emerald","opal","amethyst","topaz","garnet","jade","pearl"],
-    "beverages": ["water","tea","coffee","juice","milk","soda","lemonade","smoothie","cocoa","espresso"]
+    "beverages": ["water","tea","coffee","juice","milk","soda","lemonade","smoothie","cocoa","espresso"],
+
+    /* Matter state sets (elements only) */
+    "elements_liquid_rt": ["mercury","bromine"],
+    "elements_gas_rt": ["hydrogen","helium","nitrogen","oxygen","fluorine","neon","chlorine","argon","krypton","xenon","radon"],
+    "elements_solid_rt": ["lithium","beryllium","boron","carbon","sodium","magnesium","aluminum","silicon","phosphorus","sulfur","potassium","calcium","iron","copper","silver","gold","tin","lead","zinc","nickel","platinum"]
   },
   "words": [
     { "id": "colors",       "name": "Colors",                 "set": "colors",      "case": "lower" },
@@ -43,6 +51,9 @@
     { "id": "metals",       "name": "Metals",                 "set": "metals",      "case": "lower" },
     { "id": "animals",      "name": "Animals",                "set": "animals",     "case": "lower" },
     { "id": "mammals",      "name": "Mammals",                "set": "mammals",     "case": "lower" },
+    { "id": "reptiles",     "name": "Reptiles",               "set": "reptiles",    "case": "lower" },
+    { "id": "amphibians",   "name": "Amphibians",             "set": "amphibians",  "case": "lower" },
+    { "id": "marsupials",   "name": "Marsupials",             "set": "marsupials",  "case": "lower" },
     { "id": "birds",        "name": "Birds",                  "set": "birds",       "case": "lower" },
     { "id": "fish",         "name": "Fish",                   "set": "fish",        "case": "lower" },
     { "id": "insects",      "name": "Insects",                "set": "insects",     "case": "lower" },
@@ -61,13 +72,19 @@
     { "id": "bodyparts",    "name": "Body Parts",             "set": "bodyparts",   "case": "lower" },
     { "id": "flowers",      "name": "Flowers",                "set": "flowers",     "case": "lower" },
     { "id": "gemstones",    "name": "Gemstones",              "set": "gemstones",   "case": "lower" },
-    { "id": "beverages",    "name": "Beverages",              "set": "beverages",   "case": "lower" }
+    { "id": "beverages",    "name": "Beverages",              "set": "beverages",   "case": "lower" },
+
+    /* Matter state categories */
+    { "id": "liquid-elements", "name": "Elements: Liquid @ Room Temp", "set": "elements_liquid_rt", "case": "lower" },
+    { "id": "gaseous-elements","name": "Elements: Gas @ Room Temp",    "set": "elements_gas_rt",    "case": "lower" },
+    { "id": "solid-elements",  "name": "Elements: Solid @ Room Temp",  "set": "elements_solid_rt",  "case": "lower" }
   ],
   "crossHints": {
+    /* existing color/thing overlaps */
     "silver":   ["colors","metals","elements"],
     "gold":     ["colors","metals","elements","gemstones"],
     "copper":   ["colors","metals","elements"],
-    "mercury":  ["planets","elements","metals"],
+    "mercury":  ["planets","elements","metals","elements_liquid_rt"],
     "orange":   ["colors","fruits"],
     "lime":     ["colors","fruits"],
     "plum":     ["colors","fruits"],
@@ -84,6 +101,49 @@
     "lavender": ["colors","flowers"],
     "navy":     ["colors"],
     "indigo":   ["colors"],
-    "teal":     ["colors"]
+    "teal":     ["colors"],
+
+    /* newly added elements & states */
+    "bromine":  ["elements","elements_liquid_rt"],
+    "hydrogen": ["elements","elements_gas_rt"],
+    "helium":   ["elements","elements_gas_rt"],
+    "nitrogen": ["elements","elements_gas_rt"],
+    "oxygen":   ["elements","elements_gas_rt"],
+    "fluorine": ["elements","elements_gas_rt"],
+    "neon":     ["elements","elements_gas_rt"],
+    "chlorine": ["elements","elements_gas_rt"],
+    "argon":    ["elements","elements_gas_rt"],
+    "krypton":  ["elements","elements_gas_rt"],
+    "xenon":    ["elements","elements_gas_rt"],
+    "radon":    ["elements","elements_gas_rt"],
+
+    /* animal group cross-listings */
+    "snake": ["animals"],
+    "lizard": ["animals"],
+    "crocodile": ["animals"],
+    "alligator": ["animals"],
+    "turtle": ["animals"],
+    "tortoise": ["animals"],
+    "chameleon": ["animals"],
+    "gecko": ["animals"],
+    "iguana": ["animals"],
+    "python": ["animals"],
+    "cobra": ["animals"],
+
+    "frog": ["animals"],
+    "toad": ["animals"],
+    "salamander": ["animals"],
+    "newt": ["animals"],
+    "axolotl": ["animals"],
+    "caecilian": ["animals"],
+
+    "kangaroo": ["animals","mammals","marsupials"],
+    "koala": ["animals","mammals","marsupials"],
+    "wallaby": ["animals","mammals","marsupials"],
+    "wombat": ["animals","mammals","marsupials"],
+    "opossum": ["animals","mammals","marsupials"],
+    "quokka": ["animals","mammals","marsupials"],
+    "quoll": ["animals","mammals","marsupials"],
+    "tasmanian devil": ["animals","mammals","marsupials"]
   }
 }
