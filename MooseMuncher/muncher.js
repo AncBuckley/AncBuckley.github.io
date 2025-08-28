@@ -230,8 +230,8 @@ const state = {
 
   enemies: [],
 
-  progress: 0,
-  needed: 4,
+  progress: 0,          // always used for the level bar now
+  needed: 4,            // target for the bar (varies by mode)
 
   invulnUntil: 0,
   freezeUntil: 0,
@@ -252,6 +252,16 @@ function buildBoard(){
     gy: Math.floor(idx / W)
   }));
   state.correctRemaining = state.items.filter(t=>t.correct && !t.eaten).length;
+
+  // NEW: make the progress bar meaningful in ALL modes
+  if(state.mode===MODES.MATH || state.mode===MODES.SINGLE){
+    state.needed = neededForLevel(state.level);
+    state.progress = 0;
+  } else {
+    // In WORDS/ANY the goal is all correct tiles on the board
+    state.needed = state.correctRemaining;
+    state.progress = 0;
+  }
 }
 
 function getTileAt(gx,gy){ return state.items.find(t=>t.gx===gx && t.gy===gy); }
@@ -305,7 +315,6 @@ function enemySyncHooks(){
       let bias = clamp((targetCorrect - currentCorrect) / targetCorrect, -0.35, 0.85);
       const roll = Math.random();
 
-      // sample from current category
       const sample = state.category.generate(1,1,1)[0];
       const isCorrect = roll < 0.45 + bias;
 
@@ -313,6 +322,12 @@ function enemySyncHooks(){
       const obj = { label: sample.label, value: sample.value, correct: isCorrect, eaten:false, gx, gy };
       if(idx>=0) state.items[idx] = obj; else state.items.push(obj);
       state.correctRemaining = state.items.filter(t=>t.correct && !t.eaten).length;
+
+      // keep bar consistent in WORDS/ANY
+      if(state.mode===MODES.WORDS || state.mode===MODES.ANY){
+        // needed is total correct on board (eaten + not eaten). We don’t change progress here.
+        state.needed = Math.max(state.progress, state.items.filter(t=>t.correct).length);
+      }
     },
     onPlayerCaught: (catcherIndex)=> onPlayerCaught(catcherIndex)
   });
@@ -392,6 +407,8 @@ function tryEat(){
     if(state.mode===MODES.MATH || state.mode===MODES.SINGLE){
       state.progress = Math.min(state.needed, state.progress + 1);
     } else {
+      // NEW: fill the bar in WORDS/ANY too
+      state.progress = Math.min(state.needed, state.progress + 1);
       state.correctRemaining = Math.max(0, state.correctRemaining - 1);
     }
 
@@ -410,6 +427,7 @@ function tryEat(){
     if(state.mode===MODES.MATH || state.mode===MODES.SINGLE){
       state.progress = Math.max(0, state.progress - 1);
     }
+    // WORDS/ANY: wrong picks do not drain the bar (intentional)
 
     spawnDisappointAt(state.player.gx, state.player.gy);
     showToast('Oops! −50');
@@ -431,9 +449,7 @@ function startGame(){
   renderRecentAnswersDOM();
 
   pickStartingCategory();
-  state.needed = neededForLevel(state.level);
-  state.progress = 0;
-
+  // needed/progress now set inside buildBoard for all modes
   buildBoard();
   spawnPlayer();
   spawnEnemies();
@@ -468,10 +484,7 @@ function levelCleared(){
     state.category = pickRandomCategory(prev);
   } // SINGLE keeps same category
 
-  state.needed = neededForLevel(state.level);
-  state.progress = 0;
-
-  buildBoard();
+  buildBoard();         // sets needed/progress for the mode
   spawnPlayer();
   spawnEnemies();
   enemySyncHooks();
@@ -680,7 +693,6 @@ function fitLabel(ctx, text, maxWidth, maxLines, baseFontSize){
     if(textWidth <= maxWidth){
       lines = [text];
     } else {
-      // build ellipsis line
       const ell = '…';
       let s = '';
       for(const ch of text){
@@ -785,8 +797,8 @@ function roundRect(ctx, x,y,w,h,r){
 function draw(){
   const rect = canvas.getBoundingClientRect();
 
-  const hasBar = (state.mode===MODES.MATH || state.mode===MODES.SINGLE);
-  const barArea = hasBar ? Math.max(110, Math.floor(rect.width*0.10)) : 0;
+  // NEW: always reserve a right column for the progress bar + recents
+  const barArea = Math.max(110, Math.floor(rect.width*0.10));
 
   const tile = Math.min((rect.width - barArea)/state.gridW, rect.height/state.gridH);
   const padX = Math.floor((rect.width - barArea - state.gridW*tile)/2);
@@ -840,13 +852,13 @@ function draw(){
   // enemies
   drawEnemies(ctx, state.enemies, {padX, padY, tile});
 
-  // player (half previous size; fits inside tile)
+  // player
   if(state.player){
     const px = padX + state.player.x*tile + tile/2;
     const py = padY + state.player.y*tile + tile/2;
     const inv = now() < state.invulnUntil;
     const anim = MooseMan.computeAnim(state.player, DIR_VECT);
-    const radius = tile*0.21; // HALF of previous 0.42
+    const radius = tile*0.21;
     MooseMan.draw(ctx, px, py, radius, state.player.dir, inv, anim);
   }
 
@@ -855,11 +867,9 @@ function draw(){
   drawSFX(padX,padY,tile);
   drawExplosions(padX,padY,tile);
 
-  // progress bar + recent answers (canvas)
-  if(hasBar){
-    drawLevelBar(rect, barArea);
-    drawRecentAnswersPanel(rect, padX, padY, tile, barArea);
-  }
+  // NEW: progress bar + recent answers always
+  drawLevelBar(rect, barArea);
+  drawRecentAnswersPanel(rect, padX, padY, tile, barArea);
 
   // EXTRA: collision safety check (frame-level)
   if(state.running && !state.paused && now() >= state.teleportingUntil){
