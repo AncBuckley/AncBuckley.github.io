@@ -182,8 +182,30 @@ const state = {
   math: { base: 6, needed: 6, progress: 0 },
 
   // Troggle catch animation state
-  catchAnim: null
+  catchAnim: null,
+
+  // Recent answers list (we render last 10)
+  recent: []
 };
+
+const RECENT_RENDER_MAX = 10;
+
+// ---------- Recent answers helpers ----------
+function pushRecentHeading(text){
+  state.recent.push({ type:'heading', text:String(text), ts: now() });
+  trimRecent();
+}
+function pushRecentAnswer(text, correct){
+  state.recent.push({ type:'answer', text:String(text), correct: !!correct, ts: now() });
+  trimRecent();
+}
+function trimRecent(){
+  // keep up to ~30 entries to reduce churn; we display last 10
+  const MAX_KEEP = 30;
+  if(state.recent.length > MAX_KEEP){
+    state.recent.splice(0, state.recent.length - MAX_KEEP);
+  }
+}
 
 // ---------- Canvas & Resize ----------
 function resizeCanvas(){
@@ -287,6 +309,10 @@ function applyMenuSettings(){
   state.math.progress = 0;
   state.math.needed = computeMathNeeded(1, state.math.base);
 
+  // Reset and add heading for the starting category
+  state.recent.length = 0;
+  if (state.category) pushRecentHeading(state.category.name);
+
   buildBoard();
   spawnPlayer();
   state.enemies.length = 0;
@@ -322,6 +348,9 @@ function nextLevel(){
   state.level += 1;
   state.math.needed = computeMathNeeded(state.level, state.math.base);
   state.math.progress = 0;
+
+  // New category heading for the recent list
+  if (state.category) pushRecentHeading(state.category.name);
 
   buildBoard();
   spawnPlayer();
@@ -425,6 +454,9 @@ function tryEat(){
     state.correctRemaining = Math.max(0, state.correctRemaining - 1);
     showToast('Yum! +100');
 
+    // Record recent (correct)
+    pushRecentAnswer(tile.label, true);
+
     if(state.math.progress >= state.math.needed || state.correctRemaining<=0){
       setTimeout(levelCleared, 350);
     }
@@ -433,7 +465,11 @@ function tryEat(){
     showToast('Wrong! −50');
     // In bar modes, drain a bit
     state.math.progress = Math.max(0, (state.math.progress||0) - 1);
-    // (Optional: also lose a life on wrong)
+
+    // Record recent (wrong)
+    pushRecentAnswer(tile.label, false);
+
+    // Optional: lose a life on wrong (kept off by default)
     // loseLife();
   }
 
@@ -534,6 +570,67 @@ function drawLevelBar(ctx, rect, barArea){
   grd.addColorStop?.(0, '#46d4ff'); grd.addColorStop?.(1, '#9cff6d');
   ctx.fillStyle = grd;
   ctx.fillRect(x+3, y+h-3-fillH, barW-6, fillH);
+  ctx.restore();
+}
+
+// Render the recent answers panel between grid and the right level bar
+function drawRecentList(ctx, rect, padX, tile, barArea){
+  const gridLeft  = padX;
+  const gridRight = padX + state.gridW*tile;
+  const left = Math.floor(gridRight + 8);
+  const right = Math.floor(rect.width - barArea - 8);
+  const width = right - left;
+
+  if(width < 90) return; // not enough space to render the panel
+
+  // Panel
+  const top = 16;
+  const height = Math.floor(rect.height - 32);
+  ctx.save();
+  ctx.fillStyle = 'rgba(12,20,43,0.85)';
+  ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); roundRect(ctx, left, top, width, height, 10); ctx.fill(); ctx.stroke();
+
+  // Title
+  ctx.fillStyle = '#cfe2ff';
+  ctx.font = `700 ${Math.max(12, Math.floor(width*0.12))}px ui-sans-serif, system-ui`;
+  ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+  ctx.fillText('Recent', left + 10, top + 8);
+
+  // Entries
+  const innerX = left + 10;
+  const innerY = top + 8 + Math.max(18, Math.floor(width*0.14)) + 6;
+  const innerW = width - 20;
+
+  const entries = state.recent.slice(-RECENT_RENDER_MAX);
+  let y = innerY;
+
+  for(const ent of entries){
+    if (ent.type === 'heading'){
+      ctx.fillStyle = '#9bb6ff';
+      ctx.font = `600 13px ui-sans-serif, system-ui`;
+      const lines = wrapLabel(ent.text, innerW, ctx, 2);
+      for(const ln of lines){
+        ctx.fillText(ln, innerX, y); y += 16;
+      }
+      // divider
+      ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(innerX, y+2); ctx.lineTo(innerX + innerW, y+2); ctx.stroke();
+      y += 6;
+    } else if (ent.type === 'answer'){
+      ctx.font = `500 13px ui-sans-serif, system-ui`;
+      ctx.fillStyle = ent.correct ? '#75ff9b' : '#ff6d8a';
+      const lines = wrapLabel(ent.text, innerW, ctx, 2);
+      for(const ln of lines){
+        ctx.fillText(ln, innerX, y); y += 16;
+      }
+      y += 2;
+    }
+    if (y > top + height - 10) break; // clipped
+  }
+
   ctx.restore();
 }
 
@@ -654,7 +751,12 @@ function draw(){
     drawCatchAnimation(padX, padY, tile);
   }
 
-  // Level bar
+  // Recent answers panel (between grid and bar)
+  if(needsBar()){
+    drawRecentList(ctx, rect, padX, tile, barArea);
+  }
+
+  // Level bar (right)
   if(needsBar()){
     drawLevelBar(ctx, rect, barArea);
   }
