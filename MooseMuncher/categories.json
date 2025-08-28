@@ -37,8 +37,6 @@
     "flowers": ["rose","tulip","daisy","lily","orchid","sunflower","violet","iris","peony","lavender"],
     "gemstones": ["diamond","ruby","sapphire","emerald","opal","amethyst","topaz","garnet","jade","pearl"],
     "beverages": ["water","tea","coffee","juice","milk","soda","lemonade","smoothie","cocoa","espresso"],
-
-    /* Matter state sets (elements only) */
     "elements_liquid_rt": ["mercury","bromine"],
     "elements_gas_rt": ["hydrogen","helium","nitrogen","oxygen","fluorine","neon","chlorine","argon","krypton","xenon","radon"],
     "elements_solid_rt": ["lithium","beryllium","boron","carbon","sodium","magnesium","aluminum","silicon","phosphorus","sulfur","potassium","calcium","iron","copper","silver","gold","tin","lead","zinc","nickel","platinum"]
@@ -73,14 +71,11 @@
     { "id": "flowers",      "name": "Flowers",                "set": "flowers",     "case": "lower" },
     { "id": "gemstones",    "name": "Gemstones",              "set": "gemstones",   "case": "lower" },
     { "id": "beverages",    "name": "Beverages",              "set": "beverages",   "case": "lower" },
-
-    /* Matter state categories */
     { "id": "liquid-elements", "name": "Elements: Liquid @ Room Temp", "set": "elements_liquid_rt", "case": "lower" },
     { "id": "gaseous-elements","name": "Elements: Gas @ Room Temp",    "set": "elements_gas_rt",    "case": "lower" },
     { "id": "solid-elements",  "name": "Elements: Solid @ Room Temp",  "set": "elements_solid_rt",  "case": "lower" }
   ],
   "crossHints": {
-    /* existing color/thing overlaps */
     "silver":   ["colors","metals","elements"],
     "gold":     ["colors","metals","elements","gemstones"],
     "copper":   ["colors","metals","elements"],
@@ -102,8 +97,6 @@
     "navy":     ["colors"],
     "indigo":   ["colors"],
     "teal":     ["colors"],
-
-    /* newly added elements & states */
     "bromine":  ["elements","elements_liquid_rt"],
     "hydrogen": ["elements","elements_gas_rt"],
     "helium":   ["elements","elements_gas_rt"],
@@ -116,27 +109,23 @@
     "krypton":  ["elements","elements_gas_rt"],
     "xenon":    ["elements","elements_gas_rt"],
     "radon":    ["elements","elements_gas_rt"],
-
-    /* animal group cross-listings */
-    "snake": ["animals"],
-    "lizard": ["animals"],
-    "crocodile": ["animals"],
-    "alligator": ["animals"],
-    "turtle": ["animals"],
-    "tortoise": ["animals"],
-    "chameleon": ["animals"],
-    "gecko": ["animals"],
-    "iguana": ["animals"],
-    "python": ["animals"],
-    "cobra": ["animals"],
-
-    "frog": ["animals"],
-    "toad": ["animals"],
-    "salamander": ["animals"],
-    "newt": ["animals"],
-    "axolotl": ["animals"],
-    "caecilian": ["animals"],
-
+    "snake": ["animals","reptiles"],
+    "lizard": ["animals","reptiles"],
+    "crocodile": ["animals","reptiles"],
+    "alligator": ["animals","reptiles"],
+    "turtle": ["animals","reptiles"],
+    "tortoise": ["animals","reptiles"],
+    "chameleon": ["animals","reptiles"],
+    "gecko": ["animals","reptiles"],
+    "iguana": ["animals","reptiles"],
+    "python": ["animals","reptiles"],
+    "cobra": ["animals","reptiles"],
+    "frog": ["animals","amphibians"],
+    "toad": ["animals","amphibians"],
+    "salamander": ["animals","amphibians"],
+    "newt": ["animals","amphibians"],
+    "axolotl": ["animals","amphibians"],
+    "caecilian": ["animals","amphibians"],
     "kangaroo": ["animals","mammals","marsupials"],
     "koala": ["animals","mammals","marsupials"],
     "wallaby": ["animals","mammals","marsupials"],
