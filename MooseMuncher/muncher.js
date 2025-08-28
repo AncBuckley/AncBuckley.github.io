@@ -264,6 +264,70 @@ function computeMathNeeded(level, base){
   return Math.max(1, Math.floor(base * Math.pow(2, level-1) + extra));
 }
 
+// ---------- Word-wrap helpers (no mid-word breaking with auto font scaling) ----------
+const TILE_FONT_FAMILY = "ui-sans-serif, system-ui, -apple-system, Segoe UI";
+function measureLongestWordPx(text, ctx){
+  let m = 0;
+  const words = String(text).split(/\s+/).filter(Boolean);
+  for(const w of words){ m = Math.max(m, ctx.measureText(w).width); }
+  return m;
+}
+function fitFontPxForWidth(text, ctx, basePx, minPx, maxWidth){
+  let px = basePx;
+  ctx.font = `${px}px ${TILE_FONT_FAMILY}`;
+  while(px > minPx && measureLongestWordPx(text, ctx) > maxWidth){
+    px -= 1;
+    ctx.font = `${px}px ${TILE_FONT_FAMILY}`;
+  }
+  return px;
+}
+function wrapNoBreak(text, ctx, maxWidth, maxLines){
+  const words = String(text).split(/\s+/).filter(Boolean);
+  const lines = [];
+  let line = '';
+  for(const w of words){
+    const test = line ? (line + ' ' + w) : w;
+    if(ctx.measureText(test).width <= maxWidth){
+      line = test;
+    }else{
+      if(line){ lines.push(line); line = w; }
+      else { // single very long word (should be avoided by fitFont, fallback just push)
+        lines.push(w);
+        line = '';
+      }
+      if(lines.length >= maxLines){
+        // add ellipsis to last line
+        let last = lines[lines.length-1];
+        while(last.length && ctx.measureText(last + '…').width > maxWidth){
+          last = last.slice(0, -1);
+        }
+        lines[lines.length-1] = last + '…';
+        return lines;
+      }
+    }
+  }
+  if(line){
+    if(lines.length < maxLines) lines.push(line);
+    else{
+      // overflow: ellipsize last line
+      let last = lines[lines.length-1];
+      while(last.length && ctx.measureText(last + '…').width > maxWidth){
+        last = last.slice(0, -1);
+      }
+      lines[lines.length-1] = last + '…';
+    }
+  }
+  return lines;
+}
+function layoutTextBlock({text, ctx, maxWidth, maxLines, basePx, minPx, lineHeightFactor=1.05}){
+  // choose a font size so the longest word fits
+  const fontPx = fitFontPxForWidth(text, ctx, basePx, minPx, maxWidth);
+  ctx.font = `${fontPx}px ${TILE_FONT_FAMILY}`;
+  const lineHeight = Math.max(12, Math.floor(fontPx * lineHeightFactor));
+  const lines = wrapNoBreak(text, ctx, maxWidth, maxLines);
+  return { fontPx, lineHeight, lines };
+}
+
 // ---------- Board & Entities ----------
 function buildBoard(){
   const W = state.gridW, H = state.gridH;
@@ -468,9 +532,6 @@ function tryEat(){
 
     // Record recent (wrong)
     pushRecentAnswer(tile.label, false);
-
-    // Optional: lose a life on wrong (kept off by default)
-    // loseLife();
   }
 
   updateHUD();
@@ -523,35 +584,6 @@ function finalizeCatchAnimation(){
 }
 
 // ---------- Draw helpers ----------
-function wrapLabel(text, maxWidth, ctx, maxLines=3){
-  const words = String(text).split(' ');
-  const lines = [];
-  let line = '';
-  for(const w of words){
-    const test = line ? (line + ' ' + w) : w;
-    if(ctx.measureText(test).width <= maxWidth){
-      line = test;
-    } else {
-      if(line) lines.push(line);
-      else {
-        // Hard break very long word
-        let tmp = w;
-        while(ctx.measureText(tmp).width > maxWidth){
-          let cut = tmp.length;
-          while(cut>1 && ctx.measureText(tmp.slice(0,cut)).width>maxWidth) cut--;
-          lines.push(tmp.slice(0,cut));
-          tmp = tmp.slice(cut);
-          if(lines.length>=maxLines) return lines;
-        }
-        line = tmp;
-      }
-      if(lines.length>=maxLines) return lines;
-    }
-  }
-  if(line && lines.length<maxLines) lines.push(line);
-  return lines;
-}
-
 function drawLevelBar(ctx, rect, barArea){
   const barW = Math.max(22, Math.floor(barArea*0.5));
   const x = rect.width - barArea + (barArea - barW)/2;
@@ -594,13 +626,15 @@ function drawRecentList(ctx, rect, padX, tile, barArea){
 
   // Title
   ctx.fillStyle = '#cfe2ff';
-  ctx.font = `700 ${Math.max(12, Math.floor(width*0.12))}px ui-sans-serif, system-ui`;
+  // Scale the "Recent" title a touch based on panel width
+  const titlePx = Math.max(12, Math.floor(width*0.12));
+  ctx.font = `700 ${titlePx}px ${TILE_FONT_FAMILY}`;
   ctx.textAlign = 'left'; ctx.textBaseline = 'top';
   ctx.fillText('Recent', left + 10, top + 8);
 
   // Entries
   const innerX = left + 10;
-  const innerY = top + 8 + Math.max(18, Math.floor(width*0.14)) + 6;
+  const innerY = top + 8 + titlePx + 6;
   const innerW = width - 20;
 
   const entries = state.recent.slice(-RECENT_RENDER_MAX);
@@ -608,11 +642,15 @@ function drawRecentList(ctx, rect, padX, tile, barArea){
 
   for(const ent of entries){
     if (ent.type === 'heading'){
+      // headings slightly bigger; shrink to keep words intact
       ctx.fillStyle = '#9bb6ff';
-      ctx.font = `600 13px ui-sans-serif, system-ui`;
-      const lines = wrapLabel(ent.text, innerW, ctx, 2);
+      const basePx = 13;
+      const { fontPx, lineHeight, lines } = layoutTextBlock({
+        text: ent.text, ctx, maxWidth: innerW, maxLines: 2, basePx, minPx: 10, lineHeightFactor: 1.05
+      });
+      ctx.font = `600 ${fontPx}px ${TILE_FONT_FAMILY}`;
       for(const ln of lines){
-        ctx.fillText(ln, innerX, y); y += 16;
+        ctx.fillText(ln, innerX, y); y += lineHeight;
       }
       // divider
       ctx.strokeStyle = 'rgba(255,255,255,0.06)';
@@ -620,11 +658,14 @@ function drawRecentList(ctx, rect, padX, tile, barArea){
       ctx.beginPath(); ctx.moveTo(innerX, y+2); ctx.lineTo(innerX + innerW, y+2); ctx.stroke();
       y += 6;
     } else if (ent.type === 'answer'){
-      ctx.font = `500 13px ui-sans-serif, system-ui`;
       ctx.fillStyle = ent.correct ? '#75ff9b' : '#ff6d8a';
-      const lines = wrapLabel(ent.text, innerW, ctx, 2);
+      const basePx = 13;
+      const { fontPx, lineHeight, lines } = layoutTextBlock({
+        text: ent.text, ctx, maxWidth: innerW, maxLines: 2, basePx, minPx: 10, lineHeightFactor: 1.05
+      });
+      ctx.font = `500 ${fontPx}px ${TILE_FONT_FAMILY}`;
       for(const ln of lines){
-        ctx.fillText(ln, innerX, y); y += 16;
+        ctx.fillText(ln, innerX, y); y += lineHeight;
       }
       y += 2;
     }
@@ -707,15 +748,17 @@ function draw(){
     ctx.lineWidth = 1.2; ctx.stroke();
 
     if(!t.eaten){
-      // label with wrapping (no mid-word breaks)
+      // label with adaptive font (no mid-word breaks)
       ctx.save();
       ctx.fillStyle = 'rgba(230,240,255,.95)';
-      const fontSize = Math.floor(tile*0.23);
-      ctx.font = `${fontSize}px ui-sans-serif, system-ui, -apple-system, Segoe UI`;
-      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       const maxWidth = tile*0.84;
-      const lineHeight = Math.max(16, Math.floor(fontSize*1.05));
-      const lines = wrapLabel(t.label, maxWidth, ctx, 3);
+      const basePx = Math.floor(tile*0.23);
+      const minPx  = Math.max(10, Math.floor(tile*0.12));
+      const { fontPx, lineHeight, lines } = layoutTextBlock({
+        text: t.label, ctx, maxWidth, maxLines: 3, basePx, minPx, lineHeightFactor: 1.05
+      });
+      ctx.font = `${fontPx}px ${TILE_FONT_FAMILY}`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       const totalH = lines.length * lineHeight;
       let ly = y + tile/2 - totalH/2 + lineHeight/2;
       for(const line of lines){ ctx.fillText(line, x+tile/2, ly); ly += lineHeight; }
