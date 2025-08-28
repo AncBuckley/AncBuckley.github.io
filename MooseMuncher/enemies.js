@@ -1,221 +1,307 @@
-// enemies.js — enemy creation, AI, drawing (ES module)
+// enemies.js — enemy spawning, AI, drawing (slime chasers & owl grazers, animated)
 
-const DIRS = { UP:0, RIGHT:1, DOWN:2, LEFT:3 };
-const DIR_VECT = [[0,-1],[1,0],[0,1],[-1,0]];
+const now = () => performance.now();
 
-let boardHooks = {
-  isCellEmpty: (gx,gy)=>false,
-  placeWordAt: (gx,gy)=>{},
-  onPlayerCaught: (idx)=>{}
-};
+export const DIRS = { UP:0, RIGHT:1, DOWN:2, LEFT:3 };
+export const DIR_VECT = [ [0,-1],[1,0],[0,1],[-1,0] ];
+const DIR_ANGLE = [ -Math.PI/2, 0, Math.PI/2, Math.PI ];
 
-export function notifyBoardHooksForEnemies(hooks = {}){
-  boardHooks = { ...boardHooks, ...hooks };
+export const ENEMY_STEP_MS = 3000; // one tile every 3 seconds
+
+// ---- Helpers bound to state ----
+function inBounds(state,gx,gy){ return gx>=0 && gy>=0 && gx<state.gridW && gy<state.gridH; }
+function neighbors(state,gx,gy){
+  return [
+    {dir:DIRS.UP,    nx:gx,   ny:gy-1},
+    {dir:DIRS.RIGHT, nx:gx+1, ny:gy  },
+    {dir:DIRS.DOWN,  nx:gx,   ny:gy+1},
+    {dir:DIRS.LEFT,  nx:gx-1, ny:gy  }
+  ].filter(n => inBounds(state,n.nx,n.ny));
+}
+function manhattan(ax,ay,bx,by){ return Math.abs(ax-bx) + Math.abs(ay-by); }
+
+function nearestNonAnswerDist(state, gx,gy){
+  let best = Infinity;
+  for(const t of state.items){
+    if(!t.eaten && !t.correct){
+      const d = manhattan(gx,gy,t.gx,t.gy);
+      if(d < best) best = d;
+    }
+  }
+  return best;
 }
 
-/**
- * Create a starting set of enemies.
- * Half are "chaser" (slime monsters), half are "forager" (owls).
- */
-export function createEnemies({gridW, gridH, level = 1, stepMs = 3000}){
-  const list = [];
-  const count = Math.min(6, 2 + Math.floor((level - 1) / 2)); // 2..6
-  for(let i=0;i<count;i++){
-    const ai = (i % 2 === 0) ? 'chaser' : 'forager';
-    const type = ai === 'chaser' ? 'slime' : 'owl';
-    let gx = (Math.random()*gridW)|0;
-    let gy = (Math.random()*gridH)|0;
-    if (gx === 0 && gy === 0){ gx = gridW - 1; gy = gridH - 1; }
-    list.push({
-      ai, type,
-      gx, gy, x: gx, y: gy,
-      dir: DIRS.LEFT,
-      stepMs,
-      nextStepAt: performance.now() + stepMs * (0.3 + 0.1*i)
+function chooseStepChaser(state, e){
+  const p = state.player;
+  if(!p) return null;
+  const opts = neighbors(state, e.gx, e.gy);
+  let best = [], bestScore = Infinity;
+  for(const o of opts){
+    const d = manhattan(o.nx, o.ny, p.gx, p.gy);
+    if(d < bestScore){ bestScore = d; best = [o]; }
+    else if(d === bestScore){ best.push(o); }
+  }
+  return best.length ? best[(Math.random()*best.length)|0] : null;
+}
+
+function chooseStepGrazer(state, e){
+  const opts = neighbors(state, e.gx, e.gy);
+  let best = [], bestScore = Infinity;
+  for(const o of opts){
+    const d = nearestNonAnswerDist(state, o.nx, o.ny);
+    if(d < bestScore){ bestScore = d; best = [o]; }
+    else if(d === bestScore){ best.push(o); }
+  }
+  if(!isFinite(bestScore)){
+    // No non-answer tiles left; fallback to mild chase
+    return chooseStepChaser(state, e);
+  }
+  return best.length ? best[(Math.random()*best.length)|0] : null;
+}
+
+// Public: step enemies based on role
+export function stepEnemies(state){
+  if(!state.enemies?.length) return;
+  if(state.catchAnim) return; // freeze pathing during catch/teleport animation
+  const t = now();
+  for(const e of state.enemies){
+    if(t < e.nextStepAt) continue;
+
+    // choose step by role
+    let step = null;
+    if(e.role === 'chaser'){
+      step = chooseStepChaser(state, e) || chooseStepGrazer(state, e);
+    }else{
+      step = chooseStepGrazer(state, e) || chooseStepChaser(state, e);
+    }
+
+    if(step){
+      e.gx = e.x = step.nx;
+      e.gy = e.y = step.ny;
+      e.dir = step.dir;
+
+      // kick animation burst after a step
+      const kickDur = 650;
+      if(e.role === 'chaser'){ e.wobbleKickUntil = t + kickDur; }
+      else                   { e.flapKickUntil   = t + kickDur; }
+    }
+    e.nextStepAt += ENEMY_STEP_MS;
+  }
+}
+
+// Public: reset timers
+export function resetEnemyTimers(state){
+  const base = now();
+  state.enemies.forEach((e,i)=>{ e.nextStepAt = base + ENEMY_STEP_MS + i*150; });
+}
+
+// Public: spawn enemies with roles & anim seeds
+export function spawnTroggles(state){
+  const base = state.level<=3? 2 : state.level<=6? 3 : 4;
+  const n = Math.max(2, Math.min(6, base + (state.level>6?1:0)));
+  state.enemies = [];
+  const occupied = new Set([`0,0`]);
+  const baseTime = now();
+
+  for(let i=0;i<n;i++){
+    let ex = (Math.random()*state.gridW)|0, ey = (Math.random()*state.gridH)|0, tries=0;
+    while( (Math.abs(ex-0)+Math.abs(ey-0)) < Math.floor((state.gridW+state.gridH)/4) || occupied.has(`${ex},${ey}`) ){
+      ex = (Math.random()*state.gridW)|0; ey = (Math.random()*state.gridH)|0; if(++tries>50) break;
+    }
+    occupied.add(`${ex},${ey}`);
+
+    state.enemies.push({
+      gx:ex, gy:ey, x:ex, y:ey,
+      dir:(Math.random()*4)|0,
+      // Visual color is retained but role decides sprite
+      color: ['#ff3b6b','#ffb800','#00e5ff','#7cff00','#ff00e5','#ff7a00','#00ffb3','#ffd700','#00ffd0','#ff4d00'][(Math.random()*10)|0],
+      role: Math.random() < 0.55 ? 'chaser' : 'grazer',   // slime vs owl
+      animSeed: Math.random()*1000,
+      flapKickUntil: 0,
+      wobbleKickUntil: 0,
+      nextStepAt: baseTime + ENEMY_STEP_MS + i*150
     });
   }
-  return list;
 }
 
-/**
- * Advance enemy logic; step one tile when their timer elapses.
- */
-export function updateEnemies(enemies, opts){
-  const {
-    gridW, gridH,
-    player,
-    stepMs = 3000,
-    freezeUntil = 0,
-    passable = ()=>true,
-    clampTo = (gx,gy)=>({gx,gy})
-  } = opts;
+// ---- Drawing (slime & owl) ----
 
-  const tnow = performance.now();
-
-  for(let i=0;i<enemies.length;i++){
-    const e = enemies[i];
-    e.stepMs = stepMs;
-
-    // Freeze check
-    if (tnow < freezeUntil) continue;
-
-    if (tnow >= (e.nextStepAt || 0)){
-      // Decide direction
-      let dir = decideDir(e, {gridW,gridH,player,passable});
-      if (dir == null) dir = (Math.random()*4)|0;
-
-      const [dx,dy] = DIR_VECT[dir];
-      let nx = e.gx + dx, ny = e.gy + dy;
-      ({gx:nx, gy:ny} = clampTo(nx,ny));
-
-      if (passable(nx,ny)){
-        e.gx = nx; e.gy = ny; e.x = nx; e.y = ny; e.dir = dir;
-
-        // If landed on an empty cell, let the board place a word
-        try{
-          if (boardHooks.isCellEmpty && boardHooks.isCellEmpty(nx,ny)){
-            boardHooks.placeWordAt && boardHooks.placeWordAt(nx,ny);
-          }
-        }catch(_){}
-      }
-
-      // Collision with player?
-      if (player && player.gx === e.gx && player.gy === e.gy){
-        try{ boardHooks.onPlayerCaught && boardHooks.onPlayerCaught(i); }catch(_){}
-      }
-
-      e.nextStepAt = tnow + e.stepMs;
-    }
-  }
+function smoothKickAmt(until){
+  if(!until) return 0;
+  const rem = until - now();
+  if(rem <= 0) return 0;
+  return Math.min(1, rem / 650);
 }
 
-function decideDir(e, {gridW,gridH,player,passable}){
-  const dirs = [DIRS.UP, DIRS.RIGHT, DIRS.DOWN, DIRS.LEFT];
+// Slime monster (for chasers) — wobble/jelly with step kick
+function drawSlime(ctx, x, y, size, dir, e, frozen){
+  const t = now()*0.002 + (e?.animSeed||0);
+  const kick = smoothKickAmt(e?.wobbleKickUntil);
+  const wob = 0.09*Math.sin(t*Math.PI*4) + 0.12*kick;
 
-  // Some randomness
-  if (Math.random() < 0.12) return dirs[(Math.random()*4)|0];
-
-  if (e.ai === 'chaser' && player){
-    // Move to reduce Manhattan distance to player
-    const best = dirs
-      .map(d=>({ d, nx:e.gx + DIR_VECT[d][0], ny: e.gy + DIR_VECT[d][1] }))
-      .filter(s=>passable(s.nx,s.ny))
-      .sort((a,b)=>{
-        const da = Math.abs(a.nx - player.gx) + Math.abs(a.ny - player.gy);
-        const db = Math.abs(b.nx - player.gx) + Math.abs(b.ny - player.gy);
-        return da - db;
-      });
-    if (best.length) return best[0].d;
-  }
-
-  if (e.ai === 'forager'){
-    // Prefer empty tiles (to seed new words); otherwise any passable
-    const cand = dirs
-      .map(d=>({ d, nx:e.gx + DIR_VECT[d][0], ny: e.gy + DIR_VECT[d][1] }))
-      .filter(s=>passable(s.nx,s.ny));
-
-    if (boardHooks.isCellEmpty){
-      const empties = cand.filter(s=>boardHooks.isCellEmpty(s.nx,s.ny));
-      if (empties.length) return empties[(Math.random()*empties.length)|0].d;
-    }
-    if (cand.length) return cand[(Math.random()*cand.length)|0].d;
-  }
-
-  return null;
-}
-
-/** Teleport the specified enemy to bottom-right corner. */
-export function moveEnemyToBottomRight(enemies, idx, gridW, gridH){
-  const e = enemies[idx];
-  if (!e) return;
-  e.gx = gridW - 1; e.gy = gridH - 1;
-  e.x = e.gx; e.y = e.gy;
-  e.dir = DIRS.LEFT;
-  e.nextStepAt = performance.now() + (e.stepMs || 3000);
-}
-
-/** Draw all enemies with distinct looks per AI type. */
-export function drawEnemies(ctx, enemies, {padX, padY, tile}){
-  for(const e of enemies){
-    const x = padX + e.x*tile + tile/2;
-    const y = padY + e.y*tile + tile/2;
-    if (e.type === 'slime') drawSlime(ctx, x, y, tile*0.38, e.dir);
-    else drawOwl(ctx, x, y, tile*0.40, e.dir);
-  }
-}
-
-// ---------- Visuals ----------
-function drawSlime(ctx, x, y, r, dir){
   ctx.save();
   ctx.translate(x,y);
-  ctx.rotate([ -Math.PI/2, 0, Math.PI/2, Math.PI ][dir|0]);
+  ctx.rotate(DIR_ANGLE[dir]|0);
 
-  const w = r*1.8, h = r*1.4;
-  const grd = ctx.createLinearGradient(-w/2,-h/2, w/2,h/2);
-  grd.addColorStop(0,'#2ef2a3'); grd.addColorStop(1,'#0da36a');
+  // Squash & stretch body
+  const sx = 1 + wob*0.6;
+  const sy = 1 - wob*0.6;
+  ctx.scale(sx, sy);
 
+  const w = size*1.2, h = size*0.95;
+
+  // Jelly body
+  const base = frozen ? '#8af1ff' : '#39ff97';
+  const hi   = frozen ? '#c9fbff' : '#b7ffd8';
+  const lo   = frozen ? '#5be7ff' : '#18c76a';
+
+  const grd = ctx.createLinearGradient(-w*0.5, -h*0.5, w*0.5, h*0.7);
+  grd.addColorStop(0, hi);
+  grd.addColorStop(0.6, base);
+  grd.addColorStop(1, lo);
+
+  ctx.shadowColor = frozen ? '#7ae8ff' : '#39ff97';
+  ctx.shadowBlur = frozen ? 6 : 16;
+
+  ctx.beginPath();
+  ctx.moveTo(-w*0.45, h*0.25);
+  ctx.bezierCurveTo(-w*0.55, -h*0.10, -w*0.25, -h*0.55, 0, -h*0.55);
+  ctx.bezierCurveTo( w*0.25, -h*0.55,  w*0.55, -h*0.10,  w*0.45, h*0.25);
+  ctx.bezierCurveTo( w*0.25, h*0.45,  -w*0.25, h*0.45, -w*0.45, h*0.25);
+  ctx.closePath();
+  ctx.fillStyle = grd; ctx.fill();
+
+  // Slime drips (gently animated)
+  const dripShift = Math.sin(t*6.3)*h*0.02;
+  ctx.globalAlpha = 0.6;
+  ctx.beginPath();
+  ctx.moveTo(-w*0.15, h*0.15); ctx.quadraticCurveTo(-w*0.18, h*0.36 + dripShift, -w*0.10, h*0.42 + dripShift);
+  ctx.moveTo( w*0.10, h*0.15); ctx.quadraticCurveTo( w*0.08, h*0.34 - dripShift,  w*0.02, h*0.40 - dripShift);
+  ctx.strokeStyle = '#ffffff55'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.globalAlpha = 1;
+
+  // Eyes on stalks (bob slightly)
+  const ey = -h*0.38 + Math.sin(t*7.2)*size*0.03;
+  const dx = size*0.22;
+  ctx.fillStyle = '#fff';
+  ctx.beginPath(); ctx.arc(-dx, ey, size*0.12, 0, Math.PI*2);
+  ctx.arc( dx, ey, size*0.12, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#0b1020';
+  ctx.beginPath(); ctx.arc(-dx, ey, size*0.06, 0, Math.PI*2);
+  ctx.arc( dx, ey, size*0.06, 0, Math.PI*2); ctx.fill();
+
+  // Jagged mouth
+  ctx.beginPath();
+  ctx.moveTo(-size*0.28, h*0.02);
+  ctx.lineTo(-size*0.18, h*0.06);
+  ctx.lineTo(-size*0.08, 0);
+  ctx.lineTo(0,           h*0.06);
+  ctx.lineTo(size*0.10,   0);
+  ctx.lineTo(size*0.22,   h*0.06);
+  ctx.lineTo(size*0.30,   0);
+  ctx.strokeStyle = '#073'; ctx.lineWidth = 2.2; ctx.stroke();
+
+  ctx.restore();
+}
+
+// Scary owl (for grazers) — wing flap & blink with step kick
+function drawOwl(ctx, x, y, size, dir, e, frozen){
+  const t = now()*0.002 + (e?.animSeed||0);
+  const kick = smoothKickAmt(e?.flapKickUntil);
+  const flapBase = Math.sin(t*Math.PI*4) * 0.25;
+  const flap = flapBase + 0.35*kick; // step accent
+  const blinkPhase = (Math.sin(t*3.1 + (e?.animSeed||0)) + 1) * 0.5;
+  const eyeScaleY = (blinkPhase < 0.07) ? 0.2 : 1.0;
+
+  ctx.save();
+  ctx.translate(x,y);
+  ctx.rotate(DIR_ANGLE[dir]|0);
+
+  const w = size*1.15, h = size*1.15;
+
+  // Body
+  const grd = ctx.createLinearGradient(0, -h*0.5, 0, h*0.5);
+  grd.addColorStop(0, frozen ? '#9cd9ff' : '#4a2c57');
+  grd.addColorStop(1, frozen ? '#6ba9d8' : '#2a1631');
   ctx.fillStyle = grd;
   ctx.beginPath();
-  ctx.moveTo(-w*0.5, h*0.4);
-  ctx.quadraticCurveTo(-w*0.6, -h*0.1, 0, -h*0.45);
-  ctx.quadraticCurveTo(w*0.6, -h*0.1, w*0.5, h*0.4);
-  ctx.closePath();
+  ctx.ellipse(0, 0, w*0.45, h*0.55, 0, 0, Math.PI*2);
   ctx.fill();
 
-  // eyes
-  ctx.fillStyle = '#fff';
+  // Tufts
+  ctx.fillStyle = frozen ? '#bfe9ff' : '#6b3b7b';
   ctx.beginPath();
-  ctx.arc(-w*0.18, -h*0.1, r*0.13, 0, Math.PI*2);
-  ctx.arc( w*0.18, -h*0.1, r*0.13, 0, Math.PI*2);
+  ctx.moveTo(-w*0.32, -h*0.36); ctx.lineTo(-w*0.15, -h*0.55); ctx.lineTo(-w*0.06, -h*0.36); ctx.closePath();
+  ctx.moveTo( w*0.32, -h*0.36); ctx.lineTo( w*0.15, -h*0.55); ctx.lineTo( w*0.06, -h*0.36); ctx.closePath();
   ctx.fill();
-  ctx.fillStyle = '#0b1020';
+
+  // Eyes (blink by scaling Y)
+  const ex = w*0.18, ey = -h*0.1, rOuter = size*0.15, rInner = size*0.07;
+  ctx.save();
+  ctx.translate(-ex, ey); ctx.scale(1, eyeScaleY);
+  ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(0,0, rOuter, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = frozen ? '#144a7a' : '#ffcf00'; ctx.beginPath(); ctx.arc(0,0, rInner, 0, Math.PI*2); ctx.fill();
+  ctx.restore();
+
+  ctx.save();
+  ctx.translate( ex, ey); ctx.scale(1, eyeScaleY);
+  ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(0,0, rOuter, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = frozen ? '#144a7a' : '#ffcf00'; ctx.beginPath(); ctx.arc(0,0, rInner, 0, Math.PI*2); ctx.fill();
+  ctx.restore();
+
+  // Beak
+  ctx.fillStyle = frozen ? '#e9f6ff' : '#ff9b28';
   ctx.beginPath();
-  ctx.arc(-w*0.18, -h*0.1, r*0.07, 0, Math.PI*2);
-  ctx.arc( w*0.18, -h*0.1, r*0.07, 0, Math.PI*2);
-  ctx.fill();
+  ctx.moveTo(0, ey + size*0.02);
+  ctx.lineTo(-size*0.07, ey + size*0.20);
+  ctx.lineTo( size*0.07, ey + size*0.20);
+  ctx.closePath(); ctx.fill();
+
+  // Wings with flap animation
+  const wingLen = w*0.55;
+  const shoulderY = 0;
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = frozen ? '#cfeeff' : '#7b4a8a';
+  ctx.fillStyle = frozen ? '#bfe9ff' : '#5a3468';
+
+  function drawWing(side){
+    const s = side === 'left' ? -1 : 1;
+    ctx.save();
+    ctx.translate(s*w*0.4, shoulderY);
+    ctx.rotate(s * (-0.2 + flap)); // flap out/in
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.quadraticCurveTo(s*wingLen*0.35, h*0.05, s*wingLen*0.55, h*0.22);
+    ctx.quadraticCurveTo(s*wingLen*0.40, h*0.18, s*wingLen*0.18, h*0.10);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  drawWing('left');
+  drawWing('right');
+
+  // Talons
+  ctx.fillStyle = frozen ? '#e9f6ff' : '#ffb84d';
+  for(const sx of [-w*0.18, w*0.18]){
+    ctx.beginPath();
+    ctx.moveTo(sx,  h*0.38);
+    ctx.lineTo(sx - size*0.06, h*0.50);
+    ctx.lineTo(sx + size*0.06, h*0.50);
+    ctx.closePath(); ctx.fill();
+  }
 
   ctx.restore();
 }
 
-function drawOwl(ctx, x, y, r, dir){
-  ctx.save();
-  ctx.translate(x,y);
-  ctx.rotate([ -Math.PI/2, 0, Math.PI/2, Math.PI ][dir|0]);
+// Public: draw dispatcher
+export function drawEnemy(ctx, pixelX, pixelY, size, dir, enemyObj, frozen){
+  if(enemyObj?.role === 'chaser') drawSlime(ctx, pixelX, pixelY, size, dir, enemyObj, frozen);
+  else                            drawOwl  (ctx, pixelX, pixelY, size, dir, enemyObj, frozen);
+}
 
-  const w = r*1.6, h = r*1.6;
-
-  // body
-  ctx.fillStyle = '#8f6a2a';
-  ctx.beginPath();
-  ctx.ellipse(0, 0, w*0.48, h*0.55, 0, 0, Math.PI*2);
-  ctx.fill();
-
-  // wings
-  ctx.fillStyle = '#6b4f1f';
-  ctx.beginPath(); ctx.ellipse(-w*0.42, 0, w*0.24, h*0.32, 0, 0, Math.PI*2); ctx.fill();
-  ctx.beginPath(); ctx.ellipse( w*0.42, 0, w*0.24, h*0.32, 0, 0, Math.PI*2); ctx.fill();
-
-  // eyes
-  ctx.fillStyle = '#fff';
-  ctx.beginPath();
-  ctx.arc(-w*0.18, -h*0.2, r*0.14, 0, Math.PI*2);
-  ctx.arc( w*0.18, -h*0.2, r*0.14, 0, Math.PI*2);
-  ctx.fill();
-
-  ctx.fillStyle = '#0b1020';
-  ctx.beginPath();
-  ctx.arc(-w*0.18, -h*0.2, r*0.07, 0, Math.PI*2);
-  ctx.arc( w*0.18, -h*0.2, r*0.07, 0, Math.PI*2);
-  ctx.fill();
-
-  // beak
-  ctx.fillStyle = '#e4a11b';
-  ctx.beginPath();
-  ctx.moveTo(0, -h*0.06);
-  ctx.lineTo(-r*0.12, 0);
-  ctx.lineTo(r*0.12, 0);
-  ctx.closePath();
-  ctx.fill();
-
-  ctx.restore();
+// Back-compat (if any old code still calls drawTroggle)
+export function drawTroggle(ctx, x, y, size, dir, color, frozen, enemyObj){
+  drawEnemy(ctx, x, y, size, dir, enemyObj || {role:'grazer'}, frozen);
 }
