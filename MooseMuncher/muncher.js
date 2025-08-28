@@ -179,7 +179,7 @@ const state = {
   invulnUntil: 0,
 
   // level progress bar config
-  math: { base: 6, needed: 6, progress: 0 },
+  math: { base: 4, needed: 4, progress: 0 },
 
   // Troggle catch animation state
   catchAnim: null,
@@ -200,7 +200,6 @@ function pushRecentAnswer(text, correct){
   trimRecent();
 }
 function trimRecent(){
-  // keep up to ~30 entries to reduce churn; we display last 10
   const MAX_KEEP = 30;
   if(state.recent.length > MAX_KEEP){
     state.recent.splice(0, state.recent.length - MAX_KEEP);
@@ -222,7 +221,7 @@ function resizeCanvas(){
 addEventListener('resize', resizeCanvas);
 
 // ---------- UI helpers ----------
-function needsBar(){ return true; } // keep bar in all modes per your earlier change
+function needsBar(){ return true; } // keep bar in all modes
 
 function updateHUD(){
   if(levelEl) levelEl.textContent = String(state.level);
@@ -257,11 +256,12 @@ function pickRandomAnyCategory(prevId){ return pickRandom(CATEGORIES, prevId); }
 function pickRandomWordCategory(prevId){ return pickRandom(WORD_CATS, prevId); }
 function pickRandomMathCategory(prevId){ return pickRandom(MATH_CATS, prevId); }
 
-// Every 5th level, increase the per-level requirement by larger increments: +2 at 5, +4 at 10, +6 at 15, …
-function computeMathNeeded(level, base){
-  const block = Math.floor(level/5);        // 0,1,2,3…
-  const extra = block * (block + 1);        // 0,2,6,12,…  (2,4,6 added cumulatively)
-  return Math.max(1, Math.floor(base * Math.pow(2, level-1) + extra));
+// === Level requirement: base 4, then +2 every 5 levels (doubling the block sum)
+// block = 0 for levels 1–5, 1 for 6–10, etc., but we want 1–4 as first group, 5–9 second.
+// So use block = floor((level-1)/5). Needed = 4 + sum_{k=1..block} 2^k = 2*(2^block + 1)
+function computeNeededPerLevel(level){
+  const block = Math.floor((level - 1) / 5);
+  return 2 * ((1 << block) + 1);
 }
 
 // ---------- Word-wrap helpers (no mid-word breaking with auto font scaling) ----------
@@ -291,16 +291,10 @@ function wrapNoBreak(text, ctx, maxWidth, maxLines){
       line = test;
     }else{
       if(line){ lines.push(line); line = w; }
-      else { // single very long word (should be avoided by fitFont, fallback just push)
-        lines.push(w);
-        line = '';
-      }
+      else { lines.push(w); line = ''; }
       if(lines.length >= maxLines){
-        // add ellipsis to last line
         let last = lines[lines.length-1];
-        while(last.length && ctx.measureText(last + '…').width > maxWidth){
-          last = last.slice(0, -1);
-        }
+        while(last.length && ctx.measureText(last + '…').width > maxWidth){ last = last.slice(0, -1); }
         lines[lines.length-1] = last + '…';
         return lines;
       }
@@ -309,18 +303,14 @@ function wrapNoBreak(text, ctx, maxWidth, maxLines){
   if(line){
     if(lines.length < maxLines) lines.push(line);
     else{
-      // overflow: ellipsize last line
       let last = lines[lines.length-1];
-      while(last.length && ctx.measureText(last + '…').width > maxWidth){
-        last = last.slice(0, -1);
-      }
+      while(last.length && ctx.measureText(last + '…').width > maxWidth){ last = last.slice(0, -1); }
       lines[lines.length-1] = last + '…';
     }
   }
   return lines;
 }
 function layoutTextBlock({text, ctx, maxWidth, maxLines, basePx, minPx, lineHeightFactor=1.05}){
-  // choose a font size so the longest word fits
   const fontPx = fitFontPxForWidth(text, ctx, basePx, minPx, maxWidth);
   ctx.font = `${fontPx}px ${TILE_FONT_FAMILY}`;
   const lineHeight = Math.max(12, Math.floor(fontPx * lineHeightFactor));
@@ -369,9 +359,8 @@ function applyMenuSettings(){
   state.level = 1; state.score = 0; state.lives = 3;
   state.freezeUntil = 0; state.invulnUntil = 0;
 
-  state.math.base = 6;
   state.math.progress = 0;
-  state.math.needed = computeMathNeeded(1, state.math.base);
+  state.math.needed = computeNeededPerLevel(1);
 
   // Reset and add heading for the starting category
   state.recent.length = 0;
@@ -410,10 +399,9 @@ function nextLevel(){
   }
 
   state.level += 1;
-  state.math.needed = computeMathNeeded(state.level, state.math.base);
+  state.math.needed = computeNeededPerLevel(state.level);
   state.math.progress = 0;
 
-  // New category heading for the recent list
   if (state.category) pushRecentHeading(state.category.name);
 
   buildBoard();
@@ -437,7 +425,6 @@ function loseLife(){
   showToast('Ouch!');
   if(state.lives <= 0){ gameOver(); return; }
 
-  // Respawn player at (0,0)
   if(state.player){
     state.player.gx=0; state.player.gy=0;
     state.player.x=0;  state.player.y=0;
@@ -451,14 +438,16 @@ function gameOver(){
   state.running = false;
   state.paused  = false;
 
-  // show overlay with final score
   const finalStats = document.getElementById('finalStats');
   if(finalStats) finalStats.textContent = `You scored ${state.score}.`;
   gameoverEl?.classList.remove('hide');
 }
 
 // ---------- Input ----------
+function inputLocked(){ return !!state.catchAnim; }
+
 document.addEventListener('keydown', e=>{
+  if(inputLocked()) return; // ignore all inputs during catch/teleport
   const k = e.key.toLowerCase();
   if(['arrowup','arrowdown','arrowleft','arrowright','w','a','s','d'].includes(k)){
     e.preventDefault();
@@ -476,7 +465,7 @@ document.addEventListener('keydown', e=>{
 
 function handlePlayerStep(k){
   if(!state.running || state.paused || !state.player) return;
-  if(state.player.moving) return;
+  if(state.player.moving || inputLocked()) return;
   let dir = null;
   if(k==='arrowup'||k==='w') dir = DIRS.UP;
   else if(k==='arrowright'||k==='d') dir = DIRS.RIGHT;
@@ -506,7 +495,7 @@ function getTileAt(gx,gy){ return state.items.find(t => t.gx===gx && t.gy===gy);
 function inBounds(gx,gy){ return gx>=0 && gy>=0 && gx<state.gridW && gy<state.gridH; }
 
 function tryEat(){
-  if(!state.running || state.paused) return;
+  if(!state.running || state.paused || inputLocked()) return;
   const tile = getTileAt(state.player.gx, state.player.gy);
   if(!tile || tile.eaten) return;
 
@@ -518,7 +507,6 @@ function tryEat(){
     state.correctRemaining = Math.max(0, state.correctRemaining - 1);
     showToast('Yum! +100');
 
-    // Record recent (correct)
     pushRecentAnswer(tile.label, true);
 
     if(state.math.progress >= state.math.needed || state.correctRemaining<=0){
@@ -527,10 +515,8 @@ function tryEat(){
   } else {
     state.score = Math.max(0, state.score - 50);
     showToast('Wrong! −50');
-    // In bar modes, drain a bit
     state.math.progress = Math.max(0, (state.math.progress||0) - 1);
 
-    // Record recent (wrong)
     pushRecentAnswer(tile.label, false);
   }
 
@@ -539,7 +525,7 @@ function tryEat(){
 
 // ---------- Collisions & Catch Animation ----------
 function checkCollisions(){
-  if(state.catchAnim) return; // don't retrigger mid-animation
+  if(state.catchAnim) return;
   for(let i=0;i<state.enemies.length;i++){
     const e = state.enemies[i];
     if(e.gx === state.player.gx && e.gy === state.player.gy){
@@ -564,7 +550,6 @@ function finalizeCatchAnimation(){
   const ca = state.catchAnim;
   if(!ca) return;
 
-  // Move troggle to bottom-right corner
   const e = state.enemies[ca.enemyIndex];
   if(e){
     e.gx = state.gridW - 1;
@@ -573,13 +558,8 @@ function finalizeCatchAnimation(){
     e.dir = DIRS.LEFT;
   }
 
-  // Apply life loss (respawn player at 0,0)
   loseLife();
-
-  // Keep enemy cadence clean post-teleport
   resetEnemyTimers(state);
-
-  // Clear flag
   state.catchAnim = null;
 }
 
@@ -591,11 +571,9 @@ function drawLevelBar(ctx, rect, barArea){
   const h = rect.height - 32;
 
   ctx.save();
-  // panel
   ctx.fillStyle = '#0a1437'; ctx.strokeStyle = '#20306b'; ctx.lineWidth = 1;
   ctx.beginPath(); roundRect(ctx, x, y, barW, h, 10); ctx.fill(); ctx.stroke();
 
-  // fill
   const p = clamp(state.math.progress / (state.math.needed || 1), 0, 1);
   const fillH = Math.floor((h-6) * p);
   const grd = ctx.createLinearGradient(0,y+h-3-fillH, 0, y+h-3);
@@ -605,7 +583,6 @@ function drawLevelBar(ctx, rect, barArea){
   ctx.restore();
 }
 
-// Render the recent answers panel between grid and the right level bar
 function drawRecentList(ctx, rect, padX, tile, barArea){
   const gridLeft  = padX;
   const gridRight = padX + state.gridW*tile;
@@ -613,9 +590,8 @@ function drawRecentList(ctx, rect, padX, tile, barArea){
   const right = Math.floor(rect.width - barArea - 8);
   const width = right - left;
 
-  if(width < 90) return; // not enough space to render the panel
+  if(width < 90) return;
 
-  // Panel
   const top = 16;
   const height = Math.floor(rect.height - 32);
   ctx.save();
@@ -624,15 +600,12 @@ function drawRecentList(ctx, rect, padX, tile, barArea){
   ctx.lineWidth = 1;
   ctx.beginPath(); roundRect(ctx, left, top, width, height, 10); ctx.fill(); ctx.stroke();
 
-  // Title
   ctx.fillStyle = '#cfe2ff';
-  // Scale the "Recent" title a touch based on panel width
   const titlePx = Math.max(12, Math.floor(width*0.12));
   ctx.font = `700 ${titlePx}px ${TILE_FONT_FAMILY}`;
   ctx.textAlign = 'left'; ctx.textBaseline = 'top';
   ctx.fillText('Recent', left + 10, top + 8);
 
-  // Entries
   const innerX = left + 10;
   const innerY = top + 8 + titlePx + 6;
   const innerW = width - 20;
@@ -642,17 +615,13 @@ function drawRecentList(ctx, rect, padX, tile, barArea){
 
   for(const ent of entries){
     if (ent.type === 'heading'){
-      // headings slightly bigger; shrink to keep words intact
       ctx.fillStyle = '#9bb6ff';
       const basePx = 13;
       const { fontPx, lineHeight, lines } = layoutTextBlock({
         text: ent.text, ctx, maxWidth: innerW, maxLines: 2, basePx, minPx: 10, lineHeightFactor: 1.05
       });
       ctx.font = `600 ${fontPx}px ${TILE_FONT_FAMILY}`;
-      for(const ln of lines){
-        ctx.fillText(ln, innerX, y); y += lineHeight;
-      }
-      // divider
+      for(const ln of lines){ ctx.fillText(ln, innerX, y); y += lineHeight; }
       ctx.strokeStyle = 'rgba(255,255,255,0.06)';
       ctx.lineWidth = 1;
       ctx.beginPath(); ctx.moveTo(innerX, y+2); ctx.lineTo(innerX + innerW, y+2); ctx.stroke();
@@ -664,12 +633,10 @@ function drawRecentList(ctx, rect, padX, tile, barArea){
         text: ent.text, ctx, maxWidth: innerW, maxLines: 2, basePx, minPx: 10, lineHeightFactor: 1.05
       });
       ctx.font = `500 ${fontPx}px ${TILE_FONT_FAMILY}`;
-      for(const ln of lines){
-        ctx.fillText(ln, innerX, y); y += lineHeight;
-      }
+      for(const ln of lines){ ctx.fillText(ln, innerX, y); y += lineHeight; }
       y += 2;
     }
-    if (y > top + height - 10) break; // clipped
+    if (y > top + height - 10) break;
   }
 
   ctx.restore();
@@ -681,9 +648,7 @@ function drawCatchAnimation(padX, padY, tile){
   const cx = padX + ca.gx * tile + tile/2;
   const cy = padY + ca.gy * tile + tile/2;
 
-  // Pulse rings
-  const rings = 2;
-  for(let i=0;i<rings;i++){
+  for(let i=0;i<2;i++){
     const p = clamp(t*1.15 - i*0.22, 0, 1);
     const r = tile * (0.25 + 0.55 * easeOutCubic(p));
     const a = 0.55 * (1 - p);
@@ -695,7 +660,6 @@ function drawCatchAnimation(padX, padY, tile){
     ctx.restore();
   }
 
-  // Player shrink/fade
   if(state.player){
     const k = 1 - 0.85 * t;
     const alpha = 1 - t * 0.8;
@@ -706,7 +670,8 @@ function drawCatchAnimation(padX, padY, tile){
     ctx.translate(px, py);
     ctx.scale(k, k);
     const anim = MooseMan.computeAnim(state.player, DIR_VECT);
-    MooseMan.draw(ctx, 0, 0, tile*0.34, state.player.dir, false, anim);
+    // ensure player sprite respects cell bounds during animation
+    MooseMan.draw(ctx, 0, 0, tile*0.28, state.player.dir, false, anim);
     ctx.restore();
   }
 }
@@ -721,7 +686,6 @@ function draw(){
 
   ctx.clearRect(0,0,canvas.width, canvas.height);
 
-  // Update player tween
   if(state.player?.moving){
     const m = state.player.moving;
     const t = (now()-m.start)/m.dur;
@@ -748,7 +712,6 @@ function draw(){
     ctx.lineWidth = 1.2; ctx.stroke();
 
     if(!t.eaten){
-      // label with adaptive font (no mid-word breaks)
       ctx.save();
       ctx.fillStyle = 'rgba(230,240,255,.95)';
       const maxWidth = tile*0.84;
@@ -778,7 +741,8 @@ function draw(){
     const py = padY + state.player.y*tile + tile/2;
     const inv = now() < state.invulnUntil;
     const panim = MooseMan.computeAnim(state.player, DIR_VECT);
-    MooseMan.draw(ctx, px, py, tile*0.34, state.player.dir, inv, panim);
+    // Fit inside the cell — radius tuned to 0.28*tile
+    MooseMan.draw(ctx, px, py, tile*0.28, state.player.dir, inv, panim);
   }
 
   // Enemies
@@ -808,18 +772,13 @@ function draw(){
 // ---------- Loop ----------
 function tick(){
   if(state.running && !state.paused){
-    // Move enemies (enemies.js skips movement while catch animation is active)
     stepEnemies(state);
-
-    // Collision checks (no re-trigger during active animation)
     checkCollisions();
 
-    // End catch animation if time elapsed
     if(state.catchAnim && (now() - state.catchAnim.start >= state.catchAnim.duration)){
       finalizeCatchAnimation();
     }
 
-    // Draw
     draw();
   }
   requestAnimationFrame(tick);
@@ -827,34 +786,28 @@ function tick(){
 
 // ---------- Wiring ----------
 function bindUI(){
-  // Start → hide menu and start game
   startBtn?.addEventListener('click', () => {
     menuEl?.classList.add('hide');
     gameoverEl?.classList.add('hide');
     startGame();
   });
 
-  // Game Over → Play again
   againBtn?.addEventListener('click', () => {
     gameoverEl?.classList.add('hide');
     startGame();
   });
 
-  // Game Over → Back to menu
   menuBtn?.addEventListener('click', () => {
     gameoverEl?.classList.add('hide');
     menuEl?.classList.remove('hide');
     state.running = false;
   });
 
-  // Help open/close
   helpBtn?.addEventListener('click', () => helpEl?.classList.remove('hide'));
   closeHelp?.addEventListener('click', () => helpEl?.classList.add('hide'));
 
-  // Pause
   pauseBtn?.addEventListener('click', togglePause);
 
-  // Random category quick-pick
   shuffleBtn?.addEventListener('click', ()=>{
     if(!catSelect) return;
     const all = WORD_CATS.concat(MATH_CATS);
@@ -862,7 +815,6 @@ function bindUI(){
     catSelect.value = pick?.id || catSelect.value;
   });
 
-  // Mode changes affect category dropdown availability
   modeSelect?.addEventListener('change', ()=>{
     state.mode = readModeFromSelect();
     syncCategorySelectDisabled();
@@ -870,10 +822,9 @@ function bindUI(){
 }
 
 async function boot(){
-  applyPreferences?.(); // theme/fonts
+  applyPreferences?.();
   bindUI();
   await loadCategories();
-  // Default mode is "any" (Anything Goes)
   if(modeSelect) modeSelect.value = 'any';
   state.mode = readModeFromSelect();
   syncCategorySelectDisabled();
@@ -884,5 +835,4 @@ async function boot(){
 }
 boot();
 
-// Exports (if needed elsewhere)
 export { state, DIRS, DIR_VECT, inBounds, getTileAt, startGame, nextLevel, tryEat };
