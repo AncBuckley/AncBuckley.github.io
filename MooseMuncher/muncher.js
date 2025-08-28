@@ -2,20 +2,20 @@
 // Imports
 import { applyPreferences } from './prefs.js';
 import MooseMan from './MooseMan.js';
-import { stepEnemies, resetEnemyTimers, spawnTroggles, drawTroggle } from './enemies.js';
+import { stepEnemies, resetEnemyTimers, spawnTroggles, drawEnemy } from './enemies.js';
 
 // ---------- DOM ----------
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 
 // HUD
-const catBadge = document.getElementById('categoryBadge'); // expects <div id="categoryBadge"><strong>…</strong></div>
+const catBadge = document.getElementById('categoryBadge'); // <div id="categoryBadge"><strong>…</strong></div>
 const levelEl  = document.getElementById('level');
 const scoreEl  = document.getElementById('score');
 const livesEl  = document.getElementById('lives');
 const toastEl  = document.getElementById('toast');
 
-// Menu overlays & buttons
+// Overlays & buttons
 const menuEl     = document.getElementById('menu');
 const helpEl     = document.getElementById('help');
 const gameoverEl = document.getElementById('gameover');
@@ -26,9 +26,8 @@ const menuBtn    = document.getElementById('menuBtn');
 const helpBtn    = document.getElementById('helpBtn');
 const closeHelp  = document.getElementById('closeHelp');
 
-// Controls on HUD/menu
-const modeSelect = document.getElementById('modeSelect');      // values: single | words | math | any  (Anything Goes default)
-const catSelect  = document.getElementById('categorySelect');  // filled from categories.json
+const modeSelect = document.getElementById('modeSelect');      // 'single' | 'words' | 'math' | 'any' (Anything Goes default)
+const catSelect  = document.getElementById('categorySelect');  // loaded from categories.json
 const pauseBtn   = document.getElementById('pauseBtn');
 const shuffleBtn = document.getElementById('shuffleBtn');
 
@@ -36,9 +35,8 @@ const shuffleBtn = document.getElementById('shuffleBtn');
 const now = ()=> performance.now();
 const clamp = (v,a,b)=> Math.min(b, Math.max(a,v));
 const choice = arr => arr[Math.floor(Math.random()*arr.length)];
-const randi = (a,b)=> (Math.random()*(b-a)+a)|0;
-const easeOutCubic = t => 1 - Math.pow(1 - t, 3);
 function shuffle(arr){ for(let i=arr.length-1;i>0;i--){ const j=(Math.random()*(i+1))|0; [arr[i],arr[j]]=[arr[j],arr[i]]; } return arr; }
+const easeOutCubic = t => 1 - Math.pow(1 - t, 3);
 
 function roundRect(ctx, x,y,w,h,r){
   const rr = Math.min(r, w/2, h/2);
@@ -46,7 +44,7 @@ function roundRect(ctx, x,y,w,h,r){
   ctx.arcTo(x+w,y+h,x,y+h,rr); ctx.arcTo(x,y+h,x,y,rr); ctx.arcTo(x,y,x+w,y,rr);
 }
 
-function showToast(text, ms=1300){
+function showToast(text, ms=1200){
   if(!toastEl) return;
   toastEl.textContent = text;
   toastEl.classList.remove('hide');
@@ -74,7 +72,7 @@ async function loadCategories(){
   const wordSets = structuredClone(data.wordSets || {});
   CROSS_HINTS = data.crossHints || {};
 
-  // Inject cross-hints (e.g., silver -> colors + metals + elements)
+  // Promote cross-hints words into multiple sets
   for(const [word, sets] of Object.entries(CROSS_HINTS)){
     for(const setKey of sets){
       if(!wordSets[setKey]) wordSets[setKey] = [];
@@ -166,7 +164,7 @@ const state = {
   score: 0,
   lives: 3,
 
-  mode: 'any',             // 'single' | 'words' | 'math' | 'any'  (Anything Goes default)
+  mode: 'any',             // 'single' | 'words' | 'math' | 'any' (Anything Goes default)
   category: null,
 
   items: [],               // tiles
@@ -179,32 +177,21 @@ const state = {
   invulnUntil: 0,
 
   // level progress bar config
-  math: { base: 4, needed: 4, progress: 0 },
+  math: { needed: 4, progress: 0 },
 
-  // Troggle catch animation state
+  // Catch animation + teleport
   catchAnim: null,
 
-  // Recent answers list (we render last 10)
+  // Recent answers
   recent: []
 };
 
 const RECENT_RENDER_MAX = 10;
 
-// ---------- Recent answers helpers ----------
-function pushRecentHeading(text){
-  state.recent.push({ type:'heading', text:String(text), ts: now() });
-  trimRecent();
-}
-function pushRecentAnswer(text, correct){
-  state.recent.push({ type:'answer', text:String(text), correct: !!correct, ts: now() });
-  trimRecent();
-}
-function trimRecent(){
-  const MAX_KEEP = 30;
-  if(state.recent.length > MAX_KEEP){
-    state.recent.splice(0, state.recent.length - MAX_KEEP);
-  }
-}
+// ---------- Recent panel ----------
+function pushRecentHeading(text){ state.recent.push({ type:'heading', text:String(text), ts: now() }); trimRecent(); }
+function pushRecentAnswer(text, correct){ state.recent.push({ type:'answer', text:String(text), correct:!!correct, ts: now() }); trimRecent(); }
+function trimRecent(){ const MAX=30; if(state.recent.length>MAX) state.recent.splice(0, state.recent.length-MAX); }
 
 // ---------- Canvas & Resize ----------
 function resizeCanvas(){
@@ -221,7 +208,7 @@ function resizeCanvas(){
 addEventListener('resize', resizeCanvas);
 
 // ---------- UI helpers ----------
-function needsBar(){ return true; } // keep bar in all modes
+function needsBar(){ return true; } // keep bar visible in all modes
 
 function updateHUD(){
   if(levelEl) levelEl.textContent = String(state.level);
@@ -251,14 +238,12 @@ function pickRandom(arr, excludeId){
   const pool = excludeId ? arr.filter(c => c.id !== excludeId) : arr;
   return pool.length ? choice(pool) : null;
 }
+const pickRandomAnyCategory  = prevId => pickRandom(CATEGORIES, prevId);
+const pickRandomWordCategory = prevId => pickRandom(WORD_CATS, prevId);
+const pickRandomMathCategory = prevId => pickRandom(MATH_CATS, prevId);
 
-function pickRandomAnyCategory(prevId){ return pickRandom(CATEGORIES, prevId); }
-function pickRandomWordCategory(prevId){ return pickRandom(WORD_CATS, prevId); }
-function pickRandomMathCategory(prevId){ return pickRandom(MATH_CATS, prevId); }
-
-// === Level requirement: base 4, then +2 every 5 levels (doubling the block sum)
-// block = 0 for levels 1–5, 1 for 6–10, etc., but we want 1–4 as first group, 5–9 second.
-// So use block = floor((level-1)/5). Needed = 4 + sum_{k=1..block} 2^k = 2*(2^block + 1)
+// === Level requirement: base 4, +2 every 5 levels ===
+// 1–4 → 4, 5–9 → 6, 10–14 → 10, 15–19 → 18, …
 function computeNeededPerLevel(level){
   const block = Math.floor((level - 1) / 5);
   return 2 * ((1 << block) + 1);
@@ -267,31 +252,22 @@ function computeNeededPerLevel(level){
 // ---------- Word-wrap helpers (no mid-word breaking with auto font scaling) ----------
 const TILE_FONT_FAMILY = "ui-sans-serif, system-ui, -apple-system, Segoe UI";
 function measureLongestWordPx(text, ctx){
-  let m = 0;
-  const words = String(text).split(/\s+/).filter(Boolean);
-  for(const w of words){ m = Math.max(m, ctx.measureText(w).width); }
-  return m;
+  let m = 0; for(const w of String(text).split(/\s+/).filter(Boolean)){ m = Math.max(m, ctx.measureText(w).width); } return m;
 }
 function fitFontPxForWidth(text, ctx, basePx, minPx, maxWidth){
-  let px = basePx;
-  ctx.font = `${px}px ${TILE_FONT_FAMILY}`;
-  while(px > minPx && measureLongestWordPx(text, ctx) > maxWidth){
-    px -= 1;
-    ctx.font = `${px}px ${TILE_FONT_FAMILY}`;
-  }
+  let px = basePx; ctx.font = `${px}px ${TILE_FONT_FAMILY}`;
+  while(px > minPx && measureLongestWordPx(text, ctx) > maxWidth){ px -= 1; ctx.font = `${px}px ${TILE_FONT_FAMILY}`; }
   return px;
 }
 function wrapNoBreak(text, ctx, maxWidth, maxLines){
   const words = String(text).split(/\s+/).filter(Boolean);
-  const lines = [];
-  let line = '';
+  const lines = []; let line = '';
   for(const w of words){
     const test = line ? (line + ' ' + w) : w;
     if(ctx.measureText(test).width <= maxWidth){
       line = test;
     }else{
-      if(line){ lines.push(line); line = w; }
-      else { lines.push(w); line = ''; }
+      if(line){ lines.push(line); line = w; } else { lines.push(w); line=''; }
       if(lines.length >= maxLines){
         let last = lines[lines.length-1];
         while(last.length && ctx.measureText(last + '…').width > maxWidth){ last = last.slice(0, -1); }
@@ -355,14 +331,14 @@ function applyMenuSettings(){
     state.category = pickRandomAnyCategory();
   }
 
-  // Reset stats & bar
+  // Reset stats
   state.level = 1; state.score = 0; state.lives = 3;
   state.freezeUntil = 0; state.invulnUntil = 0;
 
   state.math.progress = 0;
   state.math.needed = computeNeededPerLevel(1);
 
-  // Reset and add heading for the starting category
+  // Recent header for starting category
   state.recent.length = 0;
   if (state.category) pushRecentHeading(state.category.name);
 
@@ -375,7 +351,6 @@ function applyMenuSettings(){
 }
 
 function startGame(){
-  // Hide overlays
   menuEl?.classList.add('hide');
   gameoverEl?.classList.add('hide');
 
@@ -447,7 +422,7 @@ function gameOver(){
 function inputLocked(){ return !!state.catchAnim; }
 
 document.addEventListener('keydown', e=>{
-  if(inputLocked()) return; // ignore all inputs during catch/teleport
+  if(inputLocked()) return; // ignore all inputs during catch teleport
   const k = e.key.toLowerCase();
   if(['arrowup','arrowdown','arrowleft','arrowright','w','a','s','d'].includes(k)){
     e.preventDefault();
@@ -490,7 +465,7 @@ function togglePause(){
   pauseBtn && (pauseBtn.textContent = state.paused ? '▶️ Resume' : '⏸️ Pause');
 }
 
-// ---------- Eating ----------
+// ---------- Eat ----------
 function getTileAt(gx,gy){ return state.items.find(t => t.gx===gx && t.gy===gy); }
 function inBounds(gx,gy){ return gx>=0 && gy>=0 && gx<state.gridW && gy<state.gridH; }
 
@@ -525,7 +500,7 @@ function tryEat(){
 
 // ---------- Collisions & Catch Animation ----------
 function checkCollisions(){
-  if(state.catchAnim) return;
+  if(state.catchAnim) return; // don't retrigger mid-animation
   for(let i=0;i<state.enemies.length;i++){
     const e = state.enemies[i];
     if(e.gx === state.player.gx && e.gy === state.player.gy){
@@ -550,6 +525,7 @@ function finalizeCatchAnimation(){
   const ca = state.catchAnim;
   if(!ca) return;
 
+  // Teleport: enemy to bottom-right, player respawn top-left
   const e = state.enemies[ca.enemyIndex];
   if(e){
     e.gx = state.gridW - 1;
@@ -648,6 +624,7 @@ function drawCatchAnimation(padX, padY, tile){
   const cx = padX + ca.gx * tile + tile/2;
   const cy = padY + ca.gy * tile + tile/2;
 
+  // Pulse rings
   for(let i=0;i<2;i++){
     const p = clamp(t*1.15 - i*0.22, 0, 1);
     const r = tile * (0.25 + 0.55 * easeOutCubic(p));
@@ -660,6 +637,7 @@ function drawCatchAnimation(padX, padY, tile){
     ctx.restore();
   }
 
+  // Player shrink/fade (fits inside cell)
   if(state.player){
     const k = 1 - 0.85 * t;
     const alpha = 1 - t * 0.8;
@@ -670,7 +648,6 @@ function drawCatchAnimation(padX, padY, tile){
     ctx.translate(px, py);
     ctx.scale(k, k);
     const anim = MooseMan.computeAnim(state.player, DIR_VECT);
-    // ensure player sprite respects cell bounds during animation
     MooseMan.draw(ctx, 0, 0, tile*0.28, state.player.dir, false, anim);
     ctx.restore();
   }
@@ -686,6 +663,7 @@ function draw(){
 
   ctx.clearRect(0,0,canvas.width, canvas.height);
 
+  // Update player tween
   if(state.player?.moving){
     const m = state.player.moving;
     const t = (now()-m.start)/m.dur;
@@ -735,22 +713,21 @@ function draw(){
     }
   }
 
-  // Player (skip normal draw during catch animation)
+  // Player (fit inside the cell)
   if(state.player && !state.catchAnim){
     const px = padX + state.player.x*tile + tile/2;
     const py = padY + state.player.y*tile + tile/2;
     const inv = now() < state.invulnUntil;
     const panim = MooseMan.computeAnim(state.player, DIR_VECT);
-    // Fit inside the cell — radius tuned to 0.28*tile
     MooseMan.draw(ctx, px, py, tile*0.28, state.player.dir, inv, panim);
   }
 
-  // Enemies
+  // Enemies (slime for chasers, owl for grazers)
   for(const e of state.enemies){
     const ex = padX + e.x*tile + tile/2;
     const ey = padY + e.y*tile + tile/2;
     const frozen = now() < state.freezeUntil;
-    drawTroggle(ctx, ex, ey, tile*0.34, e.dir, e.color, frozen);
+    drawEnemy(ctx, ex, ey, tile*0.34, e.dir, e, frozen);
   }
 
   // Catch overlay
@@ -758,12 +735,12 @@ function draw(){
     drawCatchAnimation(padX, padY, tile);
   }
 
-  // Recent answers panel (between grid and bar)
+  // Recent answers panel
   if(needsBar()){
     drawRecentList(ctx, rect, padX, tile, barArea);
   }
 
-  // Level bar (right)
+  // Level bar
   if(needsBar()){
     drawLevelBar(ctx, rect, barArea);
   }
@@ -822,9 +799,10 @@ function bindUI(){
 }
 
 async function boot(){
-  applyPreferences?.();
+  applyPreferences?.(); // theme/fonts
   bindUI();
   await loadCategories();
+  // Default mode is "any" (Anything Goes)
   if(modeSelect) modeSelect.value = 'any';
   state.mode = readModeFromSelect();
   syncCategorySelectDisabled();
@@ -835,4 +813,5 @@ async function boot(){
 }
 boot();
 
+// Exports
 export { state, DIRS, DIR_VECT, inBounds, getTileAt, startGame, nextLevel, tryEat };
