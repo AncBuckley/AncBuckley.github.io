@@ -10,7 +10,8 @@ import {
   moveEnemyToBottomRight
 } from './enemies.js';
 
-// =============== DOM refs ===============
+// ───────────────────────────────────────────────
+// DOM references (all optional-safe)
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 
@@ -22,20 +23,21 @@ const helpEl = document.getElementById('help');
 const closeHelpBtn = document.getElementById('closeHelp');
 const againBtn = document.getElementById('againBtn');
 const menuBtn = document.getElementById('menuBtn');
+const shuffleBtn = document.getElementById('shuffleBtn');
 
 const categoryBadge = document.getElementById('categoryBadge');
 const levelSpan = document.getElementById('level');
 const scoreSpan = document.getElementById('score');
 const livesSpan = document.getElementById('lives');
-
 const toastEl = document.getElementById('toast');
+
 const categorySelect = document.getElementById('categorySelect');
 const modeSelect = document.getElementById('modeSelect');
 
-// Optional: a list to show last answers, if present in DOM
-const recentAnswersEl = document.getElementById('recentAnswers');
+const recentAnswersEl = document.getElementById('recentAnswers'); // optional
 
-// =============== Helpers ===============
+// ───────────────────────────────────────────────
+// Small helpers
 const rand = (a,b)=> Math.random()*(b-a)+a;
 const randi = (a,b)=> (Math.random()*(b-a)+a)|0;
 const choice = (arr)=> arr[(Math.random()*arr.length)|0];
@@ -43,229 +45,231 @@ const clamp = (v,a,b)=> Math.min(b, Math.max(a,v));
 const now = ()=> performance.now();
 const easeOutCubic = t => 1 - Math.pow(1 - t, 3);
 function shuffle(arr){ const a=arr.slice(); for(let i=a.length-1;i>0;i--){ const j=(Math.random()*(i+1))|0; [a[i],a[j]]=[a[j],a[i]] } return a; }
-
 function lerp(a,b,t){ return a + (b-a)*t; }
-function roundRect(ctx, x,y,w,h,r){
-  const rr = Math.min(r, w/2, h/2);
-  ctx.moveTo(x+rr,y); ctx.arcTo(x+w,y,x+w,y+h,rr); ctx.arcTo(x+w,y+h,x,y+h,rr);
-  ctx.arcTo(x,y+h,x,y,rr); ctx.arcTo(x,y,x+w,y,rr);
-}
-
 function show(el){ if(el) el.classList.remove('hide'); }
 function hide(el){ if(el) el.classList.add('hide'); }
 function setText(el, txt){ if(el) el.textContent = txt; }
+function escapeHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
-// =============== Game constants ===============
+// ───────────────────────────────────────────────
+// Game constants
 const GRID_W = 5;
 const GRID_H = 5;
 const DIRS = { UP:0, RIGHT:1, DOWN:2, LEFT:3 };
 const DIR_VECT = [ [0,-1],[1,0],[0,1],[-1,0] ];
-const ENEMY_STEP_MS = 3000; // 1 tile per 3s
-const TELEPORT_MS = 800;    // ignore input while teleporting
+const ENEMY_STEP_MS = 3000; // 1 tile every 3s
+const TELEPORT_MS   = 800;  // ignore inputs during teleport
 
-// =============== Categories (Math) ===============
-const isPrime = (n)=>{ if(n<2) return false; if(n%2===0) return n===2; const r=Math.floor(Math.sqrt(n)); for(let i=3;i<=r;i+=2){ if(n%i===0) return false } return true; };
+// ───────────────────────────────────────────────
+// Numeric categories (Math)
+const isPrime = n => {
+  if (n < 2) return false;
+  if (n % 2 === 0) return n === 2;
+  const r = Math.floor(Math.sqrt(n));
+  for (let i = 3; i <= r; i += 2) if (n % i === 0) return false;
+  return true;
+};
 
-function numericCategory(name, predicate, opts={}){
+function numericCategory(name, predicate, opts = {}) {
   return {
-    id: name.toLowerCase().replace(/\s+/g,'-'),
+    id: name.toLowerCase().replace(/\s+/g, '-'),
     name,
     type: 'number',
-    generate: (W,H)=>{
-      const total=W*H, min=opts.min??1, max=opts.max??200;
-      const pool = Array.from({length:max-min+1},(_,i)=>i+min);
-      const nums = shuffle(pool).slice(0,total);
-      return nums.map(n=>({ label: String(n), value:n, correct: !!predicate(n) }));
+    generate: (W, H) => {
+      const total = W * H;
+      const min = opts.min ?? 1;
+      const max = opts.max ?? 200;
+      const pool = Array.from({ length: max - min + 1 }, (_, i) => i + min);
+      const take = shuffle(pool).slice(0, total);
+      return take.map(n => ({ label: String(n), value: n, correct: !!predicate(n) }));
     }
   };
 }
 
-const NUMERIC_CATEGORIES = [
-  numericCategory('Even Numbers', n=>n%2===0, {min:2,max:120}),
-  numericCategory('Odd Numbers', n=>n%2!==0, {min:1,max:119}),
-  numericCategory('Prime Numbers', n=>isPrime(n), {min:2,max:199}),
-  numericCategory('Multiples of 3', n=>n%3===0, {min:3,max:180}),
-  numericCategory('Perfect Squares', n=> Number.isInteger(Math.sqrt(n)), {min:1,max:196}),
+export const NUMERIC_CATEGORIES = [
+  numericCategory('Multiples of 3', n => n % 3 === 0, { min: 3, max: 180 }),
+  numericCategory('Even Numbers', n => n % 2 === 0, { min: 2, max: 120 }),
+  numericCategory('Odd Numbers', n => n % 2 !== 0, { min: 1, max: 119 }),
+  numericCategory('Prime Numbers', n => isPrime(n), { min: 2, max: 199 }),
+  numericCategory('Perfect Squares', n => Number.isInteger(Math.sqrt(n)), { min: 1, max: 196 })
 ];
 
-// =============== Categories (Words via compact JSON) ===============
-let WORD_CATEGORY_DEFS = [];
-let CATEGORIES = []; // NUMERIC + WORDS
-
+// ───────────────────────────────────────────────
+// Compact words importer (from categories.json)
 const CASE_RULES = new Map([
   ['countries','title'],
-  ['continents','title'],
+  ['continents','title']
 ]);
 
-async function loadWordCategories(url='./categories.json'){
-  const res = await fetch(url, {cache:'no-store'});
-  if(!res.ok) throw new Error(`Failed to load categories.json (${res.status})`);
+export let WORD_CATEGORY_DEFS = [];
+export let CATEGORIES = [];
+
+async function loadWordCategories(url = './categories.json') {
+  const res = await fetch(url, { cache: 'no-store' });
+  if (!res.ok) throw new Error(`Failed to load categories.json (${res.status})`);
   const data = await res.json();
   const rows = Array.isArray(data) ? data : Array.isArray(data.words) ? data.words : [];
-  const catMap = new Map(); // cat -> Set(words)
 
-  for(const row of rows){
-    if(!row || !row.text || !Array.isArray(row.categories)) continue;
+  const catMap = new Map(); // cat -> Set(words)
+  for (const row of rows) {
+    if (!row || !row.text || !Array.isArray(row.categories)) continue;
     const w = String(row.text).trim();
-    for(const cRaw of row.categories){
-      const c = String(cRaw).trim();
-      if(!catMap.has(c)) catMap.set(c, new Set());
+    for (const raw of row.categories) {
+      const c = String(raw).trim();
+      if (!catMap.has(c)) catMap.set(c, new Set());
       catMap.get(c).add(w);
     }
   }
-
-  // global pool for distractors
   const allWords = new Set();
-  for(const s of catMap.values()) for(const w of s) allWords.add(w);
+  for (const s of catMap.values()) for (const w of s) allWords.add(w);
 
-  WORD_CATEGORY_DEFS = Array.from(catMap.entries()).map(([cat, set])=>{
+  WORD_CATEGORY_DEFS = Array.from(catMap.entries()).map(([cat, set]) => {
     const caseRule = CASE_RULES.get(cat.toLowerCase()) || 'lower';
     const correctSet = new Set(set);
-    const distractPool = [...allWords].filter(w=>!correctSet.has(w));
-    const normalize = (s)=>{
-      if(caseRule==='title') return s.replace(/\b\w/g, c=>c.toUpperCase());
-      if(caseRule==='upper') return s.toUpperCase();
+    const distractPool = [...allWords].filter(w => !correctSet.has(w));
+    const normalize = (s) => {
+      if (caseRule === 'title') return s.replace(/\b\w/g, c => c.toUpperCase());
+      if (caseRule === 'upper') return s.toUpperCase();
       return s.toLowerCase();
     };
     return {
-      id: cat.toLowerCase().replace(/\s+/g,'-'),
-      name: cat.replace(/\b\w/g,c=>c.toUpperCase()),
+      id: cat.toLowerCase().replace(/\s+/g, '-'),
+      name: cat.replace(/\b\w/g, c => c.toUpperCase()),
       type: 'word',
-      generate: (W,H, countCorrect = Math.ceil(W*H*0.4))=>{
-        const total = W*H;
+      generate: (W, H, countCorrect = Math.ceil(W * H * 0.4)) => {
+        const total = W * H;
         const corr = shuffle([...correctSet]).slice(0, Math.min(countCorrect, correctSet.size));
         const need = Math.max(0, total - corr.length);
         const dist = shuffle(distractPool).slice(0, need);
-        const items = shuffle([...corr, ...dist]).map(w=>({
+        return shuffle([...corr, ...dist]).map(w => ({
           label: normalize(w),
           value: w,
           correct: correctSet.has(w)
         }));
-        return items;
       }
     };
   });
 }
 
-async function bootCategories(){
-  await loadWordCategories('./categories.json');
+export async function bootCategories(jsonUrl = './categories.json') {
+  await loadWordCategories(jsonUrl);
   CATEGORIES = [...NUMERIC_CATEGORIES, ...WORD_CATEGORY_DEFS];
   populateCategoryDropdown();
 }
 
-// =============== Modes & UI ===============
-/*
-Modes:
-- 'single' (Single Category): user-picked category; progress bar present; wrong decreases progress
-- 'math'   (Math only): numeric categories only; new category each level; wrong decreases progress
-- 'words'  (Words only): word categories only; new category each level
-- 'any'    (Anything Goes): any category (word/number); new category each level
-*/
-const MODES = Object.freeze({
-  SINGLE: 'single',
-  MATH: 'math',
-  WORDS: 'words',
-  ANY: 'any'
-});
-
-function populateCategoryDropdown(){
-  if(!categorySelect) return;
+function populateCategoryDropdown() {
+  if (!categorySelect) return;
   categorySelect.innerHTML = '';
-  for(const c of CATEGORIES){
+  for (const c of CATEGORIES) {
     const opt = document.createElement('option');
     opt.value = c.id; opt.textContent = c.name;
     categorySelect.appendChild(opt);
   }
 }
 
+export function getCategoryById(id) {
+  return CATEGORIES.find(c => c.id === id) || null;
+}
+
+function pickRandomCategory(excludeId) {
+  const pool = CATEGORIES.filter(c => c.id !== excludeId);
+  return choice(pool.length ? pool : CATEGORIES);
+}
+function pickRandomWordCategory(excludeId) {
+  const pool = WORD_CATEGORY_DEFS.filter(c => c.id !== excludeId);
+  return choice(pool.length ? pool : WORD_CATEGORY_DEFS);
+}
+function pickRandomMathCategory(excludeId) {
+  const pool = NUMERIC_CATEGORIES.filter(c => c.id !== excludeId);
+  return choice(pool.length ? pool : NUMERIC_CATEGORIES);
+}
+
+// ───────────────────────────────────────────────
+// Modes
+const MODES = Object.freeze({
+  SINGLE: 'single',      // user-picked category
+  MATH: 'math',          // numbers only
+  WORDS: 'words',        // words only (new category per level)
+  ANY: 'any'             // any category (default)
+});
+
 function setCategoryDropdownVisible(visible){
-  if(!categorySelect) return;
+  if (!categorySelect) return;
   const label = categorySelect.closest('label') || categorySelect;
   label.style.display = visible ? '' : 'none';
 }
 
-function getCategoryById(id){ return CATEGORIES.find(c=>c.id===id) || null; }
-
-function pickRandomCategory(excludeId){
-  const pool = CATEGORIES.filter(c=>c.id!==excludeId);
-  return choice(pool.length?pool:CATEGORIES);
-}
-function pickRandomMathCategory(excludeId){
-  const pool = NUMERIC_CATEGORIES.filter(c=>c.id!==excludeId);
-  return choice(pool.length?pool:NUMERIC_CATEGORIES);
-}
-function pickRandomWordCategory(excludeId){
-  const pool = WORD_CATEGORY_DEFS.filter(c=>c.id!==excludeId);
-  return choice(pool.length?pool:WORD_CATEGORY_DEFS);
-}
-
-// =============== Level Progress (requirements) ===============
-/*
-Pattern requested:
-Levels 1-4 -> need 4
-Levels 5-9 -> need 6  (+2)
-Levels 10-14 -> need 10 (+4)
-Levels 15-19 -> need 18 (+8)
-... increments double every 5-level block (after the initial 4-level block).
-*/
+// ───────────────────────────────────────────────
+// Level requirements pattern:
+// 1-4 => 4; 5-9 => 6; 10-14 => 10; 15-19 => 18; ... (+2, +4, +8, ... every 5 levels)
 function neededForLevel(level){
-  if(level <= 4) return 4;
-  const t = Math.floor((level - 5) / 5) + 1; // number of "checkpoints" passed (5,10,15,...)
+  if (level <= 4) return 4;
+  const t = Math.floor((level - 5) / 5) + 1; // checkpoints passed: 5,10,15...
   let inc = 0;
-  for(let i=0;i<t;i++) inc += (2 << i); // 2,4,8,16, ...
+  for (let i=0;i<t;i++) inc += (2 << i); // 2,4,8,16...
   return 4 + inc;
 }
 
-// =============== State ===============
+// ───────────────────────────────────────────────
+// State
 const state = {
   running:false,
   paused:false,
-  mode: MODES.ANY, // default Anything Goes
+  mode: MODES.ANY,
   level:1,
   score:0,
   lives:3,
   gridW: GRID_W,
   gridH: GRID_H,
-  tile: 64, // computed on resize
-  category: null,
+  tile: 64,
 
-  items: [], // tiles
+  category: null,
+  items: [],
   correctRemaining: 0,
 
-  player: null, // {gx,gy,x,y,dir,moving}
+  player: null,
   teleportingUntil: 0,
 
   enemies: [],
 
-  // Math/Single progress bar
   progress: 0,
   needed: 4,
 
-  // effects
   invulnUntil: 0,
   freezeUntil: 0,
 
-  // last 10 answers
-  recentAnswers: [], // [{text, correct, categoryName, level}]
+  recentAnswers: [] // [{text,correct,categoryName,level,time}]
 };
 
-// =============== Board & Entities ===============
+// ───────────────────────────────────────────────
+// Board
 function buildBoard(){
-  const W=state.gridW, H=state.gridH;
+  const W = state.gridW, H = state.gridH;
   const wantCorrect = Math.ceil(W*H*0.4);
   const raw = state.category.generate(W,H, wantCorrect);
-  const tiles = raw.map((it, idx)=>({
+  state.items = raw.map((it, idx)=>({
     ...it,
     eaten:false,
     gx: idx % W,
     gy: Math.floor(idx / W)
   }));
-  state.items = tiles;
-  state.correctRemaining = tiles.filter(t=>t.correct && !t.eaten).length;
+  state.correctRemaining = state.items.filter(t=>t.correct && !t.eaten).length;
 }
 
+function getTileAt(gx,gy){ return state.items.find(t=>t.gx===gx && t.gy===gy); }
+function passable(gx,gy){ return gx>=0 && gy>=0 && gx<state.gridW && gy<state.gridH; }
+
+// ───────────────────────────────────────────────
+// Entities
 function spawnPlayer(){
   state.player = { gx:0, gy:0, x:0, y:0, dir:DIRS.RIGHT, moving:null };
+}
+function teleportPlayerTo(gx,gy){
+  if(!state.player) return;
+  state.player.gx = gx; state.player.gy = gy;
+  state.player.x = gx;  state.player.y = gy;
+  state.player.moving = null;
+  state.player.dir = DIRS.RIGHT;
 }
 
 function spawnEnemies(){
@@ -277,33 +281,62 @@ function spawnEnemies(){
   });
 }
 
-// =============== Input ===============
+function enemySyncHooks(){
+  notifyBoardHooksForEnemies({
+    isCellEmpty: (gx,gy)=> {
+      const t = getTileAt(gx,gy);
+      return !t || t.eaten;
+    },
+    placeWordAt: (gx,gy)=>{
+      const total = state.gridW*state.gridH;
+      const currentCorrect = state.items.filter(t=>t.correct && !t.eaten).length;
+      const targetCorrect = Math.ceil(total*0.4);
+      let bias = clamp((targetCorrect - currentCorrect) / targetCorrect, -0.35, 0.85);
+      const roll = Math.random();
+
+      // sample from current category
+      const sample = state.category.generate(1,1,1)[0];
+      const isCorrect = roll < 0.45 + bias;
+
+      const idx = state.items.findIndex(t=>t.gx===gx && t.gy===gy);
+      const obj = { label: sample.label, value: sample.value, correct: isCorrect, eaten:false, gx, gy };
+      if(idx>=0) state.items[idx] = obj; else state.items.push(obj);
+      state.correctRemaining = state.items.filter(t=>t.correct && !t.eaten).length;
+    },
+    onPlayerCaught: (catcherIndex)=>{
+      spawnExplosionAt(state.player.gx, state.player.gy);
+      state.teleportingUntil = now() + TELEPORT_MS;
+      state.invulnUntil = state.teleportingUntil + 500;
+      setTimeout(()=>{
+        teleportPlayerTo(0,0);
+        if(typeof catcherIndex === 'number'){
+          moveEnemyToBottomRight(state.enemies, catcherIndex, state.gridW, state.gridH);
+        }
+      }, TELEPORT_MS);
+      loseLife();
+    }
+  });
+}
+
+// ───────────────────────────────────────────────
+// Input
 document.addEventListener('keydown', (e)=>{
   const k = e.key.toLowerCase();
 
-  // menu helpers
   if(k==='escape'){
     if(!helpEl?.classList.contains('hide')){ hide(helpEl); return; }
-    togglePause();
-    return;
+    togglePause(); return;
   }
-
   if(!state.running || state.paused) return;
-
-  // ignore input during teleport animation
-  if(now() < state.teleportingUntil) return;
+  if(now() < state.teleportingUntil) return; // ignore during teleport
 
   if(['arrowup','arrowdown','arrowleft','arrowright','w','a','s','d'].includes(k)){
     e.preventDefault();
-    if(e.repeat) return; // move one tile per press
+    if(e.repeat) return;
     handlePlayerStep(k);
     return;
   }
-
-  if(k===' ' || k==='enter'){
-    e.preventDefault();
-    tryEat();
-  }
+  if(k===' ' || k==='enter'){ e.preventDefault(); tryEat(); }
 });
 
 function handlePlayerStep(k){
@@ -314,7 +347,6 @@ function handlePlayerStep(k){
   else if(k==='arrowdown'||k==='s') dir = DIRS.DOWN;
   else if(k==='arrowleft'||k==='a') dir = DIRS.LEFT;
   if(dir==null) return;
-
   const [dx,dy] = DIR_VECT[dir];
   const nx = state.player.gx + dx;
   const ny = state.player.gy + dy;
@@ -326,10 +358,8 @@ function handlePlayerStep(k){
   state.player.moving = { fromX, fromY, toX:nx, toY:ny, start: now(), dur: 180 };
 }
 
-// =============== Eat / Scoring ===============
-function getTileAt(gx,gy){ return state.items.find(t=>t.gx===gx && t.gy===gy); }
-function passable(gx,gy){ return gx>=0 && gy>=0 && gx<state.gridW && gy<state.gridH; }
-
+// ───────────────────────────────────────────────
+// Eating & scoring
 function pushRecent(text, correct){
   state.recentAnswers.unshift({ text, correct, categoryName: state.category.name, level: state.level, time: Date.now() });
   if(state.recentAnswers.length>10) state.recentAnswers.length = 10;
@@ -337,14 +367,12 @@ function pushRecent(text, correct){
 }
 function renderRecentAnswers(){
   if(!recentAnswersEl) return;
-  recentAnswersEl.innerHTML = state.recentAnswers.map((r,i)=>(
+  recentAnswersEl.innerHTML = state.recentAnswers.map(r =>
     `<div class="ans ${r.correct?'good':'bad'}"><span class="lab">${escapeHtml(r.text)}</span></div>`
-  )).join('');
+  ).join('');
 }
-function escapeHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
 function tryEat(){
-  if(!state.player) return;
   const tile = getTileAt(state.player.gx, state.player.gy);
   if(!tile || tile.eaten) return;
 
@@ -354,7 +382,6 @@ function tryEat(){
     state.score += 100;
     pushRecent(tile.label, true);
 
-    // progress handling (modes with bar)
     if(state.mode===MODES.MATH || state.mode===MODES.SINGLE){
       state.progress = Math.min(state.needed, state.progress + 1);
     } else {
@@ -362,21 +389,14 @@ function tryEat(){
     }
 
     spawnStarBurstCell(tile.gx, tile.gy);
-
-    // level clear checks
-    if(state.mode===MODES.MATH || state.mode===MODES.SINGLE){
-      if(state.progress >= state.needed){
-        setTimeout(levelCleared, 350);
-      }
-    } else {
-      if(state.correctRemaining<=0){
-        setTimeout(levelCleared, 350);
-      }
-    }
-
     showToast('Yum! +100');
+
+    if(state.mode===MODES.MATH || state.mode===MODES.SINGLE){
+      if(state.progress >= state.needed){ setTimeout(levelCleared, 350); }
+    } else {
+      if(state.correctRemaining<=0){ setTimeout(levelCleared, 350); }
+    }
   } else {
-    // wrong
     state.score = Math.max(0, state.score - 50);
     pushRecent(tile.label, false);
 
@@ -391,7 +411,8 @@ function tryEat(){
   updateHUD();
 }
 
-// =============== Level flow ===============
+// ───────────────────────────────────────────────
+// Level flow
 function startGame(){
   state.running = true;
   state.paused = false;
@@ -401,6 +422,7 @@ function startGame(){
   state.invulnUntil = 0;
   state.recentAnswers = [];
   renderRecentAnswers();
+
   pickStartingCategory();
   state.needed = neededForLevel(state.level);
   state.progress = 0;
@@ -413,11 +435,23 @@ function startGame(){
   updateHUD();
 }
 
+function pickStartingCategory(){
+  if(state.mode===MODES.SINGLE){
+    const id = categorySelect?.value;
+    state.category = id ? getCategoryById(id) : pickRandomWordCategory(null) || pickRandomCategory(null);
+  } else if(state.mode===MODES.MATH){
+    state.category = pickRandomMathCategory(null);
+  } else if(state.mode===MODES.WORDS){
+    state.category = pickRandomWordCategory(null);
+  } else {
+    state.category = pickRandomCategory(null);
+  }
+}
+
 function levelCleared(){
   state.score += 500;
   state.level += 1;
 
-  // next category per mode
   const prev = state.category?.id || null;
   if(state.mode===MODES.MATH){
     state.category = pickRandomMathCategory(prev);
@@ -443,8 +477,7 @@ function loseLife(){
   if(now() < state.invulnUntil) return;
   state.lives -= 1;
   state.invulnUntil = now() + 1200;
-  if(state.lives <= 0){ return gameOver(); }
-  // mild reset (stay same level)
+  if(state.lives <= 0){ gameOver(); return; }
   teleportPlayerTo(0,0);
   updateHUD();
 }
@@ -452,93 +485,13 @@ function loseLife(){
 function gameOver(){
   state.running=false;
   state.paused=false;
-  show(menuEl?.parentElement?.querySelector('#gameover'));
+  show(document.getElementById('gameover'));
   const finalStats = document.getElementById('finalStats');
   if(finalStats) finalStats.textContent = `You scored ${state.score}. Level ${state.level}.`;
 }
 
-// =============== Category picking ===============
-function pickStartingCategory(){
-  const mode = state.mode;
-  if(mode===MODES.SINGLE){
-    const id = categorySelect?.value;
-    const cat = id ? getCategoryById(id) : pickRandomWordCategory(null) || pickRandomCategory(null);
-    state.category = cat || CATEGORIES[0];
-  } else if(mode===MODES.MATH){
-    state.category = pickRandomMathCategory(null);
-  } else if(mode===MODES.WORDS){
-    state.category = pickRandomWordCategory(null);
-  } else {
-    state.category = pickRandomCategory(null);
-  }
-}
-
-// =============== Enemy <-> Board hooks ===============
-// Let enemies place a word when landing on empty tile.
-// The chance of being correct scales inversely with current # of correct tiles.
-function enemySyncHooks(){
-  notifyBoardHooksForEnemies({
-    isCellEmpty: (gx,gy)=> {
-      const t = getTileAt(gx,gy);
-      return !t || t.eaten;
-    },
-    placeWordAt: (gx,gy)=>{
-      // compute bias: fewer correct -> higher chance to place correct
-      const total = state.gridW*state.gridH;
-      const currentCorrect = state.items.filter(t=>t.correct && !t.eaten).length;
-      const targetCorrect = Math.ceil(total*0.4);
-      let bias = clamp((targetCorrect - currentCorrect) / targetCorrect, -0.35, 0.85); // [-0.35, 0.85]
-      const roll = Math.random();
-
-      // Build a random tile from the current category
-      const sample = state.category.generate(1,1, 1)[0];
-      const isCorrect = roll < 0.45 + bias; // base 45% ± bias
-      const label = sample.label;
-      const value = sample.value;
-
-      const idx = state.items.findIndex(t=>t.gx===gx && t.gy===gy);
-      if(idx>=0){
-        state.items[idx] = {
-          label,
-          value,
-          correct: isCorrect,
-          eaten: false,
-          gx, gy
-        };
-      } else {
-        state.items.push({label,value,correct:isCorrect,eaten:false,gx,gy});
-      }
-      // keep counts fresh
-      state.correctRemaining = state.items.filter(t=>t.correct && !t.eaten).length;
-    },
-    onPlayerCaught: (catcherIndex)=>{
-      // Explosion and teleport logic
-      spawnExplosionAt(state.player.gx, state.player.gy);
-      state.teleportingUntil = now() + TELEPORT_MS;
-      state.invulnUntil = state.teleportingUntil + 500;
-
-      // After animation, reset positions: player top-left, enemy bottom-right
-      setTimeout(()=>{
-        teleportPlayerTo(0,0);
-        if(typeof catcherIndex === 'number'){
-          moveEnemyToBottomRight(state.enemies, catcherIndex, state.gridW, state.gridH);
-        }
-      }, TELEPORT_MS);
-      loseLife();
-    }
-  });
-}
-
-// =============== Teleport / player helpers ===============
-function teleportPlayerTo(gx,gy){
-  if(!state.player) return;
-  state.player.gx = gx; state.player.gy = gy;
-  state.player.x = gx;  state.player.y = gy;
-  state.player.moving = null;
-  state.player.dir = DIRS.RIGHT;
-}
-
-// =============== HUD / UI ===============
+// ───────────────────────────────────────────────
+// HUD / UI
 function updateHUD(){
   if(levelSpan) setText(levelSpan, String(state.level));
   if(scoreSpan) setText(scoreSpan, String(state.score));
@@ -556,7 +509,8 @@ function showToast(text, ms=1200){
   setTimeout(()=> hide(toastEl), ms);
 }
 
-// =============== Resize / layout ===============
+// ───────────────────────────────────────────────
+// Resize/layout (fit to screen)
 function resizeCanvas(){
   const dpr = window.devicePixelRatio || 1;
   const rect = canvas.getBoundingClientRect();
@@ -567,7 +521,8 @@ function resizeCanvas(){
 }
 window.addEventListener('resize', resizeCanvas);
 
-// =============== Effects (stars / disappoint / explosions) ===============
+// ───────────────────────────────────────────────
+// Effects (stars / disappoint / explosions)
 let starBursts = []; // [{gx,gy,born,duration,parts:[{ang,spd}]}]
 let sfx = [];        // [{type:'disappoint', gx,gy, born, duration}]
 let explosions = []; // [{gx,gy,born,duration,parts:[{ang,spd}]}]
@@ -671,11 +626,71 @@ function drawExplosions(padX,padY,tile){
   }
 }
 
-// =============== Render ===============
+// ───────────────────────────────────────────────
+// Render
+function wrapLabel(ctx, text, maxWidth, maxLines=2){
+  const words = String(text).split(/\s+/);
+  const lines=[]; let line='';
+  for(const w of words){
+    const test = line ? `${line} ${w}` : w;
+    if(ctx.measureText(test).width <= maxWidth){ line = test; }
+    else {
+      if(line) lines.push(line);
+      else {
+        // single super-long word: hard clip
+        let cut = w.length;
+        while(cut>1 && ctx.measureText(w.slice(0,cut)).width>maxWidth) cut--;
+        lines.push(w.slice(0,cut));
+      }
+      line = w;
+      if(lines.length>=maxLines) break;
+    }
+  }
+  if(line && lines.length<maxLines) lines.push(line);
+  return lines;
+}
+
+function drawLevelBar(rect, barArea){
+  const x0 = rect.width - barArea;
+  const y0 = 12;
+  const barW = Math.max(20, Math.floor(barArea*0.5));
+  const x = x0 + (barArea - barW)/2;
+  const h = rect.height - y0*2;
+
+  ctx.save();
+  // frame
+  ctx.fillStyle = '#0a1437';
+  ctx.strokeStyle = '#20306b';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath(); roundRect(ctx, x, y0, barW, h, 10); ctx.fill(); ctx.stroke();
+
+  // fill
+  const p = clamp(state.progress / Math.max(1,state.needed), 0, 1);
+  const fh = Math.floor((h-4) * p);
+  const fy = y0 + h - 2 - fh;
+  const grad = ctx.createLinearGradient(x, fy, x+barW, fy+fh);
+  grad.addColorStop(0, '#46d4ff'); grad.addColorStop(1, '#9cff6d');
+  ctx.fillStyle = grad;
+  ctx.beginPath(); roundRect(ctx, x+2, fy, barW-4, fh, 8); ctx.fill();
+
+  // text
+  ctx.fillStyle = '#cfe2ff';
+  ctx.font = '700 12px system-ui, -apple-system';
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText(`${state.progress}/${state.needed}`, x + barW/2, y0 + 12);
+
+  ctx.restore();
+}
+
+function roundRect(ctx, x,y,w,h,r){
+  const rr = Math.min(r, w/2, h/2);
+  ctx.moveTo(x+rr,y); ctx.arcTo(x+w,y,x+w,y+h,rr); ctx.arcTo(x+w,y+h,x,y+h,rr);
+  ctx.arcTo(x,y+h,x,y,rr); ctx.arcTo(x,y,x+w,y,rr);
+}
+
 function draw(){
   const rect = canvas.getBoundingClientRect();
 
-  // Right-side bar area if mode has progress bar
   const hasBar = (state.mode===MODES.MATH || state.mode===MODES.SINGLE);
   const barArea = hasBar ? Math.max(90, Math.floor(rect.width*0.08)) : 0;
 
@@ -709,7 +724,6 @@ function draw(){
     ctx.lineWidth = 1.2; ctx.stroke();
 
     if(!t.eaten){
-      // text fit: wrap by words; avoid breaking inside a word
       ctx.save();
       ctx.fillStyle = 'rgba(230,240,255,.95)';
       const fontSize = Math.floor(tile*0.25);
@@ -738,7 +752,7 @@ function draw(){
     const py = padY + state.player.y*tile + tile/2;
     const inv = now() < state.invulnUntil;
     const anim = MooseMan.computeAnim(state.player, DIR_VECT);
-    const radius = tile*0.42; // fits comfortably inside a cell
+    const radius = tile*0.42; // fits inside a cell
     MooseMan.draw(ctx, px, py, radius, state.player.dir, inv, anim);
   }
 
@@ -751,61 +765,8 @@ function draw(){
   if(hasBar) drawLevelBar(rect, barArea);
 }
 
-function wrapLabel(ctx, text, maxWidth, maxLines=2){
-  const words = String(text).split(/\s+/);
-  const lines=[]; let line='';
-  for(const w of words){
-    const test = line ? `${line} ${w}` : w;
-    if(ctx.measureText(test).width <= maxWidth){ line = test; }
-    else {
-      if(line) lines.push(line);
-      else {
-        // extremely long word -> trim
-        let cut = w.length;
-        while(cut>1 && ctx.measureText(w.slice(0,cut)).width>maxWidth) cut--;
-        lines.push(w.slice(0,cut));
-      }
-      line = w;
-      if(lines.length>=maxLines) break;
-    }
-  }
-  if(line && lines.length<maxLines) lines.push(line);
-  return lines;
-}
-
-function drawLevelBar(rect, barArea){
-  const x0 = rect.width - barArea;
-  const y0 = 12;
-  const barW = Math.max(20, Math.floor(barArea*0.5));
-  const x = x0 + (barArea - barW)/2;
-  const h = rect.height - y0*2;
-
-  // frame
-  ctx.save();
-  ctx.fillStyle = '#0a1437';
-  ctx.strokeStyle = '#20306b';
-  ctx.lineWidth = 1.5;
-  ctx.beginPath(); roundRect(ctx, x, y0, barW, h, 10); ctx.fill(); ctx.stroke();
-
-  // fill
-  const p = clamp(state.progress / Math.max(1,state.needed), 0, 1);
-  const fh = Math.floor((h-4) * p);
-  const fy = y0 + h - 2 - fh;
-  const grad = ctx.createLinearGradient(x, fy, x+barW, fy+fh);
-  grad.addColorStop(0, '#46d4ff'); grad.addColorStop(1, '#9cff6d');
-  ctx.fillStyle = grad;
-  ctx.beginPath(); roundRect(ctx, x+2, fy, barW-4, fh, 8); ctx.fill();
-
-  // text
-  ctx.fillStyle = '#cfe2ff';
-  ctx.font = '700 12px system-ui, -apple-system';
-  ctx.textAlign='center'; ctx.textBaseline='middle';
-  ctx.fillText(`${state.progress}/${state.needed}`, x + barW/2, y0 + 12);
-
-  ctx.restore();
-}
-
-// =============== Update loop ===============
+// ───────────────────────────────────────────────
+// Update loop
 let rafId = 0; let lastTs = 0;
 
 function tick(ts){
@@ -813,20 +774,13 @@ function tick(ts){
   lastTs = ts;
 
   if(state.running && !state.paused){
-    // enemies step logic
     updateEnemies(state.enemies, {
       gridW: state.gridW, gridH: state.gridH,
       player: state.player,
       stepMs: ENEMY_STEP_MS,
       freezeUntil: state.freezeUntil,
       passable,
-      // collision with player:
-      onCatch: (idx)=>{
-        // handled via board hook (onPlayerCaught)
-        // but keep here in case enemies call directly
-        enemySyncHooks(); // ensure hooks are bound
-      },
-      // clamp to board
+      onCatch: (idx)=>{}, // handled via hooks
       clampTo: (gx,gy)=> ({gx: clamp(gx,0,state.gridW-1), gy: clamp(gy,0,state.gridH-1)})
     });
   }
@@ -835,11 +789,10 @@ function tick(ts){
   rafId = requestAnimationFrame(tick);
 }
 
-// =============== Buttons / Menu ===============
+// ───────────────────────────────────────────────
+// Buttons / menu
 startBtn?.addEventListener('click', ()=>{
-  // set mode from UI; show category picker only for single
   const mVal = (modeSelect?.value||'any').toLowerCase();
-  // Map legacy labels if needed
   let mode = MODES.ANY;
   if(mVal.includes('single')) mode = MODES.SINGLE;
   else if(mVal.includes('math')) mode = MODES.MATH;
@@ -849,34 +802,40 @@ startBtn?.addEventListener('click', ()=>{
   setCategoryDropdownVisible(mode===MODES.SINGLE);
   startGame();
 });
-
+shuffleBtn?.addEventListener('click', ()=>{
+  if(!categorySelect) return;
+  const pool = (state.mode===MODES.MATH) ? NUMERIC_CATEGORIES
+              : (state.mode===MODES.WORDS) ? WORD_CATEGORY_DEFS
+              : CATEGORIES;
+  const pick = choice(pool);
+  categorySelect.value = pick.id;
+});
 pauseBtn?.addEventListener('click', ()=> togglePause());
 helpBtn?.addEventListener('click', ()=> show(helpEl));
 closeHelpBtn?.addEventListener('click', ()=> hide(helpEl));
 againBtn?.addEventListener('click', ()=> { hide(againBtn?.closest('.overlay')); show(menuEl); });
 menuBtn?.addEventListener('click', ()=> { show(menuEl); state.running=false; state.paused=false; });
 
-// keep category dropdown visibility synced with mode select while on menu
 modeSelect?.addEventListener('change', ()=>{
   const v = modeSelect.value.toLowerCase();
   const isSingle = v.includes('single');
   setCategoryDropdownVisible(isSingle);
 });
 
-// =============== Pause ===============
+// Pause
 function togglePause(){
   if(!state.running) return;
   state.paused = !state.paused;
   pauseBtn && (pauseBtn.textContent = state.paused ? '▶️ Resume' : '⏸️ Pause');
 }
 
-// =============== Boot ===============
+// ───────────────────────────────────────────────
+// Boot
 function onReady(){
   resizeCanvas();
   bootCategories().then(()=>{
-    // default selection: Anything Goes mode
+    // default mode: Anything Goes
     if(modeSelect){
-      // If your HTML has different labels, it's fine—mapping is in startBtn handler.
       const opt = Array.from(modeSelect.options).find(o=>o.value.toLowerCase().includes('any'));
       if(opt) modeSelect.value = opt.value;
     }
@@ -888,8 +847,9 @@ function onReady(){
 if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', onReady);
 else onReady();
 
-
-// =============== Draw enemies helper stars etc already defined above ===============
-
-// (No exports — this is the main script)
-
+// expose for debugging
+window.CategoryAPI = {
+  get CATEGORIES(){ return CATEGORIES; },
+  get WORD_CATEGORY_DEFS(){ return WORD_CATEGORY_DEFS; },
+  pickRandomCategory, pickRandomWordCategory, pickRandomMathCategory
+};
