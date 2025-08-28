@@ -1,4 +1,4 @@
-// enemies.js — enemy spawning, AI, drawing (slime chasers & owl grazers)
+// enemies.js — enemy spawning, AI, drawing (slime chasers & owl grazers, animated)
 
 const now = () => performance.now();
 
@@ -79,6 +79,11 @@ export function stepEnemies(state){
       e.gx = e.x = step.nx;
       e.gy = e.y = step.ny;
       e.dir = step.dir;
+
+      // kick animation burst after a step
+      const kickDur = 650;
+      if(e.role === 'chaser'){ e.wobbleKickUntil = t + kickDur; }
+      else                   { e.flapKickUntil   = t + kickDur; }
     }
     e.nextStepAt += ENEMY_STEP_MS;
   }
@@ -90,7 +95,7 @@ export function resetEnemyTimers(state){
   state.enemies.forEach((e,i)=>{ e.nextStepAt = base + ENEMY_STEP_MS + i*150; });
 }
 
-// Public: spawn enemies with roles
+// Public: spawn enemies with roles & anim seeds
 export function spawnTroggles(state){
   const base = state.level<=3? 2 : state.level<=6? 3 : 4;
   const n = Math.max(2, Math.min(6, base + (state.level>6?1:0)));
@@ -111,6 +116,9 @@ export function spawnTroggles(state){
       // Visual color is retained but role decides sprite
       color: ['#ff3b6b','#ffb800','#00e5ff','#7cff00','#ff00e5','#ff7a00','#00ffb3','#ffd700','#00ffd0','#ff4d00'][(Math.random()*10)|0],
       role: Math.random() < 0.55 ? 'chaser' : 'grazer',   // slime vs owl
+      animSeed: Math.random()*1000,
+      flapKickUntil: 0,
+      wobbleKickUntil: 0,
       nextStepAt: baseTime + ENEMY_STEP_MS + i*150
     });
   }
@@ -118,11 +126,27 @@ export function spawnTroggles(state){
 
 // ---- Drawing (slime & owl) ----
 
-// Slime monster (for chasers)
-function drawSlime(ctx, x, y, size, dir, frozen){
+function smoothKickAmt(until){
+  if(!until) return 0;
+  const rem = until - now();
+  if(rem <= 0) return 0;
+  return Math.min(1, rem / 650);
+}
+
+// Slime monster (for chasers) — wobble/jelly with step kick
+function drawSlime(ctx, x, y, size, dir, e, frozen){
+  const t = now()*0.002 + (e?.animSeed||0);
+  const kick = smoothKickAmt(e?.wobbleKickUntil);
+  const wob = 0.09*Math.sin(t*Math.PI*4) + 0.12*kick;
+
   ctx.save();
   ctx.translate(x,y);
   ctx.rotate(DIR_ANGLE[dir]|0);
+
+  // Squash & stretch body
+  const sx = 1 + wob*0.6;
+  const sy = 1 - wob*0.6;
+  ctx.scale(sx, sy);
 
   const w = size*1.2, h = size*0.95;
 
@@ -147,16 +171,17 @@ function drawSlime(ctx, x, y, size, dir, frozen){
   ctx.closePath();
   ctx.fillStyle = grd; ctx.fill();
 
-  // Slime drips
+  // Slime drips (gently animated)
+  const dripShift = Math.sin(t*6.3)*h*0.02;
   ctx.globalAlpha = 0.6;
   ctx.beginPath();
-  ctx.moveTo(-w*0.15, h*0.15); ctx.quadraticCurveTo(-w*0.18, h*0.36, -w*0.10, h*0.42);
-  ctx.moveTo( w*0.10, h*0.15); ctx.quadraticCurveTo( w*0.08, h*0.34,  w*0.02, h*0.40);
+  ctx.moveTo(-w*0.15, h*0.15); ctx.quadraticCurveTo(-w*0.18, h*0.36 + dripShift, -w*0.10, h*0.42 + dripShift);
+  ctx.moveTo( w*0.10, h*0.15); ctx.quadraticCurveTo( w*0.08, h*0.34 - dripShift,  w*0.02, h*0.40 - dripShift);
   ctx.strokeStyle = '#ffffff55'; ctx.lineWidth = 2; ctx.stroke();
   ctx.globalAlpha = 1;
 
-  // Eyes on stalks
-  const ey = -h*0.38;
+  // Eyes on stalks (bob slightly)
+  const ey = -h*0.38 + Math.sin(t*7.2)*size*0.03;
   const dx = size*0.22;
   ctx.fillStyle = '#fff';
   ctx.beginPath(); ctx.arc(-dx, ey, size*0.12, 0, Math.PI*2);
@@ -179,8 +204,15 @@ function drawSlime(ctx, x, y, size, dir, frozen){
   ctx.restore();
 }
 
-// Scary owl (for grazers)
-function drawOwl(ctx, x, y, size, dir, frozen){
+// Scary owl (for grazers) — wing flap & blink with step kick
+function drawOwl(ctx, x, y, size, dir, e, frozen){
+  const t = now()*0.002 + (e?.animSeed||0);
+  const kick = smoothKickAmt(e?.flapKickUntil);
+  const flapBase = Math.sin(t*Math.PI*4) * 0.25;
+  const flap = flapBase + 0.35*kick; // step accent
+  const blinkPhase = (Math.sin(t*3.1 + (e?.animSeed||0)) + 1) * 0.5;
+  const eyeScaleY = (blinkPhase < 0.07) ? 0.2 : 1.0;
+
   ctx.save();
   ctx.translate(x,y);
   ctx.rotate(DIR_ANGLE[dir]|0);
@@ -203,12 +235,19 @@ function drawOwl(ctx, x, y, size, dir, frozen){
   ctx.moveTo( w*0.32, -h*0.36); ctx.lineTo( w*0.15, -h*0.55); ctx.lineTo( w*0.06, -h*0.36); ctx.closePath();
   ctx.fill();
 
-  // Eyes
+  // Eyes (blink by scaling Y)
   const ex = w*0.18, ey = -h*0.1, rOuter = size*0.15, rInner = size*0.07;
-  ctx.fillStyle = '#fff';
-  ctx.beginPath(); ctx.arc(-ex, ey, rOuter, 0, Math.PI*2); ctx.arc(ex, ey, rOuter, 0, Math.PI*2); ctx.fill();
-  ctx.fillStyle = frozen ? '#144a7a' : '#ffcf00';
-  ctx.beginPath(); ctx.arc(-ex, ey, rInner, 0, Math.PI*2); ctx.arc(ex, ey, rInner, 0, Math.PI*2); ctx.fill();
+  ctx.save();
+  ctx.translate(-ex, ey); ctx.scale(1, eyeScaleY);
+  ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(0,0, rOuter, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = frozen ? '#144a7a' : '#ffcf00'; ctx.beginPath(); ctx.arc(0,0, rInner, 0, Math.PI*2); ctx.fill();
+  ctx.restore();
+
+  ctx.save();
+  ctx.translate( ex, ey); ctx.scale(1, eyeScaleY);
+  ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(0,0, rOuter, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = frozen ? '#144a7a' : '#ffcf00'; ctx.beginPath(); ctx.arc(0,0, rInner, 0, Math.PI*2); ctx.fill();
+  ctx.restore();
 
   // Beak
   ctx.fillStyle = frozen ? '#e9f6ff' : '#ff9b28';
@@ -218,13 +257,30 @@ function drawOwl(ctx, x, y, size, dir, frozen){
   ctx.lineTo( size*0.07, ey + size*0.20);
   ctx.closePath(); ctx.fill();
 
-  // Wings (slightly “clawed”)
-  ctx.strokeStyle = frozen ? '#cfeeff' : '#7b4a8a';
+  // Wings with flap animation
+  const wingLen = w*0.55;
+  const shoulderY = 0;
   ctx.lineWidth = 3;
-  ctx.beginPath();
-  ctx.moveTo(-w*0.45, 0); ctx.quadraticCurveTo(-w*0.62, h*0.05, -w*0.50, h*0.22);
-  ctx.moveTo( w*0.45, 0); ctx.quadraticCurveTo( w*0.62, h*0.05,  w*0.50, h*0.22);
-  ctx.stroke();
+  ctx.strokeStyle = frozen ? '#cfeeff' : '#7b4a8a';
+  ctx.fillStyle = frozen ? '#bfe9ff' : '#5a3468';
+
+  function drawWing(side){
+    const s = side === 'left' ? -1 : 1;
+    ctx.save();
+    ctx.translate(s*w*0.4, shoulderY);
+    ctx.rotate(s * (-0.2 + flap)); // flap out/in
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.quadraticCurveTo(s*wingLen*0.35, h*0.05, s*wingLen*0.55, h*0.22);
+    ctx.quadraticCurveTo(s*wingLen*0.40, h*0.18, s*wingLen*0.18, h*0.10);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  drawWing('left');
+  drawWing('right');
 
   // Talons
   ctx.fillStyle = frozen ? '#e9f6ff' : '#ffb84d';
@@ -241,8 +297,8 @@ function drawOwl(ctx, x, y, size, dir, frozen){
 
 // Public: draw dispatcher
 export function drawEnemy(ctx, pixelX, pixelY, size, dir, enemyObj, frozen){
-  if(enemyObj?.role === 'chaser') drawSlime(ctx, pixelX, pixelY, size, dir, frozen);
-  else                            drawOwl  (ctx, pixelX, pixelY, size, dir, frozen);
+  if(enemyObj?.role === 'chaser') drawSlime(ctx, pixelX, pixelY, size, dir, enemyObj, frozen);
+  else                            drawOwl  (ctx, pixelX, pixelY, size, dir, enemyObj, frozen);
 }
 
 // Back-compat (if any old code still calls drawTroggle)
