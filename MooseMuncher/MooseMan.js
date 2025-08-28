@@ -1,6 +1,6 @@
 // MooseMan.js — character module for MuncherJS
 // Exports a single character with animation & drawing logic.
-console.log('[MooseMan] loaded v1.2');
+console.log('[MooseMan] loaded v1.3 (half-size)');
 
 const clamp = (v,a,b)=> Math.min(b, Math.max(a,v));
 const easeOutCubic = t => 1 - Math.pow(1 - t, 3);
@@ -50,6 +50,7 @@ const MooseMan = {
   },
 
   // Draw the character. Head stays up; cape billows opposite movement; limbs swing.
+  // NOTE: Size is controlled by 'radius' argument; muncher.js now passes half the old radius.
   draw(ctx,x,y,radius,dir,invuln,anim={}){
     ctx.save();
     ctx.translate(x,y);
@@ -64,64 +65,56 @@ const MooseMan = {
     const bodyH = radius*1.7;
 
     // ---- Cape (side-aware based on movement) ----
-(function drawCapes(){
-  const vx = anim.vx || 0;
-  const vy = anim.vy || 0;
+    (function drawCapes(){
+      const vx = anim.vx || 0;
+      const vy = anim.vy || 0;
 
-  function drawCapeSide(side, alpha=1, lift=0, mag=1){
-    ctx.save();
-    ctx.globalAlpha = alpha;
-    ctx.shadowColor = '#34d399';
-    ctx.shadowBlur = 12;
+      function drawCapeSide(side, alpha=1, lift=0, mag=1){
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.shadowColor = '#34d399';
+        ctx.shadowBlur = 12;
 
-    // Mirror for right side; keep path in left-side local space
-    if (side === 'right') ctx.scale(-1, 1);
+        if (side === 'right') ctx.scale(-1, 1);
 
-    // Keep outward spread symmetrical on both sides (always negative in local x)
-    const windX = -Math.abs(anim.capeDX||0) * bodyH * 0.35 * mag;
-    const windY = (anim.capeDY||0) * bodyH * 0.10 * mag;
-    const wiggle = (anim.capeWiggle||0) * bodyH * 0.09 * mag;
+        const windX = -Math.abs(anim.capeDX||0) * bodyH * 0.35 * mag;
+        const windY = (anim.capeDY||0) * bodyH * 0.10 * mag;
+        const wiggle = (anim.capeWiggle||0) * bodyH * 0.09 * mag;
 
-    // Pull the cape a bit closer to the body than before
-    const base = -bodyW * 0.48;
-    const cx0 = base + windX * 0.35;
-    const cy0 = -bodyH * 0.28 + windY * 0.2 - lift;
+        const base = -bodyW * 0.48;
+        const cx0 = base + windX * 0.35;
+        const cy0 = -bodyH * 0.28 + windY * 0.2 - lift;
 
-    ctx.beginPath();
-    ctx.moveTo(cx0, cy0);
-    // Tighter bezier to keep parts closer together
-    ctx.bezierCurveTo(base*2.2 + windX*0.55, cy0 + bodyH*0.18 + wiggle*0.2,
-                      base*1.5 + windX*0.80, cy0 + bodyH*0.78 + wiggle,
-                      base*0.2 + windX*0.55, cy0 + bodyH*0.72 + wiggle*0.6);
-    ctx.bezierCurveTo(bodyW*0.25 + windX*0.15, cy0 + bodyH*0.62 + wiggle*0.2,
-                      bodyW*0.42,              cy0 + bodyH*0.12 + wiggle*0.1,
-                      bodyW*0.08,              cy0 + bodyH*0.06 + wiggle*0.05);
-    ctx.closePath();
+        ctx.beginPath();
+        ctx.moveTo(cx0, cy0);
+        ctx.bezierCurveTo(base*2.2 + windX*0.55, cy0 + bodyH*0.18 + wiggle*0.2,
+                          base*1.5 + windX*0.80, cy0 + bodyH*0.78 + wiggle,
+                          base*0.2 + windX*0.55, cy0 + bodyH*0.72 + wiggle*0.6);
+        ctx.bezierCurveTo(bodyW*0.25 + windX*0.15, cy0 + bodyH*0.62 + wiggle*0.2,
+                          bodyW*0.42,              cy0 + bodyH*0.12 + wiggle*0.1,
+                          bodyW*0.08,              cy0 + bodyH*0.06 + wiggle*0.05);
+        ctx.closePath();
 
-    const capeGrad = ctx.createLinearGradient(cx0, cy0, bodyW*0.2, cy0 + bodyH*0.65);
-    capeGrad.addColorStop(0, '#34d399'); capeGrad.addColorStop(1, '#059669');
-    ctx.fillStyle = capeGrad; ctx.fill();
+        const capeGrad = ctx.createLinearGradient(cx0, cy0, bodyW*0.2, cy0 + bodyH*0.65);
+        capeGrad.addColorStop(0, '#34d399'); capeGrad.addColorStop(1, '#059669');
+        ctx.fillStyle = capeGrad; ctx.fill();
 
-    ctx.restore();
-  }
+        ctx.restore();
+      }
 
-  if (Math.abs(vx) > 0.01){
-    // Horizontal move: main cape is on side opposite movement
-    const mainSide = vx > 0 ? 'left' : 'right';
-    drawCapeSide(mainSide, 1.0, 0, 1.0);
-    // Subtle echo on the near side, kept close
-    drawCapeSide(mainSide === 'left' ? 'right' : 'left', 0.35, 0, 0.72);
-  } else if (vy > 0.01){
-    // Moving down: visible on both sides and slightly rising from the bottom
-    const lift = bodyH * 0.08;
-    drawCapeSide('left',  0.90, lift, 0.85);
-    drawCapeSide('right', 0.85, lift, 0.85);
-  } else {
-    // Idle or moving up: capes on both sides, close to body
-    drawCapeSide('left',  0.85, 0, 0.85);
-    drawCapeSide('right', 0.85, 0, 0.85);
-  }
-})();
+      if (Math.abs(vx) > 0.01){
+        const mainSide = vx > 0 ? 'left' : 'right';
+        drawCapeSide(mainSide, 1.0, 0, 1.0);
+        drawCapeSide(mainSide === 'left' ? 'right' : 'left', 0.35, 0, 0.72);
+      } else if (vy > 0.01){
+        const lift = bodyH * 0.08;
+        drawCapeSide('left',  0.90, lift, 0.85);
+        drawCapeSide('right', 0.85, lift, 0.85);
+      } else {
+        drawCapeSide('left',  0.85, 0, 0.85);
+        drawCapeSide('right', 0.85, 0, 0.85);
+      }
+    })();
 
     // ---- Torso (green suit) ----
     const torsoX = -bodyW/2, torsoY = -bodyH*0.55, torsoW = bodyW, torsoH = bodyH*1.05;
@@ -144,7 +137,7 @@ const MooseMan = {
     ctx.closePath();
     ctx.fillStyle = '#0f5132'; ctx.fill();
     ctx.fillStyle = '#9cff6d';
-    ctx.font = `${Math.max(10, Math.floor(radius*0.34))}px ui-sans-serif, system-ui`;
+    ctx.font = `${Math.max(8, Math.floor(radius*0.34))}px ui-sans-serif, system-ui`;
     ctx.textAlign='center'; ctx.textBaseline='middle';
     ctx.fillText('M', emX, emY+1);
 
@@ -191,10 +184,10 @@ const MooseMan = {
       ctx.bezierCurveTo(headR*0.8, -headR*0.05, headR*0.9, -headR*0.02, headR*1.0, 0);
       ctx.bezierCurveTo(headR*0.8, headR*0.05, headR*0.4, headR*0.05, 0, 0);
       ctx.closePath(); ctx.fill(); ctx.stroke();
-      const tine = (tx,ty,len)=>{ ctx.beginPath(); ctx.moveTo(tx,ty); ctx.lineTo(tx+len, ty - headR*0.18); ctx.lineWidth=1.3; ctx.stroke(); };
-      tine(headR*0.45, -headR*0.35, headR*0.35);
-      tine(headR*0.65, -headR*0.5, headR*0.3);
-      tine(headR*0.85, -headR*0.6, headR*0.25);
+      const tine = (tx,ty,len)=>{ ctx.beginPath(); ctx.moveTo(tx,ty); ctx.lineTo(tx+len, ty - headR*0.18); ctx.lineWidth=1.1; ctx.stroke(); };
+      tine(headR*0.45, -headR*0.35, headR*0.32);
+      tine(headR*0.65, -headR*0.5, headR*0.27);
+      tine(headR*0.85, -headR*0.6, headR*0.22);
       ctx.restore();
     };
     antler(-1); antler(1);

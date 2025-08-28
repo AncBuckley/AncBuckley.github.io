@@ -33,7 +33,7 @@ const toastEl = document.getElementById('toast');
 
 const categorySelect = document.getElementById('categorySelect');
 const modeSelect = document.getElementById('modeSelect');
-const recentAnswersEl = document.getElementById('recentAnswers'); // optional, safe
+const recentAnswersEl = document.getElementById('recentAnswers'); // optional DOM list
 
 // ───────────────────────────────────────────────
 // Helpers
@@ -279,6 +279,19 @@ function spawnEnemies(){
   });
 }
 
+function onPlayerCaught(catcherIndex){
+  spawnExplosionAt(state.player.gx, state.player.gy);
+  state.teleportingUntil = now() + TELEPORT_MS;
+  state.invulnUntil = state.teleportingUntil + 500;
+  setTimeout(()=>{
+    teleportPlayerTo(0,0);
+    if(typeof catcherIndex === 'number'){
+      moveEnemyToBottomRight(state.enemies, catcherIndex, state.gridW, state.gridH);
+    }
+  }, TELEPORT_MS);
+  loseLife();
+}
+
 function enemySyncHooks(){
   notifyBoardHooksForEnemies({
     isCellEmpty: (gx,gy)=> {
@@ -301,18 +314,7 @@ function enemySyncHooks(){
       if(idx>=0) state.items[idx] = obj; else state.items.push(obj);
       state.correctRemaining = state.items.filter(t=>t.correct && !t.eaten).length;
     },
-    onPlayerCaught: (catcherIndex)=>{
-      spawnExplosionAt(state.player.gx, state.player.gy);
-      state.teleportingUntil = now() + TELEPORT_MS;
-      state.invulnUntil = state.teleportingUntil + 500;
-      setTimeout(()=>{
-        teleportPlayerTo(0,0);
-        if(typeof catcherIndex === 'number'){
-          moveEnemyToBottomRight(state.enemies, catcherIndex, state.gridW, state.gridH);
-        }
-      }, TELEPORT_MS);
-      loseLife();
-    }
+    onPlayerCaught: (catcherIndex)=> onPlayerCaught(catcherIndex)
   });
 }
 
@@ -361,11 +363,10 @@ function handlePlayerStep(k){
 function pushRecent(text, correct){
   state.recentAnswers.unshift({ text, correct, categoryName: state.category.name, level: state.level, time: Date.now() });
   if(state.recentAnswers.length>10) state.recentAnswers.length = 10;
-  renderRecentAnswers();
+  renderRecentAnswersDOM();
 }
-function renderRecentAnswers(){
+function renderRecentAnswersDOM(){
   if(!recentAnswersEl) return;
-  // Group with a heading when category changes
   const items = [];
   let lastCat = null;
   for(const r of state.recentAnswers.slice().reverse()){
@@ -427,7 +428,7 @@ function startGame(){
   state.lives = 3;
   state.invulnUntil = 0;
   state.recentAnswers = [];
-  renderRecentAnswers();
+  renderRecentAnswersDOM();
 
   pickStartingCategory();
   state.needed = neededForLevel(state.level);
@@ -694,6 +695,54 @@ function fitLabel(ctx, text, maxWidth, maxLines, baseFontSize){
 }
 
 // ───────────────────────────────────────────────
+// Recent answers (canvas overlay)
+function drawRecentAnswersPanel(rect, padX, padY, tile, barArea){
+  const list = state.recentAnswers;
+  if(!list || list.length===0) return;
+
+  const areaX = rect.width - barArea; // bar occupies this column
+  const panelW = Math.max(120, Math.floor(barArea*0.45));
+  const panelX = areaX + Math.floor((barArea - panelW)/2);
+  const panelY = Math.floor(rect.height*0.55);
+  const rowH = Math.max(14, Math.floor(tile*0.22));
+  const maxRows = Math.min(10, Math.floor((rect.height - panelY - 16)/rowH));
+
+  ctx.save();
+  // panel bg
+  ctx.globalAlpha = 0.9;
+  ctx.fillStyle = '#0c132b';
+  ctx.strokeStyle = '#273267';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  roundRect(ctx, panelX, panelY, panelW, maxRows*rowH + 16, 10);
+  ctx.fill();
+  ctx.stroke();
+
+  // header
+  ctx.fillStyle = '#cfe2ff';
+  ctx.font = 'bold 12px system-ui, -apple-system';
+  ctx.textAlign = 'center'; ctx.textBaseline='top';
+  ctx.fillText('Recent Picks', panelX + panelW/2, panelY + 4);
+
+  // items (newest at bottom)
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.font = '11px system-ui, -apple-system';
+
+  const start = Math.max(0, list.length - maxRows);
+  let y = panelY + 16 + rowH/2;
+  for(let i=start; i<list.length; i++){
+    const it = list[i];
+    ctx.fillStyle = it.correct ? '#7CFF7E' : '#FF6D8A';
+    const txt = it.text.length>16 ? it.text.slice(0,15)+'…' : it.text;
+    ctx.fillText(txt, panelX + 8, y);
+    y += rowH;
+  }
+
+  ctx.restore();
+}
+
+// ───────────────────────────────────────────────
 // Render
 function drawLevelBar(rect, barArea){
   const x0 = rect.width - barArea;
@@ -737,7 +786,7 @@ function draw(){
   const rect = canvas.getBoundingClientRect();
 
   const hasBar = (state.mode===MODES.MATH || state.mode===MODES.SINGLE);
-  const barArea = hasBar ? Math.max(90, Math.floor(rect.width*0.08)) : 0;
+  const barArea = hasBar ? Math.max(110, Math.floor(rect.width*0.10)) : 0;
 
   const tile = Math.min((rect.width - barArea)/state.gridW, rect.height/state.gridH);
   const padX = Math.floor((rect.width - barArea - state.gridW*tile)/2);
@@ -791,13 +840,13 @@ function draw(){
   // enemies
   drawEnemies(ctx, state.enemies, {padX, padY, tile});
 
-  // player (fit inside tile)
+  // player (half previous size; fits inside tile)
   if(state.player){
     const px = padX + state.player.x*tile + tile/2;
     const py = padY + state.player.y*tile + tile/2;
     const inv = now() < state.invulnUntil;
     const anim = MooseMan.computeAnim(state.player, DIR_VECT);
-    const radius = tile*0.42; // fits inside a cell
+    const radius = tile*0.21; // HALF of previous 0.42
     MooseMan.draw(ctx, px, py, radius, state.player.dir, inv, anim);
   }
 
@@ -806,8 +855,22 @@ function draw(){
   drawSFX(padX,padY,tile);
   drawExplosions(padX,padY,tile);
 
-  // progress bar
-  if(hasBar) drawLevelBar(rect, barArea);
+  // progress bar + recent answers (canvas)
+  if(hasBar){
+    drawLevelBar(rect, barArea);
+    drawRecentAnswersPanel(rect, padX, padY, tile, barArea);
+  }
+
+  // EXTRA: collision safety check (frame-level)
+  if(state.running && !state.paused && now() >= state.teleportingUntil){
+    for(let i=0;i<state.enemies.length;i++){
+      const e = state.enemies[i];
+      if(e.gx === state.player.gx && e.gy === state.player.gy){
+        onPlayerCaught(i);
+        break;
+      }
+    }
+  }
 }
 
 // ───────────────────────────────────────────────
