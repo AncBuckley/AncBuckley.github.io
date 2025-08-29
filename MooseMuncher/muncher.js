@@ -432,6 +432,19 @@ function buildBoard() {
         : state.correctRemaining;
     state.progress = 0;
 }
+function spawnEnemies() {
+    // For a simple start, spawn 1 enemy at the bottom-right corner
+    state.enemies = [{
+        gx: state.gridW - 1,
+        gy: state.gridH - 1,
+        x: state.gridW - 1,
+        y: state.gridH - 1,
+        dir: DIRS.LEFT,
+        color: choice(TROGGLE_COLORS),
+        moving: null,
+        scale: 1
+    }];
+}
 
 function spawnPlayer() {
     state.player = { gx: 0, gy: 0, x: 0, y: 0, dir: DIRS.RIGHT, moving: null };
