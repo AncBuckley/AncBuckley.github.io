@@ -917,14 +917,6 @@ function drawEnemy(ctx, enemy, x, y, tile, frozen) {
     }
 }
 
-// --- Slimier, smaller slime (25% smaller & dripping) ---
-function drawSlime(ctx, x, y, tile, frozen) {
-    // ... (no region inside, keep as is)
-}
-
-function drawOwl(ctx, x, y, tile, frozen) {
-    // ... (no region inside, keep as is)
-}
 // #endregion
 
 // #region Update loop
