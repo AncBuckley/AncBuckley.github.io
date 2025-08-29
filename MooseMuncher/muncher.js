@@ -87,7 +87,6 @@ const state = {
     caughtAnim: null // {start, duration, player, enemy, livesLeft}
 };
 
-// --- Category and boot logic ---
 export let WORD_CATEGORY_DEFS = [];
 export let CATEGORIES = [];
 export const NUMERIC_CATEGORIES = [
@@ -103,26 +102,6 @@ function setCategoryDropdownVisible(visible) {
     if (!categorySelect) return;
     const label = categorySelect.closest('label') || categorySelect;
     label.style.display = visible ? '' : 'none';
-}
-
-function tick(ts) {
-    if (state.running && !state.paused) {
-        updateEnemies(state.enemies, {
-            gridW: state.gridW,
-            gridH: state.gridH,
-            player: state.player,
-            stepMs: ENEMY_STEP_MS,
-            freezeUntil: state.freezeUntil,
-            passable,
-            clampTo: (gx, gy) => ({
-                gx: clamp(gx, 0, state.gridW - 1),
-                gy: clamp(gy, 0, state.gridH - 1)
-            })
-        });
-    }
-    // You should also call your draw function here
-    draw();
-    rafId = requestAnimationFrame(tick);
 }
 
 function isPrime(n) {
@@ -265,223 +244,148 @@ function resizeCanvas() {
 }
 window.addEventListener('resize', resizeCanvas);
 
-// --- Board setup and game logic ---
+// --- Draw function ---
+function draw() {
+    const rect = canvas.getBoundingClientRect();
 
-function neededForLevel(level) {
-    if (level <= 4) return 4;
-    const t = Math.floor((level - 5) / 5) + 1;
-    let inc = 0;
-    for (let i = 0; i < t; i++) inc += (2 << i);
-    return 4 + inc;
-}
+    // Reserve a right column for the progress bar + recents
+    const barArea = Math.max(110, Math.floor(rect.width * 0.18));
+    const tile = Math.min((rect.width - barArea) / state.gridW, rect.height / state.gridH);
+    const padX = Math.floor((rect.width - barArea - state.gridW * tile) / 2);
+    const padY = Math.floor((rect.height - state.gridH * tile) / 2);
 
-function buildBoard() {
-    const W = state.gridW, H = state.gridH;
-    const wantCorrect = Math.ceil(W * H * 0.4);
-    const raw = state.category.generate(W, H, wantCorrect);
-    state.items = raw.map((it, idx) => ({
-        ...it,
-        eaten: false,
-        gx: idx % W,
-        gy: Math.floor(idx / W)
-    }));
-    state.correctRemaining = state.items.filter(t => t.correct && !t.eaten).length;
-    state.needed = (state.mode === MODES.MATH || state.mode === MODES.SINGLE)
-        ? neededForLevel(state.level)
-        : state.correctRemaining;
-    state.progress = 0;
-}
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-// Entities
-function spawnPlayer() {
-    state.player = { gx: 0, gy: 0, x: 0, y: 0, dir: DIRS.RIGHT, moving: null };
-}
-function teleportPlayerTo(gx, gy) {
-    if (!state.player) return;
-    state.player.gx = gx; state.player.gy = gy;
-    state.player.x = gx; state.player.y = gy;
-    state.player.moving = null;
-    state.player.dir = DIRS.RIGHT;
-}
-function spawnEnemies() {
-    const base = state.level <= 3 ? 2 : state.level <= 6 ? 3 : 4;
-    const n = clamp(base + (state.level > 6 ? 1 : 0), 2, 6);
-    state.enemies = [];
-    const occupied = new Set([`0,0`]);
-    const baseTime = now();
-    for (let i = 0; i < n; i++) {
-        let ex = randi(0, state.gridW), ey = randi(0, state.gridH), tries = 0;
-        while ((Math.abs(ex - 0) + Math.abs(ey - 0)) < Math.floor((state.gridW + state.gridH) / 4) || occupied.has(`${ex},${ey}`)) {
-            ex = randi(0, state.gridW); ey = randi(0, state.gridH); if (++tries > 50) break;
+    // Animate player movement
+    if (state.player && state.player.moving) {
+        const m = state.player.moving;
+        const t = (now() - m.start) / m.dur;
+        if (t >= 1) {
+            state.player.x = m.toX; state.player.y = m.toY; state.player.moving = null;
+        } else {
+            const s = easeOutCubic(clamp(t, 0, 1));
+            state.player.x = lerp(m.fromX, m.toX, s);
+            state.player.y = lerp(m.fromY, m.toY, s);
         }
-        occupied.add(`${ex},${ey}`);
-        const kind = Math.random() < 0.5 ? 'slime' : 'owl';
-        state.enemies.push({
-            gx: ex, gy: ey, x: ex, y: ey,
-            dir: randi(0, 4),
-            kind,
-            color: choice(TROGGLE_COLORS),
-            targetBias: rand(0.05, 0.25) + (state.level * 0.01),
-            nextStepAt: baseTime + ENEMY_STEP_MS + i * 150
+    }
+
+    // --- Category header above grid ---
+    ctx.save();
+    ctx.font = `bold ${Math.floor(tile * 0.38)}px system-ui, -apple-system`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.fillStyle = '#a5b4fc';
+    ctx.shadowColor = '#000';
+    ctx.shadowBlur = 8;
+    ctx.fillText(state.category?.name || '', padX + (state.gridW * tile) / 2, Math.max(32, padY - 12));
+    ctx.restore();
+
+    // --- Category transition effect ---
+    if (categoryTransition.active) {
+        const t = clamp((now() - categoryTransition.start) / categoryTransition.duration, 0, 1);
+        const ease = t < 0.7 ? Math.pow(1 - t, 2) : 0;
+        const x = lerp(categoryTransition.from.x, categoryTransition.to.x, t);
+        const y = lerp(categoryTransition.from.y, categoryTransition.to.y, t);
+        ctx.save();
+        ctx.globalAlpha = 1 - ease * 0.5;
+        ctx.font = `bold ${Math.floor(tile * 0.5 + 32 * ease)}px system-ui, -apple-system`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#fbbf24';
+        ctx.shadowColor = '#000';
+        ctx.shadowBlur = 16;
+        ctx.fillText(categoryTransition.text, x, y);
+        ctx.restore();
+        if (t >= 1) categoryTransition.active = false;
+    }
+
+    // Draw tiles
+    for (const t of state.items) {
+        const x = padX + t.gx * tile, y = padY + t.gy * tile;
+        ctx.beginPath();
+        ctx.rect(x + 2, y + 2, tile - 4, tile - 4);
+        ctx.fillStyle = t.eaten ? '#222' : '#444';
+        ctx.fill();
+        if (!t.eaten) {
+            ctx.fillStyle = '#fff';
+            ctx.font = `${Math.floor(tile * 0.25)}px sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(t.label, x + tile / 2, y + tile / 2);
+        }
+    }
+
+    // Draw enemies
+    drawEnemies(ctx, state.enemies, { padX, padY, tile });
+
+    // --- Player caught animation ---
+    if (state.caughtAnim) {
+        const anim = state.caughtAnim;
+        const t = clamp((now() - anim.start) / anim.duration, 0, 1);
+        // Animate player shrinking/fading out
+        const px = padX + anim.player.gx * tile + tile / 2;
+        const py = padY + anim.player.gy * tile + tile / 2;
+        const radius = tile * 0.21 * (1 - t * 0.7);
+        ctx.save();
+        ctx.globalAlpha = 1 - t * 0.7;
+        MooseMan.draw(ctx, px, py, radius, anim.player.dir, false, { frame: 0 });
+        ctx.restore();
+
+        // Animate enemy "eating" (grow slightly)
+        const enemy = anim.enemy;
+        const ex = padX + enemy.gx * tile + tile / 2;
+        const ey = padY + enemy.gy * tile + tile / 2;
+        ctx.save();
+        ctx.globalAlpha = 1;
+        drawEnemies(ctx, [Object.assign({}, enemy, { scale: 1 + t * 0.2 })], { padX, padY, tile });
+        ctx.restore();
+
+        // Show lives left in center
+        ctx.save();
+        ctx.globalAlpha = 0.9;
+        ctx.font = `bold ${Math.floor(tile * 0.7)}px system-ui, -apple-system`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#fbbf24';
+        ctx.shadowColor = '#000';
+        ctx.shadowBlur = 12;
+        ctx.fillText(`Lives: ${anim.livesLeft}`, padX + (state.gridW * tile) / 2, padY + (state.gridH * tile) / 2);
+        ctx.restore();
+    } else {
+        // Draw player (normal)
+        if (state.player) {
+            const px = padX + state.player.x * tile + tile / 2;
+            const py = padY + state.player.y * tile + tile / 2;
+            const inv = now() < state.invulnUntil;
+            const anim = MooseMan.computeAnim(state.player, DIR_VECT);
+            const radius = tile * 0.21;
+            MooseMan.draw(ctx, px, py, radius, state.player.dir, inv, anim);
+        }
+    }
+
+    // Draw progress bar and recent answers panel
+    // (You can add your drawLevelBar and drawRecentAnswersPanel here if you have them)
+}
+
+// --- Tick (main update loop) ---
+function tick(ts) {
+    if (state.running && !state.paused) {
+        updateEnemies(state.enemies, {
+            gridW: state.gridW,
+            gridH: state.gridH,
+            player: state.player,
+            stepMs: ENEMY_STEP_MS,
+            freezeUntil: state.freezeUntil,
+            passable,
+            clampTo: (gx, gy) => ({
+                gx: clamp(gx, 0, state.gridW - 1),
+                gy: clamp(gy, 0, state.gridH - 1)
+            })
         });
     }
+    draw();
+    rafId = requestAnimationFrame(tick);
 }
-function enemySyncHooks() {
-    notifyBoardHooksForEnemies({
-        isCellEmpty: (gx, gy) => {
-            const t = getTileAt(gx, gy);
-            return !t || t.eaten;
-        },
-        placeWordAt: (gx, gy) => {
-            const total = state.gridW * state.gridH;
-            const currentCorrect = state.items.filter(t => t.correct && !t.eaten).length;
-            const targetCorrect = Math.ceil(total * 0.4);
-            let bias = clamp((targetCorrect - currentCorrect) / targetCorrect, -0.35, 0.85);
-            const roll = Math.random();
-            const sample = state.category.generate(1, 1, 1)[0];
-            const isCorrect = roll < 0.45 + bias;
-            const idx = state.items.findIndex(t => t.gx === gx && t.gy === gy);
-            const obj = { label: sample.label, value: sample.value, correct: isCorrect, eaten: false, gx, gy };
-            if (idx >= 0) state.items[idx] = obj; else state.items.push(obj);
-            state.correctRemaining = state.items.filter(t => t.correct && !t.eaten).length;
-            if (state.mode !== MODES.MATH && state.mode !== MODES.SINGLE) {
-                state.needed = Math.max(state.progress, state.items.filter(t => t.correct).length);
-            }
-        },
-        onPlayerCaught: (catcherIndex) => onPlayerCaught(catcherIndex)
-    });
-}
-
-// Input
-document.addEventListener('keydown', (e) => {
-    const k = e.key.toLowerCase();
-    if (k === 'escape') {
-        if (!helpEl?.classList.contains('hide')) { hide(helpEl); return; }
-        togglePause(); return;
-    }
-    if (!state.running || state.paused) return;
-    if (now() < state.teleportingUntil) return;
-    if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'w', 'a', 's', 'd'].includes(k)) {
-        e.preventDefault();
-        if (e.repeat) return;
-        handlePlayerStep(k);
-        return;
-    }
-    if (k === ' ' || k === 'enter') { e.preventDefault(); tryEat(); }
-});
-function handlePlayerStep(k) {
-    if (!state.player || state.player.moving) return;
-    let dir = null;
-    if (k === 'arrowup' || k === 'w') dir = DIRS.UP;
-    else if (k === 'arrowright' || k === 'd') dir = DIRS.RIGHT;
-    else if (k === 'arrowdown' || k === 's') dir = DIRS.DOWN;
-    else if (k === 'arrowleft' || k === 'a') dir = DIRS.LEFT;
-    if (dir == null) return;
-    const [dx, dy] = DIR_VECT[dir];
-    const nx = state.player.gx + dx;
-    const ny = state.player.gy + dy;
-    if (!passable(nx, ny)) return;
-    const fromX = state.player.x, fromY = state.player.y;
-    state.player.gx = nx; state.player.gy = ny;
-    state.player.dir = dir;
-    state.player.moving = { fromX, fromY, toX: nx, toY: ny, start: now(), dur: 180 };
-}
-function getTileAt(gx, gy) { return state.items.find(t => t.gx === gx && t.gy === gy); }
-function passable(gx, gy) { return gx >= 0 && gy >= 0 && gx < state.gridW && gy < state.gridH; }
-
-// Eating & scoring
-function pushRecent(text, correct) {
-    state.recentAnswers.unshift({ text, correct, categoryName: state.category.name, level: state.level, time: Date.now() });
-    if (state.recentAnswers.length > 10) state.recentAnswers.length = 10;
-    renderRecentAnswersDOM();
-}
-function renderRecentAnswersDOM() {
-    if (!recentAnswersEl) return;
-    const items = [];
-    let lastCat = null;
-    for (const r of state.recentAnswers.slice().reverse()) {
-        if (r.categoryName !== lastCat) {
-            items.push(`<div class="ans head">${escapeHtml(r.categoryName)} (Lvl ${r.level})</div>`);
-            lastCat = r.categoryName;
-        }
-        items.push(`<div class="ans ${r.correct ? 'good' : 'bad'}">${escapeHtml(r.text)}</div>`);
-    }
-    recentAnswersEl.innerHTML = items.join('');
-}
-function tryEat() {
-    const tile = getTileAt(state.player.gx, state.player.gy);
-    if (!tile || tile.eaten) return;
-    tile.eaten = true;
-    if (tile.correct) {
-        state.score += 100;
-        pushRecent(tile.label, true);
-        state.progress = Math.min(state.needed, state.progress + 1);
-        if (state.mode !== MODES.MATH && state.mode !== MODES.SINGLE) {
-            state.correctRemaining = Math.max(0, state.correctRemaining - 1);
-        }
-        spawnStarBurstCell(tile.gx, tile.gy);
-        showToast('Yum! +100');
-        if (state.progress >= state.needed) setTimeout(levelCleared, 350);
-    } else {
-        state.score = Math.max(0, state.score - 50);
-        pushRecent(tile.label, false);
-        if (state.mode === MODES.MATH || state.mode === MODES.SINGLE) {
-            state.progress = Math.max(0, state.progress - 1);
-        }
-        spawnDisappointAt(state.player.gx, state.player.gy);
-        showToast('Oops! −50');
-    }
-    updateHUD();
-}
-
-// Level flow
-function pickStartingCategory() {
-    if (state.mode === MODES.SINGLE) {
-        const id = categorySelect?.value;
-        state.category = id ? getCategoryById(id) : pickRandomWordCategory(null) || pickRandomCategory(null);
-    } else if (state.mode === MODES.MATH) {
-        state.category = pickRandomMathCategory(null);
-    } else if (state.mode === MODES.WORDS) {
-        state.category = pickRandomWordCategory(null);
-    } else {
-        state.category = pickRandomCategory(null);
-    }
-}
-function updateHUD() {
-    if (levelSpan) setText(levelSpan, String(state.level));
-    if (scoreSpan) setText(scoreSpan, String(state.score));
-    if (livesSpan) setText(livesSpan, String(state.lives));
-    if (categoryBadge) {
-        const strong = categoryBadge.querySelector('strong');
-        if (strong) strong.textContent = state.category?.name || '–';
-    }
-}
-function showToast(text, ms = 1200) {
-    if (!toastEl) return;
-    toastEl.textContent = text;
-    show(toastEl);
-    setTimeout(() => hide(toastEl), ms);
-}
-
-// --- Effects (starbursts, disappoint, explosions) ---
-let starBursts = [];
-function spawnStarBurstCell(gx, gy) {
-    const N = 12; const parts = [];
-    for (let i = 0; i < N; i++) parts.push({ ang: rand(0, Math.PI * 2), spd: rand(0.6, 1.05) });
-    starBursts.push({ gx, gy, born: now(), duration: 700, parts });
-}
-let sfx = [];
-function spawnDisappointAt(gx, gy) {
-    sfx.push({ type: 'disappoint', gx, gy, born: now(), duration: 800 });
-}
-let explosions = [];
-function spawnExplosionAt(gx, gy) {
-    const N = 16; const parts = [];
-    for (let i = 0; i < N; i++) parts.push({ ang: rand(0, Math.PI * 2), spd: rand(0.6, 1.2) });
-    explosions.push({ gx, gy, born: now(), duration: 600, parts });
-}
-
-// --- Main draw function, update loop, and menu/buttons are already in your previous code ---
 
 // --- Game over logic ---
 function gameOver() {
@@ -501,8 +405,6 @@ function showLivesPopup(lives, ms = 1200) {
         livesPopup.classList.add('hide');
     }, ms);
 }
-
-// --- The rest of your code (draw, tick, menu/buttons, etc.) is already present above ---
 
 // --- Boot ---
 function onReady() {
