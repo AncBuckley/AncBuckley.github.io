@@ -456,6 +456,24 @@ function updateHUD() {
     setText(categoryBadge, state.category ? state.category.name : '');
 }
 
+function handlePlayerMove(dir) {
+    if (!state.running || state.paused || !state.player || state.player.moving) return;
+    const vect = DIR_VECT[dir];
+    const nx = state.player.gx + vect[0];
+    const ny = state.player.gy + vect[1];
+    if (!passable(nx, ny)) return;
+    state.player.moving = {
+        fromX: state.player.gx,
+        fromY: state.player.gy,
+        toX: nx,
+        toY: ny,
+        start: now(),
+        dur: 120
+    };
+    state.player.gx = nx;
+    state.player.gy = ny;
+    state.player.dir = dir;
+}
 
 function startGame() {
     state.running = true;
@@ -530,6 +548,19 @@ function onReady() {
 }
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', onReady);
 else onReady();
+
+window.addEventListener('keydown', (e) => {
+    if (!state.running || state.paused) return;
+    let dir = null;
+    if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') dir = DIRS.UP;
+    else if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') dir = DIRS.DOWN;
+    else if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') dir = DIRS.LEFT;
+    else if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') dir = DIRS.RIGHT;
+    if (dir !== null) {
+        e.preventDefault();
+        handlePlayerMove(dir);
+    }
+});
 
 window.CategoryAPI = {
     get CATEGORIES() { return CATEGORIES; },
