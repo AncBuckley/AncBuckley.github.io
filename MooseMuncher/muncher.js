@@ -105,6 +105,25 @@ function setCategoryDropdownVisible(visible) {
     label.style.display = visible ? '' : 'none';
 }
 
+function tick(ts) {
+    if (state.running && !state.paused) {
+        updateEnemies(state.enemies, {
+            gridW: state.gridW,
+            gridH: state.gridH,
+            player: state.player,
+            stepMs: ENEMY_STEP_MS,
+            freezeUntil: state.freezeUntil,
+            passable,
+            clampTo: (gx, gy) => ({
+                gx: clamp(gx, 0, state.gridW - 1),
+                gy: clamp(gy, 0, state.gridH - 1)
+            })
+        });
+    }
+    // You should also call your draw function here
+    draw();
+    rafId = requestAnimationFrame(tick);
+}
 
 function isPrime(n) {
     if (n < 2) return false;
