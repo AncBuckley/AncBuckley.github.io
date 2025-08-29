@@ -433,6 +433,10 @@ function buildBoard() {
     state.progress = 0;
 }
 
+function spawnPlayer() {
+    state.player = { gx: 0, gy: 0, x: 0, y: 0, dir: DIRS.RIGHT, moving: null };
+}
+
 function startGame() {
     state.running = true;
     state.paused = false;
