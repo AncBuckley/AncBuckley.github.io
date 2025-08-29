@@ -396,6 +396,19 @@ function gameOver() {
     if (finalStats) finalStats.textContent = `You scored ${state.score}. Level ${state.level}.`;
 }
 
+function pickStartingCategory() {
+    if (state.mode === MODES.SINGLE) {
+        const id = categorySelect?.value;
+        state.category = id ? getCategoryById(id) : pickRandomWordCategory(null) || pickRandomCategory(null);
+    } else if (state.mode === MODES.MATH) {
+        state.category = pickRandomMathCategory(null);
+    } else if (state.mode === MODES.WORDS) {
+        state.category = pickRandomWordCategory(null);
+    } else {
+        state.category = pickRandomCategory(null);
+    }
+}
+
 function startGame() {
     state.running = true;
     state.paused = false;
