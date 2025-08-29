@@ -33,6 +33,7 @@ const toastEl = document.getElementById('toast');
 const categorySelect = document.getElementById('categorySelect');
 const modeSelect = document.getElementById('modeSelect');
 const recentAnswersEl = document.getElementById('recentAnswers'); // optional DOM list
+const livesPopup = document.getElementById('livesPopup');
 // #endregion
 
 // #region Helpers
@@ -512,6 +513,7 @@ function levelCleared() {
 function loseLife() {
     if (now() < state.invulnUntil) return;
     state.lives -= 1;
+    showLivesPopup(state.lives); // <-- Show popup here
     state.invulnUntil = now() + 1200;
     if (state.lives <= 0) { gameOver(); return; }
     teleportPlayerTo(0, 0);
@@ -536,6 +538,14 @@ function updateHUD() {
         const strong = categoryBadge.querySelector('strong');
         if (strong) strong.textContent = state.category?.name || '–';
     }
+}
+function showLivesPopup(lives, ms = 1200) {
+    if (!livesPopup) return;
+    livesPopup.textContent = `Lives: ${lives}`;
+    livesPopup.classList.remove('hide');
+    setTimeout(() => {
+        livesPopup.classList.add('hide');
+    }, ms);
 }
 
 function showToast(text, ms = 1200) {
