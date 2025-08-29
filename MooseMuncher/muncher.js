@@ -441,12 +441,10 @@ function tryEat() {
         spawnStarBurstCell(tile.gx, tile.gy);
         showToast('Yum! +100');
 
-        const shouldAdvance =
-            (state.mode === MODES.MATH || state.mode === MODES.SINGLE)
-                ? state.progress >= state.needed
-                : state.correctRemaining <= 0;
-
-        if (shouldAdvance) setTimeout(levelCleared, 350);
+        // Unified level progression for all modes
+        if (state.progress >= state.needed) {
+            setTimeout(levelCleared, 350);
+        }
     } else {
         state.score = Math.max(0, state.score - 50);
         pushRecent(tile.label, false);
@@ -461,6 +459,7 @@ function tryEat() {
     }
 
     updateHUD();
+
 }
 
 // #endregion
