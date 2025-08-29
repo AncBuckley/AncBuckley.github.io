@@ -446,11 +446,6 @@ function renderRecentAnswersDOM() {
     recentAnswersEl.innerHTML = items.join('');
 }
 
-function passable(gx, gy) {
-    return gx >= 0 && gy >= 0 && gx < state.gridW && gy < state.gridH;
-}
-
-
 // --- Utility for lives popup ---
 function showLivesPopup(lives, ms = 1200) {
     if (!livesPopup) return;
