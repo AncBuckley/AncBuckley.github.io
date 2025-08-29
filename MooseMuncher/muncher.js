@@ -366,6 +366,45 @@ function maybeTriggerCategoryTransition(rect, padX, padY, tile, barArea) {
     }
 }
 
+// --- All function definitions above this line ---
+
+// --- Level flow ---
+function startGame() {
+    state.running = true;
+    state.paused = false;
+    state.level = 1;
+    state.score = 0;
+    state.lives = 3;
+    state.invulnUntil = 0;
+    state.recentAnswers = [];
+    renderRecentAnswersDOM();
+    pickStartingCategory();
+    buildBoard();
+    spawnPlayer();
+    spawnEnemies();
+    enemySyncHooks();
+    hide(menuEl);
+    updateHUD();
+}
+function levelCleared() {
+    state.score += 500;
+    state.level += 1;
+    const prev = state.category?.id || null;
+    if (state.mode === MODES.MATH) {
+        state.category = pickRandomMathCategory(prev);
+    } else if (state.mode === MODES.WORDS) {
+        state.category = pickRandomWordCategory(prev);
+    } else if (state.mode === MODES.ANY) {
+        state.category = pickRandomCategory(prev);
+    }
+    buildBoard();
+    spawnPlayer();
+    spawnEnemies();
+    enemySyncHooks();
+    state.invulnUntil = now() + 1000;
+    updateHUD();
+}
+
 // --- Patch levelCleared and startGame to trigger transition ---
 const origStartGame = startGame;
 startGame = function () {
@@ -445,6 +484,10 @@ function spawnExplosionAt(gx, gy) {
     for (let i = 0; i < N; i++) parts.push({ ang: rand(0, Math.PI * 2), spd: rand(0.6, 1.2) });
     explosions.push({ gx, gy, born: now(), duration: 600, parts });
 }
+
+// --- The rest of your unchanged code (input, board setup, etc.) ---
+
+// ... (keep your other functions and logic here, unchanged) ...
 
 // --- Update loop ---
 let rafId = 0;
