@@ -433,22 +433,20 @@ function tryEat() {
         state.score += 100;
         pushRecent(tile.label, true);
 
-        if (state.mode === MODES.MATH || state.mode === MODES.SINGLE) {
-            state.progress = Math.min(state.needed, state.progress + 1);
-        } else {
-            // NEW: fill the bar in WORDS/ANY too
-            state.progress = Math.min(state.needed, state.progress + 1);
+        state.progress = Math.min(state.needed, state.progress + 1);
+        if (state.mode !== MODES.MATH && state.mode !== MODES.SINGLE) {
             state.correctRemaining = Math.max(0, state.correctRemaining - 1);
         }
 
         spawnStarBurstCell(tile.gx, tile.gy);
         showToast('Yum! +100');
 
-        if (state.mode === MODES.MATH || state.mode === MODES.SINGLE) {
-            if (state.progress >= state.needed) { setTimeout(levelCleared, 350); }
-        } else {
-            if (state.correctRemaining <= 0) { setTimeout(levelCleared, 350); }
-        }
+        const shouldAdvance =
+            (state.mode === MODES.MATH || state.mode === MODES.SINGLE)
+                ? state.progress >= state.needed
+                : state.correctRemaining <= 0;
+
+        if (shouldAdvance) setTimeout(levelCleared, 350);
     } else {
         state.score = Math.max(0, state.score - 50);
         pushRecent(tile.label, false);
@@ -464,6 +462,7 @@ function tryEat() {
 
     updateHUD();
 }
+
 // #endregion
 
 // #region Level flow
