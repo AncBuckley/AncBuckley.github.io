@@ -97,6 +97,14 @@ export const NUMERIC_CATEGORIES = [
     numericCategory('Prime Numbers', n => isPrime(n), { min: 2, max: 199 }),
     numericCategory('Perfect Squares', n => Number.isInteger(Math.sqrt(n)), { min: 1, max: 196 })
 ];
+let rafId = 0;
+
+function setCategoryDropdownVisible(visible) {
+    if (!categorySelect) return;
+    const label = categorySelect.closest('label') || categorySelect;
+    label.style.display = visible ? '' : 'none';
+}
+
 
 function isPrime(n) {
     if (n < 2) return false;
