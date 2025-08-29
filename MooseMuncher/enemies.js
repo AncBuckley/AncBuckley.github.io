@@ -6,6 +6,9 @@
 //   notifyBoardHooksForEnemies(hooks)  // { isCellEmpty(gx,gy), placeWordAt(gx,gy), onPlayerCaught(index) }
 //   moveEnemyToBottomRight(enemies, index, gridW, gridH)
 
+import { drawOwl } from './Owl.js';
+import { drawSlime } from './Slime.js';
+
 const now = () => performance.now();
 const randi = (a,b)=> (Math.random()*(b-a)+a)|0;
 const rand  = (a,b)=> Math.random()*(b-a)+a;
@@ -326,4 +329,11 @@ function drawOwl(ctx, cx, cy, tile, frozen){
   ctx.stroke();
 
   ctx.restore();
+}
+export function drawEnemy(ctx, enemy, x, y, tile, frozen) {
+    if (enemy.kind === 'slime') {
+        drawSlime(ctx, x, y, tile, frozen);
+    } else {
+        drawOwl(ctx, x, y, tile, frozen);
+    }
 }
