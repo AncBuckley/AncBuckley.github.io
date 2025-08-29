@@ -482,6 +482,26 @@ function resizeCanvas() {
 }
 window.addEventListener('resize', resizeCanvas);
 
+let starBursts = [];
+
+function spawnStarBurstCell(gx, gy) {
+    const N = 12; const parts = [];
+    for (let i = 0; i < N; i++) parts.push({ ang: rand(0, Math.PI * 2), spd: rand(0.6, 1.05) });
+    starBursts.push({ gx, gy, born: now(), duration: 700, parts });
+}
+
+let sfx = [];
+function spawnDisappointAt(gx, gy) {
+    sfx.push({ type: 'disappoint', gx, gy, born: now(), duration: 800 });
+}
+
+let explosions = [];
+function spawnExplosionAt(gx, gy) {
+    const N = 16; const parts = [];
+    for (let i = 0; i < N; i++) parts.push({ ang: rand(0, Math.PI * 2), spd: rand(0.6, 1.2) });
+    explosions.push({ gx, gy, born: now(), duration: 600, parts });
+}
+
 function draw() {
     // Calculate layout
     const rect = canvas.getBoundingClientRect();
