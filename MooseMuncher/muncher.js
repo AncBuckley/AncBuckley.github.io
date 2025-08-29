@@ -502,6 +502,101 @@ function spawnExplosionAt(gx, gy) {
     explosions.push({ gx, gy, born: now(), duration: 600, parts });
 }
 
+// --- Progress bar and recent answers panel (always visible on right) ---
+
+function drawLevelBar(rect, barArea) {
+    const x0 = rect.width - barArea;
+    const y0 = 12;
+    const barW = Math.max(20, Math.floor(barArea * 0.5));
+    const x = x0 + (barArea - barW) / 2;
+    const h = rect.height - y0 * 2;
+
+    ctx.save();
+    ctx.fillStyle = '#0a1437';
+    ctx.strokeStyle = '#20306b';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    roundRect(ctx, x, y0, barW, h, 10);
+    ctx.fill();
+    ctx.stroke();
+
+    const p = clamp(state.progress / Math.max(1, state.needed), 0, 1);
+    const fh = Math.floor((h - 4) * p);
+    const fy = y0 + h - 2 - fh;
+    const grad = ctx.createLinearGradient(x, fy, x + barW, fy + fh);
+    grad.addColorStop(0, '#46d4ff');
+    grad.addColorStop(1, '#9cff6d');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    roundRect(ctx, x + 2, fy, barW - 4, fh, 8);
+    ctx.fill();
+
+    ctx.fillStyle = '#cfe2ff';
+    ctx.font = '700 14px system-ui, -apple-system';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(`${state.progress}/${state.needed}`, x + barW / 2, y0 + 18);
+
+    ctx.restore();
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+    const rr = Math.min(r, w / 2, h / 2);
+    ctx.moveTo(x + rr, y);
+    ctx.arcTo(x + w, y, x + w, y + h, rr);
+    ctx.arcTo(x + w, y + h, x, y + h, rr);
+    ctx.arcTo(x, y + h, x, y, rr);
+    ctx.arcTo(x, y, x + w, y, rr);
+}
+
+function drawRecentAnswersPanel(rect, padX, padY, tile, barArea) {
+    const list = state.recentAnswers;
+    if (!list || list.length === 0) return;
+
+    const areaX = rect.width - barArea;
+    const panelW = Math.max(120, Math.floor(barArea * 0.7));
+    const panelX = areaX + Math.floor((barArea - panelW) / 2);
+    const panelY = 60;
+    const panelH = rect.height - 120;
+    const rowH = Math.max(18, Math.floor(tile * 0.22));
+    const maxRows = Math.floor(panelH / rowH);
+
+    const start = Math.max(0, list.length - maxRows);
+    const visible = list.slice(start).reverse();
+
+    ctx.save();
+    ctx.globalAlpha = 0.92;
+    ctx.fillStyle = '#0c132b';
+    ctx.strokeStyle = '#273267';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    roundRect(ctx, panelX, panelY, panelW, maxRows * rowH + 8, 10);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = '#cfe2ff';
+    ctx.font = 'bold 13px system-ui, -apple-system';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.fillText('Recent Picks', panelX + panelW / 2, panelY + 4);
+
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.font = '12px system-ui, -apple-system';
+
+    let y = panelY + 22 + rowH / 2;
+    for (const it of visible) {
+        ctx.fillStyle = it.correct ? '#7CFF7E' : '#FF6D8A';
+        const txt = it.text.length > 18 ? it.text.slice(0, 17) + '…' : it.text;
+        ctx.fillText(txt, panelX + 10, y);
+        y += rowH;
+    }
+
+    ctx.restore();
+}
+
+// --- Main draw function ---
 function draw() {
     const rect = canvas.getBoundingClientRect();
 
@@ -555,111 +650,10 @@ function draw() {
         MooseMan.draw(ctx, px, py, radius, state.player.dir, inv, anim);
     }
 
-    function drawLevelBar(rect, barArea) {
-        const x0 = rect.width - barArea;
-        const y0 = 12;
-        const barW = Math.max(20, Math.floor(barArea * 0.5));
-        const x = x0 + (barArea - barW) / 2;
-        const h = rect.height - y0 * 2;
-
-        ctx.save();
-        // Frame
-        ctx.fillStyle = '#0a1437';
-        ctx.strokeStyle = '#20306b';
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        roundRect(ctx, x, y0, barW, h, 10);
-        ctx.fill();
-        ctx.stroke();
-
-        // Fill
-        const p = clamp(state.progress / Math.max(1, state.needed), 0, 1);
-        const fh = Math.floor((h - 4) * p);
-        const fy = y0 + h - 2 - fh;
-        const grad = ctx.createLinearGradient(x, fy, x + barW, fy + fh);
-        grad.addColorStop(0, '#46d4ff');
-        grad.addColorStop(1, '#9cff6d');
-        ctx.fillStyle = grad;
-        ctx.beginPath();
-        roundRect(ctx, x + 2, fy, barW - 4, fh, 8);
-        ctx.fill();
-
-        // Text
-        ctx.fillStyle = '#cfe2ff';
-        ctx.font = '700 14px system-ui, -apple-system';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(`${state.progress}/${state.needed}`, x + barW / 2, y0 + 18);
-
-        ctx.restore();
-    }
-
-    function roundRect(ctx, x, y, w, h, r) {
-        const rr = Math.min(r, w / 2, h / 2);
-        ctx.moveTo(x + rr, y);
-        ctx.arcTo(x + w, y, x + w, y + h, rr);
-        ctx.arcTo(x + w, y + h, x, y + h, rr);
-        ctx.arcTo(x, y + h, x, y, rr);
-        ctx.arcTo(x, y, x + w, y, rr);
-    }
-
-    function drawRecentAnswersPanel(rect, padX, padY, tile, barArea) {
-        const list = state.recentAnswers;
-        if (!list || list.length === 0) return;
-
-        const areaX = rect.width - barArea;
-        const panelW = Math.max(120, Math.floor(barArea * 0.7));
-        const panelX = areaX + Math.floor((barArea - panelW) / 2);
-        const panelY = 60; // below the top margin and above the progress bar
-        const panelH = rect.height - 120; // leave space for bar and some margin
-        const rowH = Math.max(18, Math.floor(tile * 0.22));
-        const maxRows = Math.floor(panelH / rowH);
-
-        // Scroll so most recent is always on top
-        const start = Math.max(0, list.length - maxRows);
-        const visible = list.slice(start).reverse();
-
-        ctx.save();
-        // Panel background
-        ctx.globalAlpha = 0.92;
-        ctx.fillStyle = '#0c132b';
-        ctx.strokeStyle = '#273267';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        roundRect(ctx, panelX, panelY, panelW, maxRows * rowH + 8, 10);
-        ctx.fill();
-        ctx.stroke();
-
-        // Header
-        ctx.globalAlpha = 1;
-        ctx.fillStyle = '#cfe2ff';
-        ctx.font = 'bold 13px system-ui, -apple-system';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'top';
-        ctx.fillText('Recent Picks', panelX + panelW / 2, panelY + 4);
-
-        // Items (most recent at top)
-        ctx.textAlign = 'left';
-        ctx.textBaseline = 'middle';
-        ctx.font = '12px system-ui, -apple-system';
-
-        let y = panelY + 22 + rowH / 2;
-        for (const it of visible) {
-            ctx.fillStyle = it.correct ? '#7CFF7E' : '#FF6D8A';
-            const txt = it.text.length > 18 ? it.text.slice(0, 17) + '…' : it.text;
-            ctx.fillText(txt, panelX + 10, y);
-            y += rowH;
-        }
-
-        ctx.restore();
-    }
-
+    // Draw progress bar and recent answers panel
+    drawLevelBar(rect, barArea);
+    drawRecentAnswersPanel(rect, padX, padY, tile, barArea);
 }
-
-
-// Effects (starbursts, disappoint, explosions) - unchanged, keep your existing implementations
-
-// Render (unchanged, keep your existing draw, drawLevelBar, drawRecentAnswersPanel, etc.)
 
 // Update loop
 let rafId = 0;
