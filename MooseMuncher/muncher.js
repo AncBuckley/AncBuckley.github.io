@@ -449,6 +449,13 @@ function spawnEnemies() {
 function spawnPlayer() {
     state.player = { gx: 0, gy: 0, x: 0, y: 0, dir: DIRS.RIGHT, moving: null };
 }
+function updateHUD() {
+    setText(levelSpan, state.level);
+    setText(scoreSpan, state.score);
+    setText(livesSpan, state.lives);
+    setText(categoryBadge, state.category ? state.category.name : '');
+}
+
 
 function startGame() {
     state.running = true;
