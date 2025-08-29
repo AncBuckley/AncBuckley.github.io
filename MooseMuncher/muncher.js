@@ -233,6 +233,17 @@ function drawRecentAnswersPanel(rect, padX, padY, tile, barArea, gridH) {
     ctx.restore();
 }
 
+// --- Resize/layout ---
+function resizeCanvas() {
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = Math.floor(rect.width * dpr);
+    canvas.height = Math.floor(rect.height * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    state.tile = Math.floor(Math.min(rect.width / state.gridW, rect.height / state.gridH));
+}
+window.addEventListener('resize', resizeCanvas);
+
 // --- Main draw function ---
 function draw() {
     const rect = canvas.getBoundingClientRect();
