@@ -396,6 +396,38 @@ function gameOver() {
     if (finalStats) finalStats.textContent = `You scored ${state.score}. Level ${state.level}.`;
 }
 
+function startGame() {
+    state.running = true;
+    state.paused = false;
+    state.level = 1;
+    state.score = 0;
+    state.lives = 3;
+    state.invulnUntil = 0;
+    state.recentAnswers = [];
+    renderRecentAnswersDOM && renderRecentAnswersDOM();
+    pickStartingCategory();
+    buildBoard();
+    spawnPlayer();
+    spawnEnemies();
+    enemySyncHooks && enemySyncHooks();
+    hide(menuEl);
+    updateHUD && updateHUD();
+}
+
+if (startBtn) {
+    startBtn.addEventListener('click', () => {
+        const mVal = (modeSelect?.value || 'any').toLowerCase();
+        let mode = MODES.ANY;
+        if (mVal.includes('single')) mode = MODES.SINGLE;
+        else if (mVal.includes('math')) mode = MODES.MATH;
+        else if (mVal.includes('word')) mode = MODES.WORDS;
+        else mode = MODES.ANY;
+        state.mode = mode;
+        setCategoryDropdownVisible(mode === MODES.SINGLE);
+        startGame();
+    });
+}
+
 // --- Utility for lives popup ---
 function showLivesPopup(lives, ms = 1200) {
     if (!livesPopup) return;
