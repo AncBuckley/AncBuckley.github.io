@@ -482,6 +482,61 @@ function resizeCanvas() {
 }
 window.addEventListener('resize', resizeCanvas);
 
+function draw() {
+    // Calculate layout
+    const rect = canvas.getBoundingClientRect();
+    const barArea = Math.max(110, Math.floor(rect.width * 0.10));
+    const tile = Math.min((rect.width - barArea) / state.gridW, rect.height / state.gridH);
+    const padX = Math.floor((rect.width - barArea - state.gridW * tile) / 2);
+    const padY = Math.floor((rect.height - state.gridH * tile) / 2);
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Animate player movement
+    if (state.player && state.player.moving) {
+        const m = state.player.moving;
+        const t = (now() - m.start) / m.dur;
+        if (t >= 1) {
+            state.player.x = m.toX; state.player.y = m.toY; state.player.moving = null;
+        } else {
+            const s = easeOutCubic(clamp(t, 0, 1));
+            state.player.x = lerp(m.fromX, m.toX, s);
+            state.player.y = lerp(m.fromY, m.toY, s);
+        }
+    }
+
+    // Draw tiles
+    for (const t of state.items) {
+        const x = padX + t.gx * tile, y = padY + t.gy * tile;
+        ctx.beginPath();
+        ctx.rect(x + 2, y + 2, tile - 4, tile - 4);
+        ctx.fillStyle = t.eaten ? '#222' : '#444';
+        ctx.fill();
+        if (!t.eaten) {
+            ctx.fillStyle = '#fff';
+            ctx.font = `${Math.floor(tile * 0.25)}px sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(t.label, x + tile / 2, y + tile / 2);
+        }
+    }
+
+    // Draw enemies
+    drawEnemies(ctx, state.enemies, { padX, padY, tile });
+
+    // Draw player
+    if (state.player) {
+        const px = padX + state.player.x * tile + tile / 2;
+        const py = padY + state.player.y * tile + tile / 2;
+        const inv = now() < state.invulnUntil;
+        const anim = MooseMan.computeAnim(state.player, DIR_VECT);
+        const radius = tile * 0.21;
+        MooseMan.draw(ctx, px, py, radius, state.player.dir, inv, anim);
+    }
+
+    // Add your effects, overlays, and HUD drawing here as needed
+}
+
 // Effects (starbursts, disappoint, explosions) - unchanged, keep your existing implementations
 
 // Render (unchanged, keep your existing draw, drawLevelBar, drawRecentAnswersPanel, etc.)
