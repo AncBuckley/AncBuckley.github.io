@@ -363,8 +363,72 @@ function draw() {
         }
     }
 
-    // Draw progress bar and recent answers panel
-    // (You can add your drawLevelBar and drawRecentAnswersPanel here if you have them)
+    // --- Progress bar ---
+    drawLevelBar(ctx, rect, barArea, tile);
+
+    // --- Recent answers panel ---
+    drawRecentAnswersPanel(ctx, rect, barArea, tile);
+}
+
+// --- Progress bar ---
+function drawLevelBar(ctx, rect, barArea, tile) {
+    const x = rect.width - barArea + 16;
+    const y = 32;
+    const w = barArea - 32;
+    const h = 32;
+    ctx.save();
+    ctx.globalAlpha = 0.95;
+    ctx.fillStyle = '#222';
+    ctx.fillRect(x, y, w, h);
+    ctx.strokeStyle = '#a5b4fc';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x, y, w, h);
+
+    // Progress
+    const pct = state.needed ? clamp(state.progress / state.needed, 0, 1) : 0;
+    ctx.fillStyle = '#fbbf24';
+    ctx.fillRect(x, y, w * pct, h);
+
+    ctx.font = `bold ${Math.floor(h * 0.7)}px system-ui, -apple-system`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#fff';
+    ctx.fillText(`${state.progress} / ${state.needed}`, x + w / 2, y + h / 2);
+    ctx.restore();
+}
+
+// --- Recent answers panel ---
+function drawRecentAnswersPanel(ctx, rect, barArea, tile) {
+    const x = rect.width - barArea + 16;
+    const y = 80;
+    const w = barArea - 32;
+    const h = rect.height - y - 24;
+    ctx.save();
+    ctx.globalAlpha = 0.92;
+    ctx.fillStyle = '#18181b';
+    ctx.fillRect(x, y, w, h);
+    ctx.strokeStyle = '#a5b4fc';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x, y, w, h);
+
+    // Draw recent answers
+    ctx.font = `bold ${Math.floor(tile * 0.22)}px system-ui, -apple-system`;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    let yy = y + 8;
+    let lastCat = null;
+    for (const r of state.recentAnswers.slice(-12).reverse()) {
+        if (r.categoryName !== lastCat) {
+            ctx.fillStyle = '#818cf8';
+            ctx.fillText(`${r.categoryName} (Lvl ${r.level})`, x + 8, yy);
+            yy += tile * 0.22 + 2;
+            lastCat = r.categoryName;
+        }
+        ctx.fillStyle = r.correct ? '#bef264' : '#f87171';
+        ctx.fillText(r.text, x + 16, yy);
+        yy += tile * 0.22 + 2;
+    }
+    ctx.restore();
 }
 
 // --- Tick (main update loop) ---
@@ -382,9 +446,84 @@ function tick(ts) {
                 gy: clamp(gy, 0, state.gridH - 1)
             })
         });
+        checkPlayerEnemyCollision();
     }
     draw();
     rafId = requestAnimationFrame(tick);
+}
+
+// --- Player eats tile ---
+function tryEatTile() {
+    if (!state.running || state.paused || !state.player || state.player.moving) return;
+    const { gx, gy } = state.player;
+    const tile = state.items.find(t => t.gx === gx && t.gy === gy && !t.eaten);
+    if (!tile) return;
+    tile.eaten = true;
+    const correct = !!tile.correct;
+    state.recentAnswers.push({
+        text: tile.label,
+        correct,
+        categoryName: state.category ? state.category.name : '',
+        level: state.level
+    });
+    if (correct) {
+        state.score += 10;
+        state.progress += 1;
+        state.correctRemaining -= 1;
+        if (state.progress >= state.needed) {
+            // Level up
+            state.level += 1;
+            state.progress = 0;
+            state.needed = neededForLevel(state.level);
+            pickStartingCategory();
+            buildBoard();
+            spawnPlayer();
+            spawnEnemies();
+            showLivesPopup(state.lives, 800);
+        }
+    } else {
+        state.lives -= 1;
+        showLivesPopup(state.lives, 1200);
+        if (state.lives <= 0) {
+            gameOver();
+        }
+    }
+    updateHUD();
+    renderRecentAnswersDOM();
+}
+
+// --- Player/enemy collision ---
+function checkPlayerEnemyCollision() {
+    if (!state.player || !state.enemies.length || state.invulnUntil > now()) return;
+    for (const enemy of state.enemies) {
+        if (
+            Math.round(state.player.x) === Math.round(enemy.x) &&
+            Math.round(state.player.y) === Math.round(enemy.y)
+        ) {
+            // Player caught!
+            state.lives -= 1;
+            state.caughtAnim = {
+                start: now(),
+                duration: 900,
+                player: { ...state.player },
+                enemy: { ...enemy },
+                livesLeft: state.lives
+            };
+            state.invulnUntil = now() + 1500;
+            setTimeout(() => {
+                state.caughtAnim = null;
+                if (state.lives <= 0) {
+                    gameOver();
+                } else {
+                    spawnPlayer();
+                    updateHUD();
+                }
+            }, 900);
+            showLivesPopup(state.lives, 1200);
+            updateHUD();
+            break;
+        }
+    }
 }
 
 // --- Game over logic ---
@@ -549,6 +688,7 @@ function onReady() {
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', onReady);
 else onReady();
 
+// --- Controls ---
 window.addEventListener('keydown', (e) => {
     if (!state.running || state.paused) return;
     let dir = null;
@@ -559,6 +699,11 @@ window.addEventListener('keydown', (e) => {
     if (dir !== null) {
         e.preventDefault();
         handlePlayerMove(dir);
+        return;
+    }
+    if (e.key === ' ' || e.key === 'Enter') {
+        e.preventDefault();
+        tryEatTile();
     }
 });
 
