@@ -463,7 +463,6 @@ function startGame() {
     buildBoard();
     spawnPlayer();
     spawnEnemies();
-    enemySyncHooks && enemySyncHooks();
     hide(menuEl);
     updateHUD && updateHUD();
 }
