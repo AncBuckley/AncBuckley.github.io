@@ -36,6 +36,18 @@ const recentAnswersEl = document.getElementById('recentAnswers'); // optional DO
 const livesPopup = document.getElementById('livesPopup');
 // #endregion
 
+// #region Enemy colors
+const TROGGLE_COLORS = [
+    '#3ff1c8', // teal (slime)
+    '#a78bfa', // purple (owl)
+    '#ffb347', // orange
+    '#ff6d8a', // pink
+    '#46d4ff', // blue
+    '#9cff6d', // green
+    '#fbbf24', // yellow
+];
+// #endregion
+
 // #region Helpers
 const rand = (a, b) => Math.random() * (b - a) + a;
 const randi = (a, b) => (Math.random() * (b - a) + a) | 0;
