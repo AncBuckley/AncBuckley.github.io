@@ -73,6 +73,32 @@ body{
 }
 .hud-left{ display:flex; align-items:center; gap:12px; flex-wrap:wrap }
 
+.lives-popup {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -60%);
+    font-size: 3.5rem;
+    color: #ff6d8a;
+    background: rgba(20,24,40,0.85);
+    border-radius: 18px;
+    padding: 0.5em 1.2em;
+    z-index: 100;
+    pointer-events: none;
+    font-weight: bold;
+    text-shadow: 0 2px 12px #000, 0 0 2px #fff;
+    transition: opacity 0.2s;
+}
+
+    .lives-popup.hide {
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    .lives-popup:not(.hide) {
+        opacity: 1;
+    }
+
 .title{ font-weight:800; letter-spacing:.4px; color:#f3f6ff; text-shadow:0 2px 12px rgba(109,226,255,.25) }
 
 .badge{
