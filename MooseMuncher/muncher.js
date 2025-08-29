@@ -428,6 +428,29 @@ if (startBtn) {
     });
 }
 
+function passable(gx, gy) {
+    return gx >= 0 && gy >= 0 && gx < state.gridW && gy < state.gridH;
+}
+
+function renderRecentAnswersDOM() {
+    if (!recentAnswersEl) return;
+    const items = [];
+    let lastCat = null;
+    for (const r of state.recentAnswers.slice().reverse()) {
+        if (r.categoryName !== lastCat) {
+            items.push(`<div class="ans head">${escapeHtml(r.categoryName)} (Lvl ${r.level})</div>`);
+            lastCat = r.categoryName;
+        }
+        items.push(`<div class="ans ${r.correct ? 'good' : 'bad'}">${escapeHtml(r.text)}</div>`);
+    }
+    recentAnswersEl.innerHTML = items.join('');
+}
+
+function passable(gx, gy) {
+    return gx >= 0 && gy >= 0 && gx < state.gridW && gy < state.gridH;
+}
+
+
 // --- Utility for lives popup ---
 function showLivesPopup(lives, ms = 1200) {
     if (!livesPopup) return;
