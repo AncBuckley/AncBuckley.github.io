@@ -408,6 +408,30 @@ function pickStartingCategory() {
         state.category = pickRandomCategory(null);
     }
 }
+function neededForLevel(level) {
+    if (level <= 4) return 4;
+    const t = Math.floor((level - 5) / 5) + 1;
+    let inc = 0;
+    for (let i = 0; i < t; i++) inc += (2 << i);
+    return 4 + inc;
+}
+
+function buildBoard() {
+    const W = state.gridW, H = state.gridH;
+    const wantCorrect = Math.ceil(W * H * 0.4);
+    const raw = state.category.generate(W, H, wantCorrect);
+    state.items = raw.map((it, idx) => ({
+        ...it,
+        eaten: false,
+        gx: idx % W,
+        gy: Math.floor(idx / W)
+    }));
+    state.correctRemaining = state.items.filter(t => t.correct && !t.eaten).length;
+    state.needed = (state.mode === MODES.MATH || state.mode === MODES.SINGLE)
+        ? neededForLevel(state.level)
+        : state.correctRemaining;
+    state.progress = 0;
+}
 
 function startGame() {
     state.running = true;
