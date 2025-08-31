@@ -561,7 +561,31 @@ function showLivesPopup(lives, ms = 1200) {
     }, ms);
 }
 
-// --- The rest of your code (draw, tick, menu/buttons, etc.) is already present above ---
+function startGame() {
+    hide(menuEl);
+    state.level = 1;
+    state.score = 0;
+    state.lives = 3;
+    state.running = true;
+    state.paused = false;
+    state.recentAnswers = [];
+    state.caughtAnim = null;
+    pickStartingCategory();
+    buildBoard();
+    spawnPlayer();
+    spawnEnemies();
+    updateHUD();
+    // Start the game loop if not already running
+    if (!rafId) {
+        rafId = requestAnimationFrame(tick);
+    }
+}
+
+// Add event listener for the Start button
+if (startBtn) {
+    startBtn.addEventListener('click', startGame);
+}
+
 
 // --- Boot ---
 function onReady() {
