@@ -489,6 +489,8 @@ function updatePlayerPosition() {
     }
 }
 
+function getTileAt(gx, gy) { return state.items.find(t => t.gx === gx && t.gy === gy); }
+function passable(gx, gy) { return gx >= 0 && gy >= 0 && gx < state.gridW && gy < state.gridH; }
 // Patch tick to update player position before drawing
 const origTick = tick;
 function tickPatched(ts) {
