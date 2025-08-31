@@ -24,7 +24,11 @@ const state = {
     recentAnswers: [],
     running: false,
     paused: false,
-    caughtAnim: null
+    caughtAnim: null,
+    category: null,
+    lastCategory: null,
+    showCategoryTransition: false,
+    transitionStart: 0
 };
 
 // --- Helpers ---
@@ -34,32 +38,28 @@ function randInt(a, b) { return (Math.random() * (b - a) + a) | 0; }
 function now() { return performance.now(); }
 
 // --- Board generation ---
-function generateWords() {
-    // Example: 20 animals, 5 distractors
-    const animals = ["Cat", "Dog", "Moose", "Bear", "Wolf", "Fox", "Lion", "Tiger", "Horse", "Cow", "Pig", "Sheep", "Goat", "Deer", "Bat", "Duck", "Frog", "Crab", "Shark", "Whale"];
-    const distractors = ["Chair", "Table", "Car", "Phone", "Book"];
-    const pool = shuffle([...animals, ...distractors]);
-    return pool.slice(0, GRID_W * GRID_H).map((label, i) => ({
-        label,
-        correct: animals.includes(label),
-        eaten: false,
-        gx: i % GRID_W,
-        gy: Math.floor(i / GRID_W)
-    }));
-}
-function generateNumbers() {
-    // Example: Multiples of 3 between 1 and 50
-    const nums = shuffle(Array.from({ length: 50 }, (_, i) => i + 1));
-    return nums.slice(0, GRID_W * GRID_H).map((n, i) => ({
-        label: String(n),
-        correct: n % 3 === 0,
-        eaten: false,
-        gx: i % GRID_W,
-        gy: Math.floor(i / GRID_W)
-    }));
+const categories = [
+    { name: "Animals", type: "words", correct: ["Cat", "Dog", "Moose", "Bear", "Wolf", "Fox", "Lion", "Tiger", "Horse", "Cow", "Pig", "Sheep", "Goat", "Deer", "Bat", "Duck", "Frog", "Crab", "Shark", "Whale"], distractors: ["Chair", "Table", "Car", "Phone", "Book"] },
+    { name: "Multiples of 3", type: "math", correct: Array.from({ length: 33 }, (_, i) => String((i + 1) * 3)), distractors: Array.from({ length: 50 }, (_, i) => String(i * 2 + 1)).filter(n => parseInt(n) % 3 !== 0) }
+];
+function pickCategory() {
+    const pool = categories.filter(c => c.type === (state.mode === MODES.MATH ? "math" : "words"));
+    return pool[randInt(0, pool.length)];
 }
 function buildBoard() {
-    state.items = state.mode === MODES.MATH ? generateNumbers() : generateWords();
+    state.lastCategory = state.category;
+    state.category = pickCategory();
+    state.showCategoryTransition = true;
+    state.transitionStart = now();
+    let pool = shuffle([...state.category.correct, ...state.category.distractors]);
+    pool = pool.slice(0, GRID_W * GRID_H);
+    state.items = pool.map((label, i) => ({
+        label,
+        correct: state.category.correct.includes(label),
+        eaten: false,
+        gx: i % GRID_W,
+        gy: Math.floor(i / GRID_W)
+    }));
     state.progress = 0;
     state.needed = state.items.filter(t => t.correct).length;
 }
@@ -82,7 +82,12 @@ function tryEat() {
     if (!tile || tile.eaten) return;
     tile.eaten = true;
     state.progress++;
-    state.recentAnswers.unshift({ text: tile.label, correct: tile.correct });
+    state.recentAnswers.unshift({
+        text: tile.label,
+        correct: tile.correct,
+        categoryName: state.category.name,
+        level: state.level
+    });
     if (state.progress >= state.needed) setTimeout(nextLevel, 500);
 }
 function nextLevel() {
@@ -102,14 +107,27 @@ function onPlayerCaught(enemy) {
 
 // --- Drawing ---
 function draw() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // Responsive sizing
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    state.tile = Math.floor(Math.min((rect.width * 0.6) / GRID_W, rect.height / GRID_H));
+    canvas.width = Math.floor(rect.width * dpr);
+    canvas.height = Math.floor(rect.height * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
     const tile = state.tile;
     const padX = 24, padY = 24;
+
+    // Board background
+    ctx.fillStyle = "#0a174e";
+    ctx.fillRect(0, 0, canvas.width / dpr, canvas.height / dpr);
+
     // Draw grid
     for (let gx = 0; gx < GRID_W; gx++) for (let gy = 0; gy < GRID_H; gy++) {
         ctx.fillStyle = "#172554";
         ctx.fillRect(padX + gx * tile, padY + gy * tile, tile, tile);
-        ctx.strokeStyle = "#1e293b";
+        ctx.strokeStyle = "#fff";
+        ctx.lineWidth = 2;
         ctx.strokeRect(padX + gx * tile, padY + gy * tile, tile, tile);
     }
     // Draw items
@@ -142,38 +160,70 @@ function draw() {
     }
     // Draw enemies
     drawEnemies(ctx, state.enemies, { padX, padY, tile });
+
     // Progress bar
     drawProgressBar();
     // Recent answers
     drawRecentAnswers();
+
+    // Category transition
+    if (state.showCategoryTransition) {
+        const t = clamp((now() - state.transitionStart) / 1200, 0, 1);
+        ctx.save();
+        ctx.globalAlpha = 1 - t;
+        ctx.font = `bold ${Math.floor(tile * 0.7)}px sans-serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillStyle = "#fff";
+        ctx.strokeStyle = "#0a174e";
+        ctx.lineWidth = 8;
+        ctx.strokeText(state.category.name, padX + (GRID_W * tile) / 2, padY + (GRID_H * tile) / 2);
+        ctx.fillText(state.category.name, padX + (GRID_W * tile) / 2, padY + (GRID_H * tile) / 2);
+        ctx.restore();
+        if (t >= 1) state.showCategoryTransition = false;
+    }
 }
 function drawProgressBar() {
-    const barX = 24 + GRID_W * state.tile + 32;
+    const tile = state.tile;
+    const barX = 24 + GRID_W * tile + 32;
     const barY = 24;
     const barW = 32;
-    const barH = GRID_H * state.tile;
+    const barH = GRID_H * tile;
     ctx.save();
     ctx.fillStyle = "#222";
     ctx.fillRect(barX, barY, barW, barH);
     ctx.fillStyle = "#fbbf24";
     const pct = state.needed ? clamp(state.progress / state.needed, 0, 1) : 0;
     ctx.fillRect(barX, barY, barW, barH * pct);
-    ctx.strokeStyle = "#a5b4fc";
+    ctx.strokeStyle = "#fff";
     ctx.lineWidth = 2;
     ctx.strokeRect(barX, barY, barW, barH);
+    ctx.font = "bold 18px sans-serif";
+    ctx.fillStyle = "#fff";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(`${state.progress} / ${state.needed}`, barX + barW / 2, barY + barH / 2);
     ctx.restore();
 }
 function drawRecentAnswers() {
-    const x = 24 + GRID_W * state.tile + 80;
+    const tile = state.tile;
+    const x = 24 + GRID_W * tile + 80;
     const y = 24;
     ctx.save();
     ctx.font = "18px sans-serif";
     ctx.textAlign = "left";
     ctx.textBaseline = "top";
     let yy = y;
+    let lastCat = null;
     for (const r of state.recentAnswers.slice(0, 10)) {
+        if (r.categoryName !== lastCat) {
+            ctx.fillStyle = "#818cf8";
+            ctx.fillText(`${r.categoryName} (Lvl ${r.level})`, x, yy);
+            yy += 24;
+            lastCat = r.categoryName;
+        }
         ctx.fillStyle = r.correct ? "#bef264" : "#f87171";
-        ctx.fillText(r.text, x, yy);
+        ctx.fillText(r.text, x + 16, yy);
         yy += 24;
     }
     ctx.restore();
@@ -252,11 +302,25 @@ function gameLoop() {
         if (!e.moving) {
             const t = getTileAt(e.gx, e.gy);
             if (!t || t.eaten) {
-                // Add a new answer (randomly correct/incorrect)
-                const label = state.mode === MODES.MATH ? String(randInt(1, 100)) : ["Cat", "Dog", "Moose", "Bear", "Wolf", "Fox", "Lion", "Tiger", "Horse", "Cow", "Pig", "Sheep", "Goat", "Deer", "Bat", "Duck", "Frog", "Crab", "Shark", "Whale", "Chair", "Table", "Car", "Phone", "Book"][randInt(0, 25)];
-                const correct = state.mode === MODES.MATH ? (parseInt(label) % 3 === 0) : (["Cat", "Dog", "Moose", "Bear", "Wolf", "Fox", "Lion", "Tiger", "Horse", "Cow", "Pig", "Sheep", "Goat", "Deer", "Bat", "Duck", "Frog", "Crab", "Shark", "Whale"].includes(label));
+                // Add a new answer (bias: more likely correct if few correct left)
+                let correctBias = Math.max(0.5, 1 - state.progress / state.needed);
+                let isCorrect = Math.random() < correctBias;
+                let label;
+                if (state.category.type === "math") {
+                    if (isCorrect) {
+                        label = state.category.correct[randInt(0, state.category.correct.length)];
+                    } else {
+                        label = state.category.distractors[randInt(0, state.category.distractors.length)];
+                    }
+                } else {
+                    if (isCorrect) {
+                        label = state.category.correct[randInt(0, state.category.correct.length)];
+                    } else {
+                        label = state.category.distractors[randInt(0, state.category.distractors.length)];
+                    }
+                }
                 state.items = state.items.filter(t => !(t.gx === e.gx && t.gy === e.gy));
-                state.items.push({ label, correct, eaten: false, gx: e.gx, gy: e.gy });
+                state.items.push({ label, correct: isCorrect, eaten: false, gx: e.gx, gy: e.gy });
             }
         }
     }

@@ -1,11 +1,7 @@
 // MooseMan.js
-// Exports a function to draw the player character with simple animation support.
-
 export default function MooseMan(ctx, x, y, tile, dir = 1, anim = 0) {
-    // Simple "MooseMan" drawing: a brown body, antlers, and a face.
     ctx.save();
     ctx.translate(x, y);
-    // Direction: 0=UP, 1=RIGHT, 2=DOWN, 3=LEFT
     ctx.rotate((dir ?? 1) * (Math.PI / 2));
     // Body
     ctx.fillStyle = "#a0522d";
