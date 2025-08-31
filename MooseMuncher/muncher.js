@@ -363,13 +363,13 @@ function draw() {
     const padX = Math.floor((canvas.width / (window.devicePixelRatio || 1) - gridW * tile) / 2);
     const padY = Math.floor((canvas.height / (window.devicePixelRatio || 1) - gridH * tile) / 2);
 
-    // Draw grid background
+    // Draw grid background and blocks
     ctx.save();
-    ctx.fillStyle = '#f8fafc';
-    ctx.fillRect(padX, padY, gridW * tile, gridH * tile);
-    ctx.strokeStyle = '#e5e7eb';
+    ctx.strokeStyle = '#1e293b';
     for (let gx = 0; gx < gridW; gx++) {
         for (let gy = 0; gy < gridH; gy++) {
+            ctx.fillStyle = '#172554'; // dark blue
+            ctx.fillRect(padX + gx * tile, padY + gy * tile, tile, tile);
             ctx.strokeRect(padX + gx * tile, padY + gy * tile, tile, tile);
         }
     }
@@ -379,13 +379,34 @@ function draw() {
     for (const item of state.items) {
         if (item.eaten) continue;
         ctx.save();
-        ctx.fillStyle = item.correct ? '#bef264' : '#fca5a5';
-        ctx.fillRect(padX + item.gx * tile + 8, padY + item.gy * tile + 8, tile - 16, tile - 16);
-        ctx.fillStyle = '#222';
-        ctx.font = `${Math.floor(tile * 0.32)}px sans-serif`;
+        // Draw block background again to ensure all blocks are dark blue
+        ctx.fillStyle = '#172554';
+        ctx.fillRect(padX + item.gx * tile, padY + item.gy * tile, tile, tile);
+
+        // Draw white text, scaled to fit
+        ctx.fillStyle = '#fff';
+        let fontSize = tile * 0.32;
+        ctx.font = `${fontSize}px sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(item.label, padX + item.gx * tile + tile / 2, padY + item.gy * tile + tile / 2);
+
+        // Scale font down if text is too wide
+        let text = item.label;
+        let maxWidth = tile - 12;
+        while (ctx.measureText(text).width > maxWidth && fontSize > 10) {
+            fontSize -= 2;
+            ctx.font = `${fontSize}px sans-serif`;
+        }
+
+        // If still too wide, shrink further and use ellipsis
+        if (ctx.measureText(text).width > maxWidth) {
+            while (ctx.measureText(text + '…').width > maxWidth && text.length > 1) {
+                text = text.slice(0, -1);
+            }
+            text += '…';
+        }
+
+        ctx.fillText(text, padX + item.gx * tile + tile / 2, padY + item.gy * tile + tile / 2);
         ctx.restore();
     }
 
@@ -440,13 +461,58 @@ function handlePlayerStep(k) {
     const nx = state.player.gx + dx;
     const ny = state.player.gy + dy;
     if (!passable(nx, ny)) return;
+    // Animate movement
     const fromX = state.player.x, fromY = state.player.y;
-    state.player.gx = nx; state.player.gy = ny;
     state.player.dir = dir;
-    state.player.moving = { fromX, fromY, toX: nx, toY: ny, start: now(), dur: 180 };
+    state.player.moving = {
+        fromX, fromY,
+        toX: nx, toY: ny,
+        start: now(),
+        dur: 120
+    };
+    // Immediately update logical position for collision/game logic
+    state.player.gx = nx;
+    state.player.gy = ny;
 }
-function getTileAt(gx, gy) { return state.items.find(t => t.gx === gx && t.gy === gy); }
-function passable(gx, gy) { return gx >= 0 && gy >= 0 && gx < state.gridW && gy < state.gridH; }
+
+// Animate player movement (smooth interpolation)
+function updatePlayerPosition() {
+    if (!state.player || !state.player.moving) return;
+    const m = state.player.moving;
+    const t = clamp((now() - m.start) / m.dur, 0, 1);
+    state.player.x = lerp(m.fromX, m.toX, t);
+    state.player.y = lerp(m.fromY, m.toY, t);
+    if (t >= 1) {
+        state.player.x = m.toX;
+        state.player.y = m.toY;
+        state.player.moving = null;
+    }
+}
+
+// Patch tick to update player position before drawing
+const origTick = tick;
+function tickPatched(ts) {
+    if (state.running && !state.paused) {
+        updateEnemies(state.enemies, {
+            gridW: state.gridW,
+            gridH: state.gridH,
+            player: state.player,
+            stepMs: ENEMY_STEP_MS,
+            freezeUntil: state.freezeUntil,
+            passable,
+            clampTo: (gx, gy) => ({
+                gx: clamp(gx, 0, state.gridW - 1),
+                gy: clamp(gy, 0, state.gridH - 1)
+            })
+        });
+        enemySyncHooks();
+    }
+    updatePlayerPosition();
+    draw();
+    rafId = requestAnimationFrame(tickPatched);
+}
+// Replace tick with patched version
+window.tick = tickPatched;
 
 // Eating & scoring
 function pushRecent(text, correct) {
@@ -540,8 +606,6 @@ function spawnExplosionAt(gx, gy) {
     explosions.push({ gx, gy, born: now(), duration: 600, parts });
 }
 
-// --- Main draw function, update loop, and menu/buttons are already in your previous code ---
-
 // --- Game over logic ---
 function gameOver() {
     state.running = false;
@@ -577,7 +641,7 @@ function startGame() {
     updateHUD();
     // Start the game loop if not already running
     if (!rafId) {
-        rafId = requestAnimationFrame(tick);
+        rafId = requestAnimationFrame(tickPatched);
     }
 }
 
@@ -585,7 +649,6 @@ function startGame() {
 if (startBtn) {
     startBtn.addEventListener('click', startGame);
 }
-
 
 // --- Boot ---
 function onReady() {
@@ -597,7 +660,7 @@ function onReady() {
         }
         setCategoryDropdownVisible((modeSelect?.value || '').toLowerCase().includes('single'));
     }).catch(err => console.error(err));
-    cancelAnimationFrame(rafId); rafId = requestAnimationFrame(tick);
+    cancelAnimationFrame(rafId); rafId = requestAnimationFrame(tickPatched);
 }
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', onReady);
 else onReady();
