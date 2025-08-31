@@ -87,6 +87,10 @@ const state = {
     caughtAnim: null // {start, duration, player, enemy, livesLeft}
 };
 
+// --- Utility functions needed by tick ---
+function getTileAt(gx, gy) { return state.items.find(t => t.gx === gx && t.gy === gy); }
+function passable(gx, gy) { return gx >= 0 && gy >= 0 && gx < state.gridW && gy < state.gridH; }
+
 // --- Category and boot logic ---
 export let WORD_CATEGORY_DEFS = [];
 export let CATEGORIES = [];
@@ -379,50 +383,40 @@ function draw() {
     for (const item of state.items) {
         if (item.eaten) continue;
         ctx.save();
-        // Draw block background again to ensure all blocks are dark blue
         ctx.fillStyle = '#172554';
         ctx.fillRect(padX + item.gx * tile, padY + item.gy * tile, tile, tile);
 
-        // Draw white text, scaled to fit
         ctx.fillStyle = '#fff';
         let fontSize = tile * 0.32;
         ctx.font = `${fontSize}px sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
 
-        // Scale font down if text is too wide
         let text = item.label;
         let maxWidth = tile - 12;
         while (ctx.measureText(text).width > maxWidth && fontSize > 10) {
             fontSize -= 2;
             ctx.font = `${fontSize}px sans-serif`;
         }
-
-        // If still too wide, shrink further and use ellipsis
         if (ctx.measureText(text).width > maxWidth) {
             while (ctx.measureText(text + '…').width > maxWidth && text.length > 1) {
                 text = text.slice(0, -1);
             }
             text += '…';
         }
-
         ctx.fillText(text, padX + item.gx * tile + tile / 2, padY + item.gy * tile + tile / 2);
         ctx.restore();
     }
 
-    // Draw player
+    // Draw player using MooseMan
     if (state.player) {
-        ctx.save();
-        ctx.fillStyle = '#60a5fa';
-        ctx.beginPath();
-        ctx.arc(
+        MooseMan(
+            ctx,
             padX + state.player.x * tile + tile / 2,
             padY + state.player.y * tile + tile / 2,
-            tile * 0.36,
-            0, Math.PI * 2
+            tile,
+            state.player.dir
         );
-        ctx.fill();
-        ctx.restore();
     }
 
     // Draw enemies
@@ -489,8 +483,6 @@ function updatePlayerPosition() {
     }
 }
 
-function getTileAt(gx, gy) { return state.items.find(t => t.gx === gx && t.gy === gy); }
-function passable(gx, gy) { return gx >= 0 && gy >= 0 && gx < state.gridW && gy < state.gridH; }
 // Patch tick to update player position before drawing
 const origTick = tick;
 function tickPatched(ts) {
