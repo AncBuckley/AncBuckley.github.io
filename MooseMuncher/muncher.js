@@ -8,6 +8,8 @@ const GRID_W = 5, GRID_H = 5;
 const DIRS = { UP: 0, RIGHT: 1, DOWN: 2, LEFT: 3 };
 const DIR_VECT = [[0, -1], [1, 0], [0, 1], [-1, 0]];
 const MODES = { WORDS: 'words', MATH: 'math' };
+const menuEl = document.getElementById('menu');
+const startBtn = document.getElementById('startBtn');
 
 // --- State ---
 const state = {
@@ -338,14 +340,32 @@ function gameLoop() {
 }
 
 // --- Start game ---
+// --- Start game ---
 function startGame() {
     state.running = true;
     state.level = 1;
     state.score = 0;
     state.lives = 3;
+    state.recentAnswers = [];
     buildBoard();
     spawnPlayer();
     spawnEnemies();
+    if (menuEl) menuEl.style.display = 'none';
+    canvas.style.display = '';
     requestAnimationFrame(gameLoop);
 }
-startGame();
+
+// --- Show menu and hide game on load ---
+function showMenu() {
+    if (menuEl) menuEl.style.display = '';
+    canvas.style.display = 'none';
+}
+showMenu();
+
+// --- Start button event ---
+if (startBtn) {
+    startBtn.addEventListener('click', () => {
+        startGame();
+    });
+}
+
