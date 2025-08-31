@@ -352,6 +352,65 @@ function enemySyncHooks() {
     });
 }
 
+// --- Main draw function ---
+function draw() {
+    // Clear canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Calculate padding and tile size
+    const tile = state.tile;
+    const gridW = state.gridW, gridH = state.gridH;
+    const padX = Math.floor((canvas.width / (window.devicePixelRatio || 1) - gridW * tile) / 2);
+    const padY = Math.floor((canvas.height / (window.devicePixelRatio || 1) - gridH * tile) / 2);
+
+    // Draw grid background
+    ctx.save();
+    ctx.fillStyle = '#f8fafc';
+    ctx.fillRect(padX, padY, gridW * tile, gridH * tile);
+    ctx.strokeStyle = '#e5e7eb';
+    for (let gx = 0; gx < gridW; gx++) {
+        for (let gy = 0; gy < gridH; gy++) {
+            ctx.strokeRect(padX + gx * tile, padY + gy * tile, tile, tile);
+        }
+    }
+    ctx.restore();
+
+    // Draw items (answers)
+    for (const item of state.items) {
+        if (item.eaten) continue;
+        ctx.save();
+        ctx.fillStyle = item.correct ? '#bef264' : '#fca5a5';
+        ctx.fillRect(padX + item.gx * tile + 8, padY + item.gy * tile + 8, tile - 16, tile - 16);
+        ctx.fillStyle = '#222';
+        ctx.font = `${Math.floor(tile * 0.32)}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(item.label, padX + item.gx * tile + tile / 2, padY + item.gy * tile + tile / 2);
+        ctx.restore();
+    }
+
+    // Draw player
+    if (state.player) {
+        ctx.save();
+        ctx.fillStyle = '#60a5fa';
+        ctx.beginPath();
+        ctx.arc(
+            padX + state.player.x * tile + tile / 2,
+            padY + state.player.y * tile + tile / 2,
+            tile * 0.36,
+            0, Math.PI * 2
+        );
+        ctx.fill();
+        ctx.restore();
+    }
+
+    // Draw enemies
+    drawEnemies(ctx, state.enemies, { padX, padY, tile });
+
+    // Optionally: draw effects, overlays, etc.
+    // (starBursts, sfx, explosions, etc. can be drawn here if desired)
+}
+
 // Input
 document.addEventListener('keydown', (e) => {
     const k = e.key.toLowerCase();
