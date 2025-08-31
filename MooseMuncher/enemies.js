@@ -1,5 +1,6 @@
 // enemies.js
-// Exports: createEnemies, updateEnemies, drawEnemies
+import { drawSlime } from './Slime.js';
+import { drawOwl } from './Owl.js';
 
 const DIRS = { UP: 0, RIGHT: 1, DOWN: 2, LEFT: 3 };
 const DIR_VECT = [[0, -1], [1, 0], [0, 1], [-1, 0]];
@@ -23,15 +24,18 @@ export function createEnemies(gridW, gridH, level) {
             kind,
             gx, gy, x: gx, y: gy,
             dir: randInt(0, 4),
-            moving: null
+            moving: null,
+            nextMove: performance.now() + randInt(3000, 6000)
         });
     }
     return enemies;
 }
 
 export function updateEnemies(enemies, { gridW, gridH, player, passable, isCellEmpty }) {
+    const nowT = performance.now();
     for (const e of enemies) {
         if (e.moving) continue;
+        if (nowT < e.nextMove) continue;
         let opts = [];
         for (let d = 0; d < 4; d++) {
             const [dx, dy] = DIR_VECT[d];
@@ -44,7 +48,6 @@ export function updateEnemies(enemies, { gridW, gridH, player, passable, isCellE
         // Bias
         let best;
         if (e.kind === "slime" && player) {
-            // Move toward player with 60% chance
             if (Math.random() < 0.6) {
                 best = opts.reduce((a, b) =>
                     (Math.abs(b.nx - player.gx) + Math.abs(b.ny - player.gy)) <
@@ -52,7 +55,6 @@ export function updateEnemies(enemies, { gridW, gridH, player, passable, isCellE
                 );
             }
         } else if (e.kind === "owl" && isCellEmpty) {
-            // Move toward nearest empty with 60% chance
             if (Math.random() < 0.6) {
                 let minDist = 999, bestOpt = opts[0];
                 for (const o of opts) {
@@ -78,9 +80,10 @@ export function updateEnemies(enemies, { gridW, gridH, player, passable, isCellE
             fromX: e.gx, fromY: e.gy,
             toX: best.nx, toY: best.ny,
             start: performance.now(),
-            dur: 200
+            dur: 220
         };
         e.gx = best.nx; e.gy = best.ny;
+        e.nextMove = performance.now() + randInt(3000, 6000);
     }
     // Animate movement
     for (const e of enemies) {
@@ -93,42 +96,12 @@ export function updateEnemies(enemies, { gridW, gridH, player, passable, isCellE
 }
 
 export function drawEnemies(ctx, enemies, { padX, padY, tile }) {
+    const animT = performance.now() / 1000;
     for (const e of enemies) {
-        ctx.save();
-        ctx.translate(padX + e.x * tile + tile / 2, padY + e.y * tile + tile / 2);
         if (e.kind === "slime") {
-            // Slime: green blob with eyes
-            ctx.fillStyle = "#4ade80";
-            ctx.beginPath();
-            ctx.ellipse(0, 0, tile * 0.28, tile * 0.22, 0, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.fillStyle = "#fff";
-            ctx.beginPath();
-            ctx.arc(-tile * 0.08, -tile * 0.05, tile * 0.04, 0, Math.PI * 2);
-            ctx.arc(tile * 0.08, -tile * 0.05, tile * 0.04, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.fillStyle = "#222";
-            ctx.beginPath();
-            ctx.arc(-tile * 0.08, -tile * 0.05, tile * 0.018, 0, Math.PI * 2);
-            ctx.arc(tile * 0.08, -tile * 0.05, tile * 0.018, 0, Math.PI * 2);
-            ctx.fill();
+            drawSlime(ctx, padX + e.x * tile + tile / 2, padY + e.y * tile + tile / 2, tile, animT);
         } else {
-            // Owl: brown body, yellow eyes
-            ctx.fillStyle = "#a78bfa";
-            ctx.beginPath();
-            ctx.ellipse(0, 0, tile * 0.22, tile * 0.28, 0, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.fillStyle = "#fde68a";
-            ctx.beginPath();
-            ctx.arc(-tile * 0.06, -tile * 0.08, tile * 0.03, 0, Math.PI * 2);
-            ctx.arc(tile * 0.06, -tile * 0.08, tile * 0.03, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.fillStyle = "#222";
-            ctx.beginPath();
-            ctx.arc(-tile * 0.06, -tile * 0.08, tile * 0.012, 0, Math.PI * 2);
-            ctx.arc(tile * 0.06, -tile * 0.08, tile * 0.012, 0, Math.PI * 2);
-            ctx.fill();
+            drawOwl(ctx, padX + e.x * tile + tile / 2, padY + e.y * tile + tile / 2, tile, animT);
         }
-        ctx.restore();
     }
 }

@@ -4,12 +4,12 @@ import { createEnemies, updateEnemies, drawEnemies } from './enemies.js';
 // --- DOM and constants ---
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
+const menuEl = document.getElementById('menu');
+const startBtn = document.getElementById('startBtn');
 const GRID_W = 5, GRID_H = 5;
 const DIRS = { UP: 0, RIGHT: 1, DOWN: 2, LEFT: 3 };
 const DIR_VECT = [[0, -1], [1, 0], [0, 1], [-1, 0]];
 const MODES = { WORDS: 'words', MATH: 'math' };
-const menuEl = document.getElementById('menu');
-const startBtn = document.getElementById('startBtn');
 
 // --- State ---
 const state = {
@@ -112,13 +112,13 @@ function draw() {
     // Responsive sizing
     const dpr = window.devicePixelRatio || 1;
     const rect = canvas.getBoundingClientRect();
-    state.tile = Math.floor(Math.min((rect.width * 0.6) / GRID_W, rect.height / GRID_H));
+    state.tile = Math.floor(Math.min(rect.width / (GRID_W + 2), rect.height / GRID_H));
     canvas.width = Math.floor(rect.width * dpr);
     canvas.height = Math.floor(rect.height * dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
     const tile = state.tile;
-    const padX = 24, padY = 24;
+    const padX = tile, padY = (rect.height - tile * GRID_H) / 2;
 
     // Board background
     ctx.fillStyle = "#0a174e";
@@ -158,15 +158,17 @@ function draw() {
     }
     // Draw player
     if (state.player) {
-        MooseMan(ctx, padX + state.player.x * tile + tile / 2, padY + state.player.y * tile + tile / 2, tile, state.player.dir);
+        const isFlying = !!state.player.moving;
+        const animT = (now() % 1000) / 1000;
+        MooseMan(ctx, padX + state.player.x * tile + tile / 2, padY + state.player.y * tile + tile / 2, tile, state.player.dir, isFlying, animT);
     }
     // Draw enemies
     drawEnemies(ctx, state.enemies, { padX, padY, tile });
 
     // Progress bar
-    drawProgressBar();
+    drawProgressBar(tile, padX, padY);
     // Recent answers
-    drawRecentAnswers();
+    drawRecentAnswers(tile, padX, padY);
 
     // Category transition
     if (state.showCategoryTransition) {
@@ -185,11 +187,10 @@ function draw() {
         if (t >= 1) state.showCategoryTransition = false;
     }
 }
-function drawProgressBar() {
-    const tile = state.tile;
-    const barX = 24 + GRID_W * tile + 32;
-    const barY = 24;
-    const barW = 32;
+function drawProgressBar(tile, padX, padY) {
+    const barX = padX + GRID_W * tile + tile * 0.5;
+    const barY = padY;
+    const barW = tile * 0.5;
     const barH = GRID_H * tile;
     ctx.save();
     ctx.fillStyle = "#222";
@@ -207,10 +208,9 @@ function drawProgressBar() {
     ctx.fillText(`${state.progress} / ${state.needed}`, barX + barW / 2, barY + barH / 2);
     ctx.restore();
 }
-function drawRecentAnswers() {
-    const tile = state.tile;
-    const x = 24 + GRID_W * tile + 80;
-    const y = 24;
+function drawRecentAnswers(tile, padX, padY) {
+    const x = padX + GRID_W * tile + tile * 1.2;
+    const y = padY;
     ctx.save();
     ctx.font = "18px sans-serif";
     ctx.textAlign = "left";
@@ -340,7 +340,6 @@ function gameLoop() {
 }
 
 // --- Start game ---
-// --- Start game ---
 function startGame() {
     state.running = true;
     state.level = 1;
@@ -368,4 +367,3 @@ if (startBtn) {
         startGame();
     });
 }
-
