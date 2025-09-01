@@ -58,8 +58,18 @@ function resizeCanvas() {
         y: Math.floor((height - (tileSize * GRID_SIZE + TILE_GAP * (GRID_SIZE - 1))) / 2)
     };
 }
+
 // --- Categories ---
 function setupCategories() {
+    // Defensive: only proceed if categoriesData is a non-empty array
+    if (!Array.isArray(categoriesData) || categoriesData.length === 0) {
+        categories = {};
+        wordCategoryList = [];
+        numericCategories = {};
+        numericCategoryList = [];
+        allCategories = {};
+        return;
+    }
     // Build word categories from JSON
     categories = {};
     for (const entry of categoriesData) {
