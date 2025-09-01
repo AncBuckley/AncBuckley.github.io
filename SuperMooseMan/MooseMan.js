@@ -13,15 +13,23 @@ const MooseMan = {
         if (dir && (dir[0] !== 0 || dir[1] !== 0)) {
             angle = Math.atan2(dir[1], dir[0]);
         }
+
+        // --- Cape trailing angle ---
+        // Cape trails opposite to movement, with a little flutter
+        let capeAngle = angle + Math.PI + Math.sin(performance.now() / 200) * 0.18;
+
+        // --- Body/limbs rotate with movement ---
+        ctx.save();
         ctx.rotate(angle);
 
         // --- Cape ---
         ctx.save();
+        ctx.rotate(capeAngle - angle); // rotate relative to body
         ctx.beginPath();
         ctx.moveTo(0, size * 0.2);
         ctx.bezierCurveTo(
-            -size * 0.7, size * 0.7,
-            size * 0.7, size * 0.7,
+            -size * 0.7, size * 0.7 + Math.sin(t) * size * 0.08,
+            size * 0.7, size * 0.7 - Math.sin(t) * size * 0.08,
             0, size * 1.2
         );
         ctx.closePath();
@@ -60,9 +68,13 @@ const MooseMan = {
         ctx.fillText("M", 0, size * 0.35);
         ctx.restore();
 
+        // --- Arm/leg swing animation ---
+        let swing = Math.sin(performance.now() / 200) * 0.18 * (dir && (dir[0] !== 0 || dir[1] !== 0) ? 1 : 0);
+
         // --- Arms (with gloves) ---
         // Left arm
         ctx.save();
+        ctx.rotate(-swing);
         ctx.beginPath();
         ctx.moveTo(-size * 0.28, size * 0.25);
         ctx.lineTo(-size * 0.5, size * 0.55);
@@ -79,6 +91,7 @@ const MooseMan = {
 
         // Right arm
         ctx.save();
+        ctx.rotate(swing);
         ctx.beginPath();
         ctx.moveTo(size * 0.28, size * 0.25);
         ctx.lineTo(size * 0.5, size * 0.55);
@@ -96,6 +109,7 @@ const MooseMan = {
         // --- Legs (with boots) ---
         // Left leg
         ctx.save();
+        ctx.rotate(swing);
         ctx.beginPath();
         ctx.moveTo(-size * 0.13, size * 0.85);
         ctx.lineTo(-size * 0.13, size * 1.15);
@@ -112,6 +126,7 @@ const MooseMan = {
 
         // Right leg
         ctx.save();
+        ctx.rotate(-swing);
         ctx.beginPath();
         ctx.moveTo(size * 0.13, size * 0.85);
         ctx.lineTo(size * 0.13, size * 1.15);
@@ -126,8 +141,11 @@ const MooseMan = {
         ctx.fill();
         ctx.restore();
 
-        // --- Head (moose) ---
+        ctx.restore(); // End body/limbs/cape rotation
+
+        // --- Head (moose) always upright ---
         ctx.save();
+        // Do not rotate with body, so head is always up
         ctx.beginPath();
         ctx.ellipse(0, 0, size * 0.28, size * 0.23, 0, 0, Math.PI * 2);
         ctx.fillStyle = "#a87b4a"; // Moose brown
@@ -176,7 +194,7 @@ const MooseMan = {
             ctx.moveTo(side * size * 0.32, -size * 0.28);
             ctx.lineTo(side * size * 0.36, -size * 0.42);
             ctx.moveTo(side * size * 0.38, -size * 0.32);
-            ctx.lineTo(side * size * 0.54, -size * 0.38);
+            ctx.lineTo(side * 0.54 * size, -size * 0.38);
             ctx.stroke();
             ctx.restore();
         }
