@@ -1,6 +1,5 @@
 import MooseMan from './MooseMan.js';
 import { createEnemies, updateEnemies, drawEnemies, notifyBoardHooksForEnemies, moveEnemyToBottomRight } from './enemies.js';
-import categoriesData from './categories.json' assert { type: 'json' };
 
 // --- Constants ---
 const GRID_SIZE = 5;
@@ -190,6 +189,34 @@ function startGame() {
     gameOverMenu.style.display = 'none';
     gameState = 'playing';
 }
+
+let categoriesData = [];
+
+window.addEventListener('DOMContentLoaded', async () => {
+    canvas = document.getElementById('game-canvas');
+    ctx = canvas.getContext('2d');
+    overlay = document.getElementById('overlay');
+    mainMenu = document.getElementById('main-menu');
+    helpMenu = document.getElementById('help');
+    gameOverMenu = document.getElementById('game-over');
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+
+    // Load categories.json dynamically
+    try {
+        const resp = await fetch('./categories.json');
+        categoriesData = await resp.json();
+    } catch (e) {
+        alert('Failed to load categories.json');
+        categoriesData = [];
+    }
+
+    setupCategories();
+    showMainMenu();
+    setupInput();
+    requestAnimationFrame(gameLoop);
+});
+
 
 // --- Board Generation ---
 function createBoard() {
