@@ -58,7 +58,6 @@ function resizeCanvas() {
         y: Math.floor((height - (tileSize * GRID_SIZE + TILE_GAP * (GRID_SIZE - 1))) / 2)
     };
 }
-
 // --- Categories ---
 function setupCategories() {
     // Build word categories from JSON
