@@ -30,16 +30,20 @@ const MooseMan = {
             let flip = dir[0] < 0 ? -1 : 1;
             ctx.scale(flip, 1);
             // Tilt body slightly forward for flying
-            ctx.rotate(-0.18);
-            drawSideMoose(ctx, size, t);
+            ctx.rotate(-0.18 + Math.sin(t) * 0.05);
+            // Bob up and down a bit
+            ctx.translate(0, Math.sin(t * 2) * size * 0.07);
+            drawSideMoose(ctx, size, t, dir[0]);
         }
         // --- Rear view: flying up or down ---
         else if (pose === "rear") {
             // If moving down, flip vertically
             if (dir[1] > 0) ctx.scale(1, -1);
             // Tilt body slightly forward for flying
-            ctx.rotate(-0.18);
-            drawRearMoose(ctx, size, t);
+            ctx.rotate(-0.18 + Math.sin(t) * 0.05);
+            // Bob left and right a bit
+            ctx.translate(Math.sin(t * 2) * size * 0.07, 0);
+            drawRearMoose(ctx, size, t, dir[1]);
         }
 
         ctx.restore();
@@ -50,7 +54,7 @@ const MooseMan = {
 
 function drawUprightMoose(ctx, size, t) {
     // Cape (behind everything)
-    drawCape(ctx, size, 0, t);
+    drawCape(ctx, size, 0, t, "rest");
 
     // Body
     ctx.save();
@@ -81,21 +85,23 @@ function drawUprightMoose(ctx, size, t) {
     ctx.fillText("M", 0, size * 0.35);
     ctx.restore();
 
-    // Arms (down, slightly out)
-    drawArm(ctx, -1, size, 0.25, 0.55, 0.13, t, false);
-    drawArm(ctx, 1, size, 0.25, 0.55, 0.13, t, false);
+    // Arms (down, slightly out, gentle swing)
+    let armSwing = Math.sin(t) * 0.12;
+    drawArm(ctx, -1, size, 0.25, 0.55, 0.13, t, false, false, armSwing);
+    drawArm(ctx, 1, size, 0.25, 0.55, 0.13, t, false, false, -armSwing);
 
-    // Legs (down)
-    drawLeg(ctx, -1, size, 0.85, 1.15, 0.13, t, false);
-    drawLeg(ctx, 1, size, 0.85, 1.15, 0.13, t, false);
+    // Legs (down, gentle swing)
+    let legSwing = Math.sin(t + Math.PI) * 0.10;
+    drawLeg(ctx, -1, size, 0.85, 1.15, 0.13, t, false, false, legSwing);
+    drawLeg(ctx, 1, size, 0.85, 1.15, 0.13, t, false, false, -legSwing);
 
     // Head and antlers
-    drawHeadAndAntlers(ctx, size, t, "front");
+    drawHeadAndAntlers(ctx, size, t, "front", 0);
 }
 
-function drawSideMoose(ctx, size, t) {
-    // Cape (trails behind)
-    drawCape(ctx, size, Math.PI / 2, t);
+function drawSideMoose(ctx, size, t, dirX) {
+    // Cape (trails behind, more flutter)
+    drawCape(ctx, size, Math.PI / 2, t, "side");
 
     // Body (side ellipse)
     ctx.save();
@@ -126,21 +132,24 @@ function drawSideMoose(ctx, size, t) {
     ctx.fillText("M", size * 0.07, size * 0.35);
     ctx.restore();
 
-    // Arms (forward and back, flying pose)
-    drawArm(ctx, -1, size, 0.15, 0.0, 0.13, t, true); // back arm
-    drawArm(ctx, 1, size, 0.15, 0.7, 0.13, t, true); // front arm
+    // Arms (flying, big swing)
+    let armSwing = Math.sin(t * 2) * 0.5;
+    drawArm(ctx, -1, size, 0.15, 0.0, 0.13, t, true, false, -armSwing); // back arm
+    drawArm(ctx, 1, size, 0.15, 0.7, 0.13, t, true, false, armSwing); // front arm
 
-    // Legs (back and forward, flying pose)
-    drawLeg(ctx, -1, size, 0.85, 1.15, 0.13, t, true); // back leg
-    drawLeg(ctx, 1, size, 0.85, 1.15, 0.13, t, true); // front leg
+    // Legs (flying, big swing)
+    let legSwing = Math.sin(t * 2 + Math.PI) * 0.4;
+    drawLeg(ctx, -1, size, 0.85, 1.15, 0.13, t, true, false, -legSwing); // back leg
+    drawLeg(ctx, 1, size, 0.85, 1.15, 0.13, t, true, false, legSwing); // front leg
 
-    // Head and antlers (side)
-    drawHeadAndAntlers(ctx, size, t, "side");
+    // Head and antlers (side, tilt slightly up/down based on direction)
+    let headTilt = Math.sin(t) * 0.08 + (dirX > 0 ? -0.08 : 0.08);
+    drawHeadAndAntlers(ctx, size, t, "side", headTilt);
 }
 
-function drawRearMoose(ctx, size, t) {
-    // Cape (trails behind)
-    drawCape(ctx, size, 0, t);
+function drawRearMoose(ctx, size, t, dirY) {
+    // Cape (trails behind, more flutter)
+    drawCape(ctx, size, 0, t, "rear");
 
     // Body (rear ellipse)
     ctx.save();
@@ -160,26 +169,30 @@ function drawRearMoose(ctx, size, t) {
 
     // Chest Emblem (not visible from rear)
 
-    // Arms (out to sides, flying pose)
-    drawArm(ctx, -1, size, 0.25, 0.25, 0.13, t, true, true);
-    drawArm(ctx, 1, size, 0.25, 0.25, 0.13, t, true, true);
+    // Arms (out to sides, flying pose, big swing)
+    let armSwing = Math.sin(t * 2) * 0.5;
+    drawArm(ctx, -1, size, 0.25, 0.25, 0.13, t, true, true, -armSwing);
+    drawArm(ctx, 1, size, 0.25, 0.25, 0.13, t, true, true, armSwing);
 
-    // Legs (down, flying pose)
-    drawLeg(ctx, -1, size, 0.85, 1.15, 0.13, t, true, true);
-    drawLeg(ctx, 1, size, 0.85, 1.15, 0.13, t, true, true);
+    // Legs (down, flying pose, big swing)
+    let legSwing = Math.sin(t * 2 + Math.PI) * 0.4;
+    drawLeg(ctx, -1, size, 0.85, 1.15, 0.13, t, true, true, -legSwing);
+    drawLeg(ctx, 1, size, 0.85, 1.15, 0.13, t, true, true, legSwing);
 
-    // Head and antlers (rear)
-    drawHeadAndAntlers(ctx, size, t, "rear");
+    // Head and antlers (rear, tilt slightly)
+    let headTilt = Math.sin(t) * 0.08 + (dirY > 0 ? 0.08 : -0.08);
+    drawHeadAndAntlers(ctx, size, t, "rear", headTilt);
 }
 
-function drawCape(ctx, size, angle, t) {
+function drawCape(ctx, size, angle, t, pose) {
     ctx.save();
     ctx.rotate(angle);
     ctx.beginPath();
+    let flutter = Math.sin(t * (pose === "rest" ? 1 : 2)) * size * (pose === "rest" ? 0.08 : 0.13);
     ctx.moveTo(0, size * 0.2);
     ctx.bezierCurveTo(
-        -size * 0.7, size * 0.7 + Math.sin(t) * size * 0.08,
-        size * 0.7, size * 0.7 - Math.sin(t) * size * 0.08,
+        -size * 0.7, size * 0.7 + flutter,
+        size * 0.7, size * 0.7 - flutter,
         0, size * 1.2
     );
     ctx.closePath();
@@ -190,7 +203,7 @@ function drawCape(ctx, size, angle, t) {
     ctx.restore();
 }
 
-function drawArm(ctx, side, size, y1, y2, width, t, flying, rear = false) {
+function drawArm(ctx, side, size, y1, y2, width, t, flying, rear = false, swing = 0) {
     ctx.save();
     let x1 = side * size * 0.28;
     let x2 = side * size * (flying ? 0.55 : 0.5);
@@ -201,22 +214,25 @@ function drawArm(ctx, side, size, y1, y2, width, t, flying, rear = false) {
         x2 = side * size * 0.55;
         yEnd = size * (rear ? 0.25 : 0.7);
     }
+    // Swing animation
+    ctx.translate(x1, yStart);
+    ctx.rotate(swing);
     ctx.beginPath();
-    ctx.moveTo(x1, yStart);
-    ctx.lineTo(x2, yEnd);
+    ctx.moveTo(0, 0);
+    ctx.lineTo(x2 - x1, yEnd - yStart);
     ctx.lineWidth = size * 0.13;
     ctx.strokeStyle = "#2a4cff";
     ctx.lineCap = "round";
     ctx.stroke();
     // Glove
     ctx.beginPath();
-    ctx.arc(x2, yEnd, size * 0.09, 0, Math.PI * 2);
+    ctx.arc(x2 - x1, yEnd - yStart, size * 0.09, 0, Math.PI * 2);
     ctx.fillStyle = "#ffcc00";
     ctx.fill();
     ctx.restore();
 }
 
-function drawLeg(ctx, side, size, y1, y2, width, t, flying, rear = false) {
+function drawLeg(ctx, side, size, y1, y2, width, t, flying, rear = false, swing = 0) {
     ctx.save();
     let x = side * size * 0.13;
     let yStart = size * y1;
@@ -225,24 +241,27 @@ function drawLeg(ctx, side, size, y1, y2, width, t, flying, rear = false) {
         x = side * size * (rear ? 0.18 : 0.13);
         yEnd = size * (rear ? 1.05 : 1.15);
     }
+    // Swing animation
+    ctx.translate(x, yStart);
+    ctx.rotate(swing);
     ctx.beginPath();
-    ctx.moveTo(x, yStart);
-    ctx.lineTo(x, yEnd);
+    ctx.moveTo(0, 0);
+    ctx.lineTo(0, yEnd - yStart);
     ctx.lineWidth = size * 0.13;
     ctx.strokeStyle = "#2a4cff";
     ctx.lineCap = "round";
     ctx.stroke();
     // Boot
     ctx.beginPath();
-    ctx.arc(x, yEnd, size * 0.09, 0, Math.PI * 2);
+    ctx.arc(0, yEnd - yStart, size * 0.09, 0, Math.PI * 2);
     ctx.fillStyle = "#ffcc00";
     ctx.fill();
     ctx.restore();
 }
 
-function drawHeadAndAntlers(ctx, size, t, view) {
-    // Head
+function drawHeadAndAntlers(ctx, size, t, view, tilt = 0) {
     ctx.save();
+    ctx.rotate(tilt);
     if (view === "side") {
         ctx.beginPath();
         ctx.ellipse(size * 0.13, 0, size * 0.23, size * 0.18, 0, 0, Math.PI * 2);
