@@ -18,9 +18,10 @@ let player, enemies, board, category, mode, level, score, lives, progress, recen
 let categories, numericCategories, allCategories, wordCategoryList, numericCategoryList;
 let lastEnemyStep = 0, lastFrame = 0;
 let overlay, mainMenu, helpMenu, gameOverMenu;
+let categoriesData = [];
 
 // --- Init ---
-window.addEventListener('DOMContentLoaded', () => {
+window.addEventListener('DOMContentLoaded', async () => {
     canvas = document.getElementById('game-canvas');
     ctx = canvas.getContext('2d');
     overlay = document.getElementById('overlay');
@@ -29,6 +30,16 @@ window.addEventListener('DOMContentLoaded', () => {
     gameOverMenu = document.getElementById('game-over');
     resizeCanvas();
     window.addEventListener('resize', resizeCanvas);
+
+    // Load categories.json dynamically
+    try {
+        const resp = await fetch('./categories.json');
+        categoriesData = await resp.json();
+    } catch (e) {
+        alert('Failed to load categories.json');
+        categoriesData = [];
+    }
+
     setupCategories();
     showMainMenu();
     setupInput();
@@ -190,34 +201,6 @@ function startGame() {
     gameState = 'playing';
 }
 
-let categoriesData = [];
-
-window.addEventListener('DOMContentLoaded', async () => {
-    canvas = document.getElementById('game-canvas');
-    ctx = canvas.getContext('2d');
-    overlay = document.getElementById('overlay');
-    mainMenu = document.getElementById('main-menu');
-    helpMenu = document.getElementById('help');
-    gameOverMenu = document.getElementById('game-over');
-    resizeCanvas();
-    window.addEventListener('resize', resizeCanvas);
-
-    // Load categories.json dynamically
-    try {
-        const resp = await fetch('./categories.json');
-        categoriesData = await resp.json();
-    } catch (e) {
-        alert('Failed to load categories.json');
-        categoriesData = [];
-    }
-
-    setupCategories();
-    showMainMenu();
-    setupInput();
-    requestAnimationFrame(gameLoop);
-});
-
-
 // --- Board Generation ---
 function createBoard() {
     // Fill with random words/numbers per mode/category
@@ -356,7 +339,7 @@ function movePlayer(dx, dy) {
 }
 
 function eatTile() {
-    let tile = board.find(t => t.x === player.x && t.y === player.y);
+    let tile = board && board.find(t => t.x === player.x && t.y === player.y);
     if (!tile || tile.eaten) return;
     tile.eaten = true;
     let correct = tile.correct;
@@ -440,6 +423,21 @@ function gameLoop(ts) {
     const dt = ts - lastFrame;
     lastFrame = ts;
 
+    // --- Render ---
+    ctx.clearRect(0, 0, width, height);
+
+    // Only draw board/game if board is defined (i.e., in playing or paused state)
+    if (board && (gameState === 'playing' || gameState === 'paused')) {
+        drawBoard();
+        drawHUD();
+        drawRecentAnswers();
+        drawLevelBar();
+        // Player
+        MooseMan.draw(ctx, ...tileCenter(player.x, player.y), tileSize * 0.45, player.dir, teleporting, player.anim);
+        // Enemies
+        drawEnemies(ctx, enemies, tileSize, tileCenter);
+    }
+
     if (gameState === 'playing') {
         // Update freeze/teleport/invuln timers
         if (freezeTimer > 0) freezeTimer -= dt;
@@ -470,22 +468,12 @@ function gameLoop(ts) {
         }
     }
 
-    // --- Render ---
-    ctx.clearRect(0, 0, width, height);
-    drawBoard();
-    drawHUD();
-    drawRecentAnswers();
-    drawLevelBar();
-    // Player
-    MooseMan.draw(ctx, ...tileCenter(player.x, player.y), tileSize * 0.45, player.dir, teleporting, player.anim);
-    // Enemies
-    drawEnemies(ctx, enemies, tileSize, tileCenter);
-
     requestAnimationFrame(gameLoop);
 }
 
 // --- Board Drawing ---
 function drawBoard() {
+    if (!Array.isArray(board)) return;
     for (const tile of board) {
         const [cx, cy] = tileCenter(tile.x, tile.y);
         // Tile background
@@ -572,6 +560,10 @@ function drawHUD() {
 }
 function drawRecentAnswers() {
     const panel = document.getElementById('recent-answers');
+    if (!recentAnswers) {
+        panel.innerHTML = '';
+        return;
+    }
     panel.innerHTML = `<b>Recent Answers</b><br>` +
         recentAnswers.slice(-RECENT_ANSWERS_MAX).map(ans =>
             ans.correct === null
@@ -581,6 +573,10 @@ function drawRecentAnswers() {
 }
 function drawLevelBar() {
     const bar = document.getElementById('level-bar');
+    if (!requiredCorrect) {
+        bar.innerHTML = '';
+        return;
+    }
     let pct = Math.min(1, progress / requiredCorrect);
     bar.innerHTML = `<div style="height:${Math.floor(220 * pct)}px;background:#4a7;border-radius:16px 16px 0 0;"></div>`;
 }
