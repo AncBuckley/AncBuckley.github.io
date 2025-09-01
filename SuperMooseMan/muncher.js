@@ -35,9 +35,14 @@ window.addEventListener('DOMContentLoaded', async () => {
     try {
         const resp = await fetch('./categories.json');
         categoriesData = await resp.json();
+        if (!Array.isArray(categoriesData) || categoriesData.length === 0) {
+            throw new Error('categories.json is empty or not an array.');
+        }
     } catch (e) {
-        alert('Failed to load categories.json');
+        alert('Failed to load or parse categories.json: ' + e.message);
         categoriesData = [];
+        // Optionally, you can stop the game here:
+        return;
     }
 
     setupCategories();
@@ -61,18 +66,10 @@ function resizeCanvas() {
 
 // --- Categories ---
 function setupCategories() {
-    // Defensive: only proceed if categoriesData is a non-empty array
-    if (!Array.isArray(categoriesData) || categoriesData.length === 0) {
-        categories = {};
-        wordCategoryList = [];
-        numericCategories = {};
-        numericCategoryList = [];
-        allCategories = {};
-        return;
-    }
     // Build word categories from JSON
     categories = {};
     for (const entry of categoriesData) {
+        if (!entry || !entry.categories || !Array.isArray(entry.categories) || typeof entry.text !== 'string') continue;
         for (const cat of entry.categories) {
             if (!categories[cat]) categories[cat] = [];
             categories[cat].push(entry.text);
