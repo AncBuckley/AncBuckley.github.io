@@ -1,0 +1,4974 @@
+[
+  {
+    "id": "g3-add-wood",
+    "type": "Math",
+    "grade": 3,
+    "minLevel": 1,
+    "points": 3,
+    "title": "Count The Firewood",
+    "text": "The camp has 18 logs and gathers 7 more. How many logs are there now?",
+    "options": [
+      {
+        "label": "24 logs"
+      },
+      {
+        "label": "25 logs",
+        "correct": true
+      },
+      {
+        "label": "27 logs"
+      }
+    ],
+    "feedback": "18 plus 7 makes 25 logs."
+  },
+  {
+    "id": "g3-sub-food",
+    "type": "Math",
+    "grade": 3,
+    "minLevel": 1,
+    "points": 3,
+    "title": "Share The Meals",
+    "text": "There are 15 meals. The cabin eats 6. How many meals are left?",
+    "options": [
+      {
+        "label": "8 meals"
+      },
+      {
+        "label": "9 meals",
+        "correct": true
+      },
+      {
+        "label": "11 meals"
+      }
+    ],
+    "feedback": "15 minus 6 leaves 9 meals."
+  },
+  {
+    "id": "g3-capital-radio",
+    "type": "Sentence",
+    "grade": 3,
+    "minLevel": 1,
+    "points": 3,
+    "title": "Fix The Radio Log",
+    "text": "Choose the sentence with correct capitalization.",
+    "options": [
+      {
+        "label": "the furnace needs wood."
+      },
+      {
+        "label": "The furnace needs wood.",
+        "correct": true
+      },
+      {
+        "label": "The Furnace Needs Wood."
+      }
+    ],
+    "feedback": "Only the first word and proper names need capital letters here."
+  },
+  {
+    "id": "g3-punctuation-warning",
+    "type": "Punctuation",
+    "grade": 3,
+    "minLevel": 1,
+    "points": 3,
+    "title": "Add The Period",
+    "text": "Choose the correctly punctuated warning.",
+    "options": [
+      {
+        "label": "Close the gate.",
+        "correct": true
+      },
+      {
+        "label": "Close the gate"
+      },
+      {
+        "label": "close the gate."
+      }
+    ],
+    "feedback": "A command starts with a capital letter and ends with a period."
+  },
+  {
+    "id": "g4-multiply-fuel",
+    "type": "Math",
+    "grade": 4,
+    "minLevel": 1,
+    "points": 4,
+    "title": "Fuel The Furnace",
+    "text": "The furnace burns 4 logs each hour. How many logs are needed for 6 hours?",
+    "options": [
+      {
+        "label": "20 logs"
+      },
+      {
+        "label": "24 logs",
+        "correct": true
+      },
+      {
+        "label": "28 logs"
+      }
+    ],
+    "feedback": "4 times 6 equals 24 logs."
+  },
+  {
+    "id": "g4-area-wall",
+    "type": "Math",
+    "grade": 4,
+    "minLevel": 1,
+    "points": 4,
+    "title": "Patch The Wall",
+    "text": "A wall patch is 5 feet wide and 3 feet tall. What is its area?",
+    "options": [
+      {
+        "label": "8 square feet"
+      },
+      {
+        "label": "15 square feet",
+        "correct": true
+      },
+      {
+        "label": "30 square feet"
+      }
+    ],
+    "feedback": "Area is width times height, so 5 times 3 is 15."
+  },
+  {
+    "id": "g4-to-too-two",
+    "type": "Homophone",
+    "grade": 4,
+    "minLevel": 1,
+    "points": 4,
+    "title": "Choose To, Too, Or Two",
+    "text": "Which sentence uses the correct word?",
+    "options": [
+      {
+        "label": "Bring two buckets to the food prep.",
+        "correct": true
+      },
+      {
+        "label": "Bring too buckets to the food prep."
+      },
+      {
+        "label": "Bring to buckets to the food prep."
+      }
+    ],
+    "feedback": "Two is the number 2."
+  },
+  {
+    "id": "g5-fractions-ration",
+    "type": "Math",
+    "grade": 5,
+    "minLevel": 2,
+    "points": 5,
+    "title": "Ration The Lettuce",
+    "text": "The cook uses 1/4 of a crate for each meal. How many meals can 3 crates make?",
+    "options": [
+      {
+        "label": "7 meals"
+      },
+      {
+        "label": "12 meals",
+        "correct": true
+      },
+      {
+        "label": "16 meals"
+      }
+    ],
+    "feedback": "Each crate has four fourths, so 3 crates make 12 fourths."
+  },
+  {
+    "id": "g5-decimal-fuel",
+    "type": "Math",
+    "grade": 5,
+    "minLevel": 2,
+    "points": 5,
+    "title": "Measure Fuel",
+    "text": "A fuel can holds 2.5 liters. The furnace needs 10 liters. How many cans are needed?",
+    "options": [
+      {
+        "label": "3 cans"
+      },
+      {
+        "label": "4 cans",
+        "correct": true
+      },
+      {
+        "label": "5 cans"
+      }
+    ],
+    "feedback": "10 divided by 2.5 equals 4 cans."
+  },
+  {
+    "id": "g5-their-there",
+    "type": "Homophone",
+    "grade": 5,
+    "minLevel": 2,
+    "points": 5,
+    "title": "Their Or There",
+    "text": "Which sentence is correct?",
+    "options": [
+      {
+        "label": "The survivors left their packs near the gate.",
+        "correct": true
+      },
+      {
+        "label": "The survivors left there packs near the gate."
+      },
+      {
+        "label": "The survivors left they're packs near the gate."
+      }
+    ],
+    "feedback": "Their shows ownership."
+  },
+  {
+    "id": "g6-ratio-meals",
+    "type": "Math",
+    "grade": 6,
+    "minLevel": 2,
+    "points": 6,
+    "title": "Balance The Soup",
+    "text": "The recipe uses 2 lettuce bundles for every 1 meat bundle. If the cook has 8 lettuce bundles, how many meat bundles match the recipe?",
+    "options": [
+      {
+        "label": "4 meat bundles",
+        "correct": true
+      },
+      {
+        "label": "6 meat bundles"
+      },
+      {
+        "label": "8 meat bundles"
+      }
+    ],
+    "feedback": "A 2 to 1 ratio means 8 lettuce bundles pair with 4 meat bundles."
+  },
+  {
+    "id": "g6-rate-wood",
+    "type": "Math",
+    "grade": 6,
+    "minLevel": 2,
+    "points": 6,
+    "title": "Plan The Lumber Run",
+    "text": "A lumberjack cuts 3 trees in 15 minutes. At that rate, how many trees can be cut in 45 minutes?",
+    "options": [
+      {
+        "label": "6 trees"
+      },
+      {
+        "label": "9 trees",
+        "correct": true
+      },
+      {
+        "label": "12 trees"
+      }
+    ],
+    "feedback": "45 minutes is three groups of 15 minutes, so 3 times 3 is 9."
+  },
+  {
+    "id": "g6-comma-clause",
+    "type": "Punctuation",
+    "grade": 6,
+    "minLevel": 2,
+    "points": 6,
+    "title": "Fix The Storm Note",
+    "text": "Choose the sentence with correct punctuation.",
+    "options": [
+      {
+        "label": "When the blizzard starts, close the shutters.",
+        "correct": true
+      },
+      {
+        "label": "When the blizzard starts close the shutters."
+      },
+      {
+        "label": "when the blizzard starts, close the shutters."
+      }
+    ],
+    "feedback": "An introductory clause needs a comma, and the sentence starts with a capital letter."
+  },
+  {
+    "id": "g7-percent-repair",
+    "type": "Math",
+    "grade": 7,
+    "minLevel": 3,
+    "points": 7,
+    "title": "Pay The Repair Cost",
+    "text": "An upgrade costs 40 wood. A failed attempt costs 20% of the price. How much wood is lost?",
+    "options": [
+      {
+        "label": "4 wood"
+      },
+      {
+        "label": "8 wood",
+        "correct": true
+      },
+      {
+        "label": "20 wood"
+      }
+    ],
+    "feedback": "20% of 40 is 8."
+  },
+  {
+    "id": "g7-negative-temp",
+    "type": "Math",
+    "grade": 7,
+    "minLevel": 3,
+    "points": 7,
+    "title": "Track Temperature Change",
+    "text": "The temperature rises from -18 degrees to -7 degrees. How many degrees warmer is it?",
+    "options": [
+      {
+        "label": "9 degrees"
+      },
+      {
+        "label": "11 degrees",
+        "correct": true
+      },
+      {
+        "label": "25 degrees"
+      }
+    ],
+    "feedback": "Moving from -18 to -7 is an increase of 11 degrees."
+  },
+  {
+    "id": "g7-semicolon",
+    "type": "Punctuation",
+    "grade": 7,
+    "minLevel": 3,
+    "points": 7,
+    "title": "Join The Log Entries",
+    "text": "Which sentence correctly joins two related complete thoughts?",
+    "options": [
+      {
+        "label": "The gate is cracked; the engineer can repair it.",
+        "correct": true
+      },
+      {
+        "label": "The gate is cracked, the engineer can repair it."
+      },
+      {
+        "label": "The gate is cracked the engineer can repair it."
+      }
+    ],
+    "feedback": "A semicolon can join two closely related independent clauses."
+  },
+  {
+    "id": "g8-slope-road",
+    "type": "Math",
+    "grade": 8,
+    "minLevel": 3,
+    "points": 8,
+    "title": "Find The Trail Slope",
+    "text": "A trail rises 12 feet over a horizontal distance of 4 feet. What is the slope?",
+    "options": [
+      {
+        "label": "2"
+      },
+      {
+        "label": "3",
+        "correct": true
+      },
+      {
+        "label": "4"
+      }
+    ],
+    "feedback": "Slope is rise divided by run, so 12 divided by 4 is 3."
+  },
+  {
+    "id": "g8-linear-fuel",
+    "type": "Math",
+    "grade": 8,
+    "minLevel": 3,
+    "points": 8,
+    "title": "Solve The Fuel Equation",
+    "text": "The furnace has 12 logs after burning 3 logs per hour for x hours from a stack of 30. Solve 30 - 3x = 12.",
+    "options": [
+      {
+        "label": "x = 4"
+      },
+      {
+        "label": "x = 6",
+        "correct": true
+      },
+      {
+        "label": "x = 14"
+      }
+    ],
+    "feedback": "30 minus 12 is 18, and 18 divided by 3 is 6."
+  },
+  {
+    "id": "g8-pronoun-antecedent",
+    "type": "Sentence",
+    "grade": 8,
+    "minLevel": 3,
+    "points": 8,
+    "title": "Fix The Report",
+    "text": "Choose the sentence with clear pronoun agreement.",
+    "options": [
+      {
+        "label": "Each survivor packed his or her emergency blanket.",
+        "correct": true
+      },
+      {
+        "label": "Each survivor packed their emergency blanket."
+      },
+      {
+        "label": "Each survivors packed his emergency blanket."
+      }
+    ],
+    "feedback": "Each is singular, so his or her agrees clearly."
+  },
+  {
+    "id": "hs-system-supplies",
+    "type": "Math",
+    "grade": 9,
+    "minLevel": 4,
+    "points": 10,
+    "title": "Solve The Supply System",
+    "text": "Two fuel cans and one meal weigh 11 pounds. One fuel can and one meal weigh 7 pounds. How much does one fuel can weigh?",
+    "options": [
+      {
+        "label": "3 pounds"
+      },
+      {
+        "label": "4 pounds",
+        "correct": true
+      },
+      {
+        "label": "5 pounds"
+      }
+    ],
+    "feedback": "Subtract the second equation from the first: one fuel can weighs 4 pounds."
+  },
+  {
+    "id": "hs-quadratic-arch",
+    "type": "Math",
+    "grade": 10,
+    "minLevel": 4,
+    "points": 11,
+    "title": "Brace The Arch",
+    "text": "A roof brace follows h = -x^2 + 6x. At what x-value is the brace highest?",
+    "options": [
+      {
+        "label": "x = 2"
+      },
+      {
+        "label": "x = 3",
+        "correct": true
+      },
+      {
+        "label": "x = 6"
+      }
+    ],
+    "feedback": "The vertex is at x = -b/(2a), so x = -6/(2 * -1) = 3."
+  },
+  {
+    "id": "hs-geometry-volume",
+    "type": "Math",
+    "grade": 10,
+    "minLevel": 4,
+    "points": 11,
+    "title": "Estimate Storage Volume",
+    "text": "A supply bin is 4 ft long, 3 ft wide, and 2 ft tall. What is its volume?",
+    "options": [
+      {
+        "label": "9 cubic feet"
+      },
+      {
+        "label": "24 cubic feet",
+        "correct": true
+      },
+      {
+        "label": "32 cubic feet"
+      }
+    ],
+    "feedback": "Volume is length times width times height: 4 x 3 x 2 = 24."
+  },
+  {
+    "id": "hs-parallelism",
+    "type": "Sentence",
+    "grade": 11,
+    "minLevel": 4,
+    "points": 12,
+    "title": "Improve The Leadership Note",
+    "text": "Which sentence uses parallel structure?",
+    "options": [
+      {
+        "label": "The crew needs chopping wood, to cook meals, and guarding the gate."
+      },
+      {
+        "label": "The crew needs to chop wood, to cook meals, and to guard the gate.",
+        "correct": true
+      },
+      {
+        "label": "The crew needs wood chopping, to cook meals, and guard duty."
+      }
+    ],
+    "feedback": "Each item begins with the same infinitive structure: to chop, to cook, to guard."
+  },
+  {
+    "id": "hs-commas-nonessential",
+    "type": "Punctuation",
+    "grade": 11,
+    "minLevel": 4,
+    "points": 12,
+    "title": "Set Off Extra Information",
+    "text": "Choose the sentence with correct commas around nonessential information.",
+    "options": [
+      {
+        "label": "The engineer who fixed the tower earned extra rations."
+      },
+      {
+        "label": "The engineer, who fixed the tower, earned extra rations.",
+        "correct": true
+      },
+      {
+        "label": "The engineer who fixed the tower, earned extra rations."
+      }
+    ],
+    "feedback": "The phrase who fixed the tower adds extra information and is set off by commas."
+  },
+  {
+    "id": "hs-exponential-cold",
+    "type": "Math",
+    "grade": 12,
+    "minLevel": 5,
+    "points": 14,
+    "title": "Model Heat Loss",
+    "text": "A room keeps 80% of its heat each hour. If it starts with 100 heat units, about how many remain after 2 hours?",
+    "options": [
+      {
+        "label": "60 units"
+      },
+      {
+        "label": "64 units",
+        "correct": true
+      },
+      {
+        "label": "80 units"
+      }
+    ],
+    "feedback": "100 times 0.8 times 0.8 equals 64."
+  },
+  {
+    "id": "hs-rhetoric",
+    "type": "Sentence",
+    "grade": 12,
+    "minLevel": 5,
+    "points": 14,
+    "title": "Choose The Clearest Revision",
+    "text": "Which revision is most concise and clear?",
+    "options": [
+      {
+        "label": "Due to the fact that the storm is near, we should proceed to close the gate."
+      },
+      {
+        "label": "Because the storm is near, we should close the gate.",
+        "correct": true
+      },
+      {
+        "label": "The storm being near is a thing that means gate closure should happen."
+      }
+    ],
+    "feedback": "The best revision is direct, concise, and clear."
+  },
+  {
+    "id": "ff-math-add-001",
+    "type": "Math",
+    "grade": 3,
+    "minLevel": 1,
+    "points": 3,
+    "title": "Firewood Count",
+    "text": "The wood pile has 15 logs. The player gathers 9 more from the tree line. How many logs are ready for the furnace?",
+    "options": [
+      {
+        "label": "23 logs"
+      },
+      {
+        "label": "24 logs",
+        "correct": true
+      },
+      {
+        "label": "26 logs"
+      }
+    ],
+    "feedback": "15 plus 9 makes 24 logs."
+  },
+  {
+    "id": "ff-math-fuel-left-002",
+    "type": "Math",
+    "grade": 4,
+    "minLevel": 1,
+    "points": 3,
+    "title": "Fuel Remaining",
+    "text": "The furnace tank starts with 44 fuel units and burns 19 units overnight. How many units remain?",
+    "options": [
+      {
+        "label": "28 units"
+      },
+      {
+        "label": "25 units",
+        "correct": true
+      },
+      {
+        "label": "21 units"
+      }
+    ],
+    "feedback": "44 minus 19 leaves 25 fuel units."
+  },
+  {
+    "id": "ff-math-meals-003",
+    "type": "Math",
+    "grade": 5,
+    "minLevel": 2,
+    "points": 4,
+    "title": "Meal Prep Batch",
+    "text": "The cook prepares 3 meals for each of 7 survivors before nightfall. How many meals are needed?",
+    "options": [
+      {
+        "label": "28 meals"
+      },
+      {
+        "label": "21 meals",
+        "correct": true
+      },
+      {
+        "label": "18 meals"
+      }
+    ],
+    "feedback": "7 groups of 3 meals equals 21 meals."
+  },
+  {
+    "id": "ff-math-generator-004",
+    "type": "Math",
+    "grade": 5,
+    "minLevel": 2,
+    "points": 4,
+    "title": "Generator Burn Rate",
+    "text": "A backup generator uses 7 fuel units each hour. It must run for 7 hours. How many fuel units should be loaded?",
+    "options": [
+      {
+        "label": "42 units"
+      },
+      {
+        "label": "49 units",
+        "correct": true
+      },
+      {
+        "label": "56 units"
+      }
+    ],
+    "feedback": "7 times 7 equals 49 fuel units."
+  },
+  {
+    "id": "ff-math-ratio-005",
+    "type": "Math",
+    "grade": 6,
+    "minLevel": 2,
+    "points": 4,
+    "title": "Antifreeze Ratio",
+    "text": "Engine mix uses 1 part antifreeze for every 3 parts water. If the team makes 54 cups of mix, how many cups are antifreeze?",
+    "options": [
+      {
+        "label": "16.5 cups"
+      },
+      {
+        "label": "13.5 cups",
+        "correct": true
+      },
+      {
+        "label": "40.5 cups"
+      }
+    ],
+    "feedback": "The ratio has 4 total parts, so 54 divided by 4 is 13.5."
+  },
+  {
+    "id": "ff-math-temperature-006",
+    "type": "Math",
+    "grade": 6,
+    "minLevel": 2,
+    "points": 4,
+    "title": "Temperature Shift",
+    "text": "The morning temperature is -32 degrees F. The sun warms the camp by 12 degrees. What is the new temperature?",
+    "options": [
+      {
+        "label": "-25 degrees F"
+      },
+      {
+        "label": "-20 degrees F",
+        "correct": true
+      },
+      {
+        "label": "-16 degrees F"
+      }
+    ],
+    "feedback": "-32 plus 12 equals -20 degrees F."
+  },
+  {
+    "id": "ff-math-perimeter-007",
+    "type": "Math",
+    "grade": 7,
+    "minLevel": 3,
+    "points": 5,
+    "title": "Fence Perimeter",
+    "text": "A repair patch is a rectangle 14 feet long and 6 feet wide. How many feet of rope trim the edge?",
+    "options": [
+      {
+        "label": "84 feet"
+      },
+      {
+        "label": "40 feet",
+        "correct": true
+      },
+      {
+        "label": "46 feet"
+      }
+    ],
+    "feedback": "Perimeter is 2 times (14 plus 6), which is 40."
+  },
+  {
+    "id": "ff-math-area-008",
+    "type": "Math",
+    "grade": 7,
+    "minLevel": 3,
+    "points": 5,
+    "title": "Tarp Coverage",
+    "text": "A roof tarp is 8 feet by 8 feet. How many square feet does it cover?",
+    "options": [
+      {
+        "label": "32 square feet"
+      },
+      {
+        "label": "64 square feet",
+        "correct": true
+      },
+      {
+        "label": "72 square feet"
+      }
+    ],
+    "feedback": "Area is length times width: 8 times 8 equals 64."
+  },
+  {
+    "id": "ff-math-percent-009",
+    "type": "Math",
+    "grade": 8,
+    "minLevel": 3,
+    "points": 5,
+    "title": "Supply Percent",
+    "text": "The depot has 80 meal packs. The rescue team takes 30% of them. How many packs do they take?",
+    "options": [
+      {
+        "label": "34 packs"
+      },
+      {
+        "label": "24 packs",
+        "correct": true
+      },
+      {
+        "label": "16 packs"
+      }
+    ],
+    "feedback": "30% of 80 is 24."
+  },
+  {
+    "id": "ff-math-travel-010",
+    "type": "Math",
+    "grade": 8,
+    "minLevel": 3,
+    "points": 5,
+    "title": "Snowmobile Time",
+    "text": "A snowmobile route is 22 miles. The storm limits speed to 3 miles per hour. About how many hours will the trip take?",
+    "options": [
+      {
+        "label": "5.5 hours"
+      },
+      {
+        "label": "7.3 hours",
+        "correct": true
+      },
+      {
+        "label": "11 hours"
+      }
+    ],
+    "feedback": "Time equals distance divided by speed: 22 divided by 3 is about 7.3."
+  },
+  {
+    "id": "ff-math-equation-011",
+    "type": "Math",
+    "grade": 9,
+    "minLevel": 4,
+    "points": 6,
+    "title": "Crate Equation",
+    "text": "4 identical crates plus 7 loose blankets make 31 blankets total. How many blankets are in each crate?",
+    "options": [
+      {
+        "label": "8 blankets"
+      },
+      {
+        "label": "6 blankets",
+        "correct": true
+      },
+      {
+        "label": "4 blankets"
+      }
+    ],
+    "feedback": "Subtract 7, then divide by 4: each crate has 6 blankets."
+  },
+  {
+    "id": "ff-math-slope-012",
+    "type": "Math",
+    "grade": 10,
+    "minLevel": 4,
+    "points": 6,
+    "title": "Trail Grade",
+    "text": "A mountain trail climbs 12 meters over 3 horizontal meters on the map. What is the slope?",
+    "options": [
+      {
+        "label": "0.25"
+      },
+      {
+        "label": "4",
+        "correct": true
+      },
+      {
+        "label": "5"
+      }
+    ],
+    "feedback": "Slope is rise divided by run: 12 divided by 3 is 4."
+  },
+  {
+    "id": "ff-math-volume-013",
+    "type": "Math",
+    "grade": 11,
+    "minLevel": 5,
+    "points": 8,
+    "title": "Water Barrel Volume",
+    "text": "A round emergency barrel has radius 3 ft and height 10 ft. Using pi about 3.14, about how many cubic feet can it hold?",
+    "options": [
+      {
+        "label": "188 cubic feet"
+      },
+      {
+        "label": "283 cubic feet",
+        "correct": true
+      },
+      {
+        "label": "94 cubic feet"
+      }
+    ],
+    "feedback": "Cylinder volume is pi times radius squared times height, about 283 cubic feet."
+  },
+  {
+    "id": "ff-math-exponential-014",
+    "type": "Math",
+    "grade": 12,
+    "minLevel": 5,
+    "points": 8,
+    "title": "Heat Loss Model",
+    "text": "A sealed shelter has 170 heat units. Each hour it keeps 75% of its heat. About how many units remain after 2 hours?",
+    "options": [
+      {
+        "label": "128 units"
+      },
+      {
+        "label": "96 units",
+        "correct": true
+      },
+      {
+        "label": "85 units"
+      }
+    ],
+    "feedback": "After 2 hours the heat is 170 times 0.75 times 0.75, about 96."
+  },
+  {
+    "id": "ff-math-add-015",
+    "type": "Math",
+    "grade": 3,
+    "minLevel": 1,
+    "points": 3,
+    "title": "Firewood Count",
+    "text": "The wood pile has 29 logs. The player gathers 9 more from the tree line. How many logs are ready for the furnace?",
+    "options": [
+      {
+        "label": "37 logs"
+      },
+      {
+        "label": "38 logs",
+        "correct": true
+      },
+      {
+        "label": "40 logs"
+      }
+    ],
+    "feedback": "29 plus 9 makes 38 logs."
+  },
+  {
+    "id": "ff-math-fuel-left-016",
+    "type": "Math",
+    "grade": 4,
+    "minLevel": 1,
+    "points": 3,
+    "title": "Fuel Remaining",
+    "text": "The furnace tank starts with 58 fuel units and burns 17 units overnight. How many units remain?",
+    "options": [
+      {
+        "label": "44 units"
+      },
+      {
+        "label": "41 units",
+        "correct": true
+      },
+      {
+        "label": "37 units"
+      }
+    ],
+    "feedback": "58 minus 17 leaves 41 fuel units."
+  },
+  {
+    "id": "ff-math-meals-017",
+    "type": "Math",
+    "grade": 5,
+    "minLevel": 2,
+    "points": 4,
+    "title": "Meal Prep Batch",
+    "text": "The cook prepares 6 meals for each of 7 survivors before nightfall. How many meals are needed?",
+    "options": [
+      {
+        "label": "49 meals"
+      },
+      {
+        "label": "42 meals",
+        "correct": true
+      },
+      {
+        "label": "36 meals"
+      }
+    ],
+    "feedback": "7 groups of 6 meals equals 42 meals."
+  },
+  {
+    "id": "ff-math-generator-018",
+    "type": "Math",
+    "grade": 5,
+    "minLevel": 2,
+    "points": 4,
+    "title": "Generator Burn Rate",
+    "text": "A backup generator uses 5 fuel units each hour. It must run for 3 hours. How many fuel units should be loaded?",
+    "options": [
+      {
+        "label": "10 units"
+      },
+      {
+        "label": "15 units",
+        "correct": true
+      },
+      {
+        "label": "18 units"
+      }
+    ],
+    "feedback": "5 times 3 equals 15 fuel units."
+  },
+  {
+    "id": "ff-math-ratio-019",
+    "type": "Math",
+    "grade": 6,
+    "minLevel": 2,
+    "points": 4,
+    "title": "Antifreeze Ratio",
+    "text": "Engine mix uses 1 part antifreeze for every 3 parts water. If the team makes 42 cups of mix, how many cups are antifreeze?",
+    "options": [
+      {
+        "label": "13.5 cups"
+      },
+      {
+        "label": "10.5 cups",
+        "correct": true
+      },
+      {
+        "label": "31.5 cups"
+      }
+    ],
+    "feedback": "The ratio has 4 total parts, so 42 divided by 4 is 10.5."
+  },
+  {
+    "id": "ff-math-temperature-020",
+    "type": "Math",
+    "grade": 6,
+    "minLevel": 2,
+    "points": 4,
+    "title": "Temperature Shift",
+    "text": "The morning temperature is -34 degrees F. The sun warms the camp by 15 degrees. What is the new temperature?",
+    "options": [
+      {
+        "label": "-24 degrees F"
+      },
+      {
+        "label": "-19 degrees F",
+        "correct": true
+      },
+      {
+        "label": "-15 degrees F"
+      }
+    ],
+    "feedback": "-34 plus 15 equals -19 degrees F."
+  },
+  {
+    "id": "ff-math-perimeter-021",
+    "type": "Math",
+    "grade": 7,
+    "minLevel": 3,
+    "points": 5,
+    "title": "Fence Perimeter",
+    "text": "A repair patch is a rectangle 10 feet long and 4 feet wide. How many feet of rope trim the edge?",
+    "options": [
+      {
+        "label": "40 feet"
+      },
+      {
+        "label": "28 feet",
+        "correct": true
+      },
+      {
+        "label": "32 feet"
+      }
+    ],
+    "feedback": "Perimeter is 2 times (10 plus 4), which is 28."
+  },
+  {
+    "id": "ff-math-area-022",
+    "type": "Math",
+    "grade": 7,
+    "minLevel": 3,
+    "points": 5,
+    "title": "Tarp Coverage",
+    "text": "A roof tarp is 14 feet by 8 feet. How many square feet does it cover?",
+    "options": [
+      {
+        "label": "44 square feet"
+      },
+      {
+        "label": "112 square feet",
+        "correct": true
+      },
+      {
+        "label": "126 square feet"
+      }
+    ],
+    "feedback": "Area is length times width: 14 times 8 equals 112."
+  },
+  {
+    "id": "ff-math-percent-023",
+    "type": "Math",
+    "grade": 8,
+    "minLevel": 3,
+    "points": 5,
+    "title": "Supply Percent",
+    "text": "The depot has 180 meal packs. The rescue team takes 30% of them. How many packs do they take?",
+    "options": [
+      {
+        "label": "64 packs"
+      },
+      {
+        "label": "54 packs",
+        "correct": true
+      },
+      {
+        "label": "46 packs"
+      }
+    ],
+    "feedback": "30% of 180 is 54."
+  },
+  {
+    "id": "ff-math-travel-024",
+    "type": "Math",
+    "grade": 8,
+    "minLevel": 3,
+    "points": 5,
+    "title": "Snowmobile Time",
+    "text": "A snowmobile route is 18 miles. The storm limits speed to 6 miles per hour. About how many hours will the trip take?",
+    "options": [
+      {
+        "label": "2.6 hours"
+      },
+      {
+        "label": "3 hours",
+        "correct": true
+      },
+      {
+        "label": "3.6 hours"
+      }
+    ],
+    "feedback": "Time equals distance divided by speed: 18 divided by 6 is about 3."
+  },
+  {
+    "id": "ff-math-equation-025",
+    "type": "Math",
+    "grade": 9,
+    "minLevel": 4,
+    "points": 6,
+    "title": "Crate Equation",
+    "text": "3 identical crates plus 3 loose blankets make 24 blankets total. How many blankets are in each crate?",
+    "options": [
+      {
+        "label": "9 blankets"
+      },
+      {
+        "label": "7 blankets",
+        "correct": true
+      },
+      {
+        "label": "5 blankets"
+      }
+    ],
+    "feedback": "Subtract 3, then divide by 3: each crate has 7 blankets."
+  },
+  {
+    "id": "ff-math-slope-026",
+    "type": "Math",
+    "grade": 10,
+    "minLevel": 4,
+    "points": 6,
+    "title": "Trail Grade",
+    "text": "A mountain trail climbs 17 meters over 7 horizontal meters on the map. What is the slope?",
+    "options": [
+      {
+        "label": "0.41"
+      },
+      {
+        "label": "2.43",
+        "correct": true
+      },
+      {
+        "label": "3.43"
+      }
+    ],
+    "feedback": "Slope is rise divided by run: 17 divided by 7 is 2.43."
+  },
+  {
+    "id": "ff-math-volume-027",
+    "type": "Math",
+    "grade": 11,
+    "minLevel": 5,
+    "points": 8,
+    "title": "Water Barrel Volume",
+    "text": "A round emergency barrel has radius 5 ft and height 10 ft. Using pi about 3.14, about how many cubic feet can it hold?",
+    "options": [
+      {
+        "label": "314 cubic feet"
+      },
+      {
+        "label": "785 cubic feet",
+        "correct": true
+      },
+      {
+        "label": "157 cubic feet"
+      }
+    ],
+    "feedback": "Cylinder volume is pi times radius squared times height, about 785 cubic feet."
+  },
+  {
+    "id": "ff-math-exponential-028",
+    "type": "Math",
+    "grade": 12,
+    "minLevel": 5,
+    "points": 8,
+    "title": "Heat Loss Model",
+    "text": "A sealed shelter has 130 heat units. Each hour it keeps 75% of its heat. About how many units remain after 2 hours?",
+    "options": [
+      {
+        "label": "98 units"
+      },
+      {
+        "label": "73 units",
+        "correct": true
+      },
+      {
+        "label": "65 units"
+      }
+    ],
+    "feedback": "After 2 hours the heat is 130 times 0.75 times 0.75, about 73."
+  },
+  {
+    "id": "ff-math-add-029",
+    "type": "Math",
+    "grade": 3,
+    "minLevel": 1,
+    "points": 3,
+    "title": "Firewood Count",
+    "text": "The wood pile has 24 logs. The player gathers 9 more from the tree line. How many logs are ready for the furnace?",
+    "options": [
+      {
+        "label": "32 logs"
+      },
+      {
+        "label": "33 logs",
+        "correct": true
+      },
+      {
+        "label": "35 logs"
+      }
+    ],
+    "feedback": "24 plus 9 makes 33 logs."
+  },
+  {
+    "id": "ff-math-fuel-left-030",
+    "type": "Math",
+    "grade": 4,
+    "minLevel": 1,
+    "points": 3,
+    "title": "Fuel Remaining",
+    "text": "The furnace tank starts with 44 fuel units and burns 15 units overnight. How many units remain?",
+    "options": [
+      {
+        "label": "32 units"
+      },
+      {
+        "label": "29 units",
+        "correct": true
+      },
+      {
+        "label": "25 units"
+      }
+    ],
+    "feedback": "44 minus 15 leaves 29 fuel units."
+  },
+  {
+    "id": "ff-math-meals-031",
+    "type": "Math",
+    "grade": 5,
+    "minLevel": 2,
+    "points": 4,
+    "title": "Meal Prep Batch",
+    "text": "The cook prepares 4 meals for each of 7 survivors before nightfall. How many meals are needed?",
+    "options": [
+      {
+        "label": "35 meals"
+      },
+      {
+        "label": "28 meals",
+        "correct": true
+      },
+      {
+        "label": "24 meals"
+      }
+    ],
+    "feedback": "7 groups of 4 meals equals 28 meals."
+  },
+  {
+    "id": "ff-math-generator-032",
+    "type": "Math",
+    "grade": 5,
+    "minLevel": 2,
+    "points": 4,
+    "title": "Generator Burn Rate",
+    "text": "A backup generator uses 8 fuel units each hour. It must run for 5 hours. How many fuel units should be loaded?",
+    "options": [
+      {
+        "label": "32 units"
+      },
+      {
+        "label": "40 units",
+        "correct": true
+      },
+      {
+        "label": "45 units"
+      }
+    ],
+    "feedback": "8 times 5 equals 40 fuel units."
+  },
+  {
+    "id": "ff-math-ratio-033",
+    "type": "Math",
+    "grade": 6,
+    "minLevel": 2,
+    "points": 4,
+    "title": "Antifreeze Ratio",
+    "text": "Engine mix uses 1 part antifreeze for every 3 parts water. If the team makes 30 cups of mix, how many cups are antifreeze?",
+    "options": [
+      {
+        "label": "10.5 cups"
+      },
+      {
+        "label": "7.5 cups",
+        "correct": true
+      },
+      {
+        "label": "22.5 cups"
+      }
+    ],
+    "feedback": "The ratio has 4 total parts, so 30 divided by 4 is 7.5."
+  },
+  {
+    "id": "ff-math-temperature-034",
+    "type": "Math",
+    "grade": 6,
+    "minLevel": 2,
+    "points": 4,
+    "title": "Temperature Shift",
+    "text": "The morning temperature is -36 degrees F. The sun warms the camp by 18 degrees. What is the new temperature?",
+    "options": [
+      {
+        "label": "-23 degrees F"
+      },
+      {
+        "label": "-18 degrees F",
+        "correct": true
+      },
+      {
+        "label": "-14 degrees F"
+      }
+    ],
+    "feedback": "-36 plus 18 equals -18 degrees F."
+  },
+  {
+    "id": "ff-math-perimeter-035",
+    "type": "Math",
+    "grade": 7,
+    "minLevel": 3,
+    "points": 5,
+    "title": "Fence Perimeter",
+    "text": "A repair patch is a rectangle 15 feet long and 8 feet wide. How many feet of rope trim the edge?",
+    "options": [
+      {
+        "label": "120 feet"
+      },
+      {
+        "label": "46 feet",
+        "correct": true
+      },
+      {
+        "label": "54 feet"
+      }
+    ],
+    "feedback": "Perimeter is 2 times (15 plus 8), which is 46."
+  },
+  {
+    "id": "ff-math-area-036",
+    "type": "Math",
+    "grade": 7,
+    "minLevel": 3,
+    "points": 5,
+    "title": "Tarp Coverage",
+    "text": "A roof tarp is 12 feet by 8 feet. How many square feet does it cover?",
+    "options": [
+      {
+        "label": "40 square feet"
+      },
+      {
+        "label": "96 square feet",
+        "correct": true
+      },
+      {
+        "label": "108 square feet"
+      }
+    ],
+    "feedback": "Area is length times width: 12 times 8 equals 96."
+  },
+  {
+    "id": "ff-math-percent-037",
+    "type": "Math",
+    "grade": 8,
+    "minLevel": 3,
+    "points": 5,
+    "title": "Supply Percent",
+    "text": "The depot has 100 meal packs. The rescue team takes 30% of them. How many packs do they take?",
+    "options": [
+      {
+        "label": "40 packs"
+      },
+      {
+        "label": "30 packs",
+        "correct": true
+      },
+      {
+        "label": "22 packs"
+      }
+    ],
+    "feedback": "30% of 100 is 30."
+  },
+  {
+    "id": "ff-math-travel-038",
+    "type": "Math",
+    "grade": 8,
+    "minLevel": 3,
+    "points": 5,
+    "title": "Snowmobile Time",
+    "text": "A snowmobile route is 14 miles. The storm limits speed to 4 miles per hour. About how many hours will the trip take?",
+    "options": [
+      {
+        "label": "2.8 hours"
+      },
+      {
+        "label": "3.5 hours",
+        "correct": true
+      },
+      {
+        "label": "4.7 hours"
+      }
+    ],
+    "feedback": "Time equals distance divided by speed: 14 divided by 4 is about 3.5."
+  },
+  {
+    "id": "ff-math-equation-039",
+    "type": "Math",
+    "grade": 9,
+    "minLevel": 4,
+    "points": 6,
+    "title": "Crate Equation",
+    "text": "7 identical crates plus 5 loose blankets make 61 blankets total. How many blankets are in each crate?",
+    "options": [
+      {
+        "label": "10 blankets"
+      },
+      {
+        "label": "8 blankets",
+        "correct": true
+      },
+      {
+        "label": "6 blankets"
+      }
+    ],
+    "feedback": "Subtract 5, then divide by 7: each crate has 8 blankets."
+  },
+  {
+    "id": "ff-math-slope-040",
+    "type": "Math",
+    "grade": 10,
+    "minLevel": 4,
+    "points": 6,
+    "title": "Trail Grade",
+    "text": "A mountain trail climbs 13 meters over 5 horizontal meters on the map. What is the slope?",
+    "options": [
+      {
+        "label": "0.38"
+      },
+      {
+        "label": "2.6",
+        "correct": true
+      },
+      {
+        "label": "3.6"
+      }
+    ],
+    "feedback": "Slope is rise divided by run: 13 divided by 5 is 2.6."
+  },
+  {
+    "id": "ff-math-volume-041",
+    "type": "Math",
+    "grade": 11,
+    "minLevel": 5,
+    "points": 8,
+    "title": "Water Barrel Volume",
+    "text": "A round emergency barrel has radius 3 ft and height 10 ft. Using pi about 3.14, about how many cubic feet can it hold?",
+    "options": [
+      {
+        "label": "188 cubic feet"
+      },
+      {
+        "label": "283 cubic feet",
+        "correct": true
+      },
+      {
+        "label": "94 cubic feet"
+      }
+    ],
+    "feedback": "Cylinder volume is pi times radius squared times height, about 283 cubic feet."
+  },
+  {
+    "id": "ff-math-exponential-042",
+    "type": "Math",
+    "grade": 12,
+    "minLevel": 5,
+    "points": 8,
+    "title": "Heat Loss Model",
+    "text": "A sealed shelter has 180 heat units. Each hour it keeps 75% of its heat. About how many units remain after 2 hours?",
+    "options": [
+      {
+        "label": "135 units"
+      },
+      {
+        "label": "101 units",
+        "correct": true
+      },
+      {
+        "label": "90 units"
+      }
+    ],
+    "feedback": "After 2 hours the heat is 180 times 0.75 times 0.75, about 101."
+  },
+  {
+    "id": "ff-math-add-043",
+    "type": "Math",
+    "grade": 3,
+    "minLevel": 1,
+    "points": 3,
+    "title": "Firewood Count",
+    "text": "The wood pile has 19 logs. The player gathers 9 more from the tree line. How many logs are ready for the furnace?",
+    "options": [
+      {
+        "label": "27 logs"
+      },
+      {
+        "label": "28 logs",
+        "correct": true
+      },
+      {
+        "label": "30 logs"
+      }
+    ],
+    "feedback": "19 plus 9 makes 28 logs."
+  },
+  {
+    "id": "ff-math-fuel-left-044",
+    "type": "Math",
+    "grade": 4,
+    "minLevel": 1,
+    "points": 3,
+    "title": "Fuel Remaining",
+    "text": "The furnace tank starts with 58 fuel units and burns 13 units overnight. How many units remain?",
+    "options": [
+      {
+        "label": "48 units"
+      },
+      {
+        "label": "45 units",
+        "correct": true
+      },
+      {
+        "label": "41 units"
+      }
+    ],
+    "feedback": "58 minus 13 leaves 45 fuel units."
+  },
+  {
+    "id": "ff-math-meals-045",
+    "type": "Math",
+    "grade": 5,
+    "minLevel": 2,
+    "points": 4,
+    "title": "Meal Prep Batch",
+    "text": "The cook prepares 2 meals for each of 7 survivors before nightfall. How many meals are needed?",
+    "options": [
+      {
+        "label": "21 meals"
+      },
+      {
+        "label": "14 meals",
+        "correct": true
+      },
+      {
+        "label": "12 meals"
+      }
+    ],
+    "feedback": "7 groups of 2 meals equals 14 meals."
+  },
+  {
+    "id": "ff-math-generator-046",
+    "type": "Math",
+    "grade": 5,
+    "minLevel": 2,
+    "points": 4,
+    "title": "Generator Burn Rate",
+    "text": "A backup generator uses 6 fuel units each hour. It must run for 7 hours. How many fuel units should be loaded?",
+    "options": [
+      {
+        "label": "36 units"
+      },
+      {
+        "label": "42 units",
+        "correct": true
+      },
+      {
+        "label": "49 units"
+      }
+    ],
+    "feedback": "6 times 7 equals 42 fuel units."
+  },
+  {
+    "id": "ff-math-ratio-047",
+    "type": "Math",
+    "grade": 6,
+    "minLevel": 2,
+    "points": 4,
+    "title": "Antifreeze Ratio",
+    "text": "Engine mix uses 1 part antifreeze for every 3 parts water. If the team makes 66 cups of mix, how many cups are antifreeze?",
+    "options": [
+      {
+        "label": "19.5 cups"
+      },
+      {
+        "label": "16.5 cups",
+        "correct": true
+      },
+      {
+        "label": "49.5 cups"
+      }
+    ],
+    "feedback": "The ratio has 4 total parts, so 66 divided by 4 is 16.5."
+  },
+  {
+    "id": "ff-math-temperature-048",
+    "type": "Math",
+    "grade": 6,
+    "minLevel": 2,
+    "points": 4,
+    "title": "Temperature Shift",
+    "text": "The morning temperature is -38 degrees F. The sun warms the camp by 8 degrees. What is the new temperature?",
+    "options": [
+      {
+        "label": "-35 degrees F"
+      },
+      {
+        "label": "-30 degrees F",
+        "correct": true
+      },
+      {
+        "label": "-26 degrees F"
+      }
+    ],
+    "feedback": "-38 plus 8 equals -30 degrees F."
+  },
+  {
+    "id": "ff-math-perimeter-049",
+    "type": "Math",
+    "grade": 7,
+    "minLevel": 3,
+    "points": 5,
+    "title": "Fence Perimeter",
+    "text": "A repair patch is a rectangle 11 feet long and 6 feet wide. How many feet of rope trim the edge?",
+    "options": [
+      {
+        "label": "66 feet"
+      },
+      {
+        "label": "34 feet",
+        "correct": true
+      },
+      {
+        "label": "40 feet"
+      }
+    ],
+    "feedback": "Perimeter is 2 times (11 plus 6), which is 34."
+  },
+  {
+    "id": "ff-math-area-050",
+    "type": "Math",
+    "grade": 7,
+    "minLevel": 3,
+    "points": 5,
+    "title": "Tarp Coverage",
+    "text": "A roof tarp is 10 feet by 8 feet. How many square feet does it cover?",
+    "options": [
+      {
+        "label": "36 square feet"
+      },
+      {
+        "label": "80 square feet",
+        "correct": true
+      },
+      {
+        "label": "90 square feet"
+      }
+    ],
+    "feedback": "Area is length times width: 10 times 8 equals 80."
+  },
+  {
+    "id": "ff-math-percent-051",
+    "type": "Math",
+    "grade": 8,
+    "minLevel": 3,
+    "points": 5,
+    "title": "Supply Percent",
+    "text": "The depot has 200 meal packs. The rescue team takes 30% of them. How many packs do they take?",
+    "options": [
+      {
+        "label": "70 packs"
+      },
+      {
+        "label": "60 packs",
+        "correct": true
+      },
+      {
+        "label": "52 packs"
+      }
+    ],
+    "feedback": "30% of 200 is 60."
+  },
+  {
+    "id": "ff-math-travel-052",
+    "type": "Math",
+    "grade": 8,
+    "minLevel": 3,
+    "points": 5,
+    "title": "Snowmobile Time",
+    "text": "A snowmobile route is 28 miles. The storm limits speed to 7 miles per hour. About how many hours will the trip take?",
+    "options": [
+      {
+        "label": "3.5 hours"
+      },
+      {
+        "label": "4 hours",
+        "correct": true
+      },
+      {
+        "label": "4.7 hours"
+      }
+    ],
+    "feedback": "Time equals distance divided by speed: 28 divided by 7 is about 4."
+  },
+  {
+    "id": "ff-math-equation-053",
+    "type": "Math",
+    "grade": 9,
+    "minLevel": 4,
+    "points": 6,
+    "title": "Crate Equation",
+    "text": "6 identical crates plus 7 loose blankets make 61 blankets total. How many blankets are in each crate?",
+    "options": [
+      {
+        "label": "11 blankets"
+      },
+      {
+        "label": "9 blankets",
+        "correct": true
+      },
+      {
+        "label": "7 blankets"
+      }
+    ],
+    "feedback": "Subtract 7, then divide by 6: each crate has 9 blankets."
+  },
+  {
+    "id": "ff-math-slope-054",
+    "type": "Math",
+    "grade": 10,
+    "minLevel": 4,
+    "points": 6,
+    "title": "Trail Grade",
+    "text": "A mountain trail climbs 9 meters over 3 horizontal meters on the map. What is the slope?",
+    "options": [
+      {
+        "label": "0.33"
+      },
+      {
+        "label": "3",
+        "correct": true
+      },
+      {
+        "label": "4"
+      }
+    ],
+    "feedback": "Slope is rise divided by run: 9 divided by 3 is 3."
+  },
+  {
+    "id": "ff-math-volume-055",
+    "type": "Math",
+    "grade": 11,
+    "minLevel": 5,
+    "points": 8,
+    "title": "Water Barrel Volume",
+    "text": "A round emergency barrel has radius 5 ft and height 10 ft. Using pi about 3.14, about how many cubic feet can it hold?",
+    "options": [
+      {
+        "label": "314 cubic feet"
+      },
+      {
+        "label": "785 cubic feet",
+        "correct": true
+      },
+      {
+        "label": "157 cubic feet"
+      }
+    ],
+    "feedback": "Cylinder volume is pi times radius squared times height, about 785 cubic feet."
+  },
+  {
+    "id": "ff-math-exponential-056",
+    "type": "Math",
+    "grade": 12,
+    "minLevel": 5,
+    "points": 8,
+    "title": "Heat Loss Model",
+    "text": "A sealed shelter has 140 heat units. Each hour it keeps 75% of its heat. About how many units remain after 2 hours?",
+    "options": [
+      {
+        "label": "105 units"
+      },
+      {
+        "label": "79 units",
+        "correct": true
+      },
+      {
+        "label": "70 units"
+      }
+    ],
+    "feedback": "After 2 hours the heat is 140 times 0.75 times 0.75, about 79."
+  },
+  {
+    "id": "ff-math-add-057",
+    "type": "Math",
+    "grade": 3,
+    "minLevel": 1,
+    "points": 3,
+    "title": "Firewood Count",
+    "text": "The wood pile has 14 logs. The player gathers 9 more from the tree line. How many logs are ready for the furnace?",
+    "options": [
+      {
+        "label": "22 logs"
+      },
+      {
+        "label": "23 logs",
+        "correct": true
+      },
+      {
+        "label": "25 logs"
+      }
+    ],
+    "feedback": "14 plus 9 makes 23 logs."
+  },
+  {
+    "id": "ff-math-fuel-left-058",
+    "type": "Math",
+    "grade": 4,
+    "minLevel": 1,
+    "points": 3,
+    "title": "Fuel Remaining",
+    "text": "The furnace tank starts with 44 fuel units and burns 11 units overnight. How many units remain?",
+    "options": [
+      {
+        "label": "36 units"
+      },
+      {
+        "label": "33 units",
+        "correct": true
+      },
+      {
+        "label": "29 units"
+      }
+    ],
+    "feedback": "44 minus 11 leaves 33 fuel units."
+  },
+  {
+    "id": "ff-math-meals-059",
+    "type": "Math",
+    "grade": 5,
+    "minLevel": 2,
+    "points": 4,
+    "title": "Meal Prep Batch",
+    "text": "The cook prepares 5 meals for each of 7 survivors before nightfall. How many meals are needed?",
+    "options": [
+      {
+        "label": "42 meals"
+      },
+      {
+        "label": "35 meals",
+        "correct": true
+      },
+      {
+        "label": "30 meals"
+      }
+    ],
+    "feedback": "7 groups of 5 meals equals 35 meals."
+  },
+  {
+    "id": "ff-math-generator-060",
+    "type": "Math",
+    "grade": 5,
+    "minLevel": 2,
+    "points": 4,
+    "title": "Generator Burn Rate",
+    "text": "A backup generator uses 4 fuel units each hour. It must run for 3 hours. How many fuel units should be loaded?",
+    "options": [
+      {
+        "label": "8 units"
+      },
+      {
+        "label": "12 units",
+        "correct": true
+      },
+      {
+        "label": "15 units"
+      }
+    ],
+    "feedback": "4 times 3 equals 12 fuel units."
+  },
+  {
+    "id": "ff-math-ratio-061",
+    "type": "Math",
+    "grade": 6,
+    "minLevel": 2,
+    "points": 4,
+    "title": "Antifreeze Ratio",
+    "text": "Engine mix uses 1 part antifreeze for every 3 parts water. If the team makes 54 cups of mix, how many cups are antifreeze?",
+    "options": [
+      {
+        "label": "16.5 cups"
+      },
+      {
+        "label": "13.5 cups",
+        "correct": true
+      },
+      {
+        "label": "40.5 cups"
+      }
+    ],
+    "feedback": "The ratio has 4 total parts, so 54 divided by 4 is 13.5."
+  },
+  {
+    "id": "ff-math-temperature-062",
+    "type": "Math",
+    "grade": 6,
+    "minLevel": 2,
+    "points": 4,
+    "title": "Temperature Shift",
+    "text": "The morning temperature is -24 degrees F. The sun warms the camp by 11 degrees. What is the new temperature?",
+    "options": [
+      {
+        "label": "-18 degrees F"
+      },
+      {
+        "label": "-13 degrees F",
+        "correct": true
+      },
+      {
+        "label": "-9 degrees F"
+      }
+    ],
+    "feedback": "-24 plus 11 equals -13 degrees F."
+  },
+  {
+    "id": "ff-math-perimeter-063",
+    "type": "Math",
+    "grade": 7,
+    "minLevel": 3,
+    "points": 5,
+    "title": "Fence Perimeter",
+    "text": "A repair patch is a rectangle 7 feet long and 4 feet wide. How many feet of rope trim the edge?",
+    "options": [
+      {
+        "label": "28 feet"
+      },
+      {
+        "label": "22 feet",
+        "correct": true
+      },
+      {
+        "label": "26 feet"
+      }
+    ],
+    "feedback": "Perimeter is 2 times (7 plus 4), which is 22."
+  },
+  {
+    "id": "ff-math-area-064",
+    "type": "Math",
+    "grade": 7,
+    "minLevel": 3,
+    "points": 5,
+    "title": "Tarp Coverage",
+    "text": "A roof tarp is 8 feet by 8 feet. How many square feet does it cover?",
+    "options": [
+      {
+        "label": "32 square feet"
+      },
+      {
+        "label": "64 square feet",
+        "correct": true
+      },
+      {
+        "label": "72 square feet"
+      }
+    ],
+    "feedback": "Area is length times width: 8 times 8 equals 64."
+  },
+  {
+    "id": "ff-math-percent-065",
+    "type": "Math",
+    "grade": 8,
+    "minLevel": 3,
+    "points": 5,
+    "title": "Supply Percent",
+    "text": "The depot has 120 meal packs. The rescue team takes 30% of them. How many packs do they take?",
+    "options": [
+      {
+        "label": "46 packs"
+      },
+      {
+        "label": "36 packs",
+        "correct": true
+      },
+      {
+        "label": "28 packs"
+      }
+    ],
+    "feedback": "30% of 120 is 36."
+  },
+  {
+    "id": "ff-math-travel-066",
+    "type": "Math",
+    "grade": 8,
+    "minLevel": 3,
+    "points": 5,
+    "title": "Snowmobile Time",
+    "text": "A snowmobile route is 24 miles. The storm limits speed to 5 miles per hour. About how many hours will the trip take?",
+    "options": [
+      {
+        "label": "4 hours"
+      },
+      {
+        "label": "4.8 hours",
+        "correct": true
+      },
+      {
+        "label": "6 hours"
+      }
+    ],
+    "feedback": "Time equals distance divided by speed: 24 divided by 5 is about 4.8."
+  },
+  {
+    "id": "ff-math-equation-067",
+    "type": "Math",
+    "grade": 9,
+    "minLevel": 4,
+    "points": 6,
+    "title": "Crate Equation",
+    "text": "5 identical crates plus 3 loose blankets make 53 blankets total. How many blankets are in each crate?",
+    "options": [
+      {
+        "label": "12 blankets"
+      },
+      {
+        "label": "10 blankets",
+        "correct": true
+      },
+      {
+        "label": "8 blankets"
+      }
+    ],
+    "feedback": "Subtract 3, then divide by 5: each crate has 10 blankets."
+  },
+  {
+    "id": "ff-math-slope-068",
+    "type": "Math",
+    "grade": 10,
+    "minLevel": 4,
+    "points": 6,
+    "title": "Trail Grade",
+    "text": "A mountain trail climbs 14 meters over 7 horizontal meters on the map. What is the slope?",
+    "options": [
+      {
+        "label": "0.5"
+      },
+      {
+        "label": "2",
+        "correct": true
+      },
+      {
+        "label": "3"
+      }
+    ],
+    "feedback": "Slope is rise divided by run: 14 divided by 7 is 2."
+  },
+  {
+    "id": "ff-math-volume-069",
+    "type": "Math",
+    "grade": 11,
+    "minLevel": 5,
+    "points": 8,
+    "title": "Water Barrel Volume",
+    "text": "A round emergency barrel has radius 3 ft and height 10 ft. Using pi about 3.14, about how many cubic feet can it hold?",
+    "options": [
+      {
+        "label": "188 cubic feet"
+      },
+      {
+        "label": "283 cubic feet",
+        "correct": true
+      },
+      {
+        "label": "94 cubic feet"
+      }
+    ],
+    "feedback": "Cylinder volume is pi times radius squared times height, about 283 cubic feet."
+  },
+  {
+    "id": "ff-math-exponential-070",
+    "type": "Math",
+    "grade": 12,
+    "minLevel": 5,
+    "points": 8,
+    "title": "Heat Loss Model",
+    "text": "A sealed shelter has 190 heat units. Each hour it keeps 75% of its heat. About how many units remain after 2 hours?",
+    "options": [
+      {
+        "label": "143 units"
+      },
+      {
+        "label": "107 units",
+        "correct": true
+      },
+      {
+        "label": "95 units"
+      }
+    ],
+    "feedback": "After 2 hours the heat is 190 times 0.75 times 0.75, about 107."
+  },
+  {
+    "id": "ff-math-add-071",
+    "type": "Math",
+    "grade": 3,
+    "minLevel": 1,
+    "points": 3,
+    "title": "Firewood Count",
+    "text": "The wood pile has 28 logs. The player gathers 9 more from the tree line. How many logs are ready for the furnace?",
+    "options": [
+      {
+        "label": "36 logs"
+      },
+      {
+        "label": "37 logs",
+        "correct": true
+      },
+      {
+        "label": "39 logs"
+      }
+    ],
+    "feedback": "28 plus 9 makes 37 logs."
+  },
+  {
+    "id": "ff-math-fuel-left-072",
+    "type": "Math",
+    "grade": 4,
+    "minLevel": 1,
+    "points": 3,
+    "title": "Fuel Remaining",
+    "text": "The furnace tank starts with 58 fuel units and burns 9 units overnight. How many units remain?",
+    "options": [
+      {
+        "label": "52 units"
+      },
+      {
+        "label": "49 units",
+        "correct": true
+      },
+      {
+        "label": "45 units"
+      }
+    ],
+    "feedback": "58 minus 9 leaves 49 fuel units."
+  },
+  {
+    "id": "ff-math-meals-073",
+    "type": "Math",
+    "grade": 5,
+    "minLevel": 2,
+    "points": 4,
+    "title": "Meal Prep Batch",
+    "text": "The cook prepares 3 meals for each of 7 survivors before nightfall. How many meals are needed?",
+    "options": [
+      {
+        "label": "28 meals"
+      },
+      {
+        "label": "21 meals",
+        "correct": true
+      },
+      {
+        "label": "18 meals"
+      }
+    ],
+    "feedback": "7 groups of 3 meals equals 21 meals."
+  },
+  {
+    "id": "ff-math-generator-074",
+    "type": "Math",
+    "grade": 5,
+    "minLevel": 2,
+    "points": 4,
+    "title": "Generator Burn Rate",
+    "text": "A backup generator uses 7 fuel units each hour. It must run for 5 hours. How many fuel units should be loaded?",
+    "options": [
+      {
+        "label": "28 units"
+      },
+      {
+        "label": "35 units",
+        "correct": true
+      },
+      {
+        "label": "40 units"
+      }
+    ],
+    "feedback": "7 times 5 equals 35 fuel units."
+  },
+  {
+    "id": "ff-math-ratio-075",
+    "type": "Math",
+    "grade": 6,
+    "minLevel": 2,
+    "points": 4,
+    "title": "Antifreeze Ratio",
+    "text": "Engine mix uses 1 part antifreeze for every 3 parts water. If the team makes 42 cups of mix, how many cups are antifreeze?",
+    "options": [
+      {
+        "label": "13.5 cups"
+      },
+      {
+        "label": "10.5 cups",
+        "correct": true
+      },
+      {
+        "label": "31.5 cups"
+      }
+    ],
+    "feedback": "The ratio has 4 total parts, so 42 divided by 4 is 10.5."
+  },
+  {
+    "id": "ff-math-temperature-076",
+    "type": "Math",
+    "grade": 6,
+    "minLevel": 2,
+    "points": 4,
+    "title": "Temperature Shift",
+    "text": "The morning temperature is -26 degrees F. The sun warms the camp by 14 degrees. What is the new temperature?",
+    "options": [
+      {
+        "label": "-17 degrees F"
+      },
+      {
+        "label": "-12 degrees F",
+        "correct": true
+      },
+      {
+        "label": "-8 degrees F"
+      }
+    ],
+    "feedback": "-26 plus 14 equals -12 degrees F."
+  },
+  {
+    "id": "ff-math-perimeter-077",
+    "type": "Math",
+    "grade": 7,
+    "minLevel": 3,
+    "points": 5,
+    "title": "Fence Perimeter",
+    "text": "A repair patch is a rectangle 12 feet long and 8 feet wide. How many feet of rope trim the edge?",
+    "options": [
+      {
+        "label": "96 feet"
+      },
+      {
+        "label": "40 feet",
+        "correct": true
+      },
+      {
+        "label": "48 feet"
+      }
+    ],
+    "feedback": "Perimeter is 2 times (12 plus 8), which is 40."
+  },
+  {
+    "id": "ff-math-area-078",
+    "type": "Math",
+    "grade": 7,
+    "minLevel": 3,
+    "points": 5,
+    "title": "Tarp Coverage",
+    "text": "A roof tarp is 14 feet by 8 feet. How many square feet does it cover?",
+    "options": [
+      {
+        "label": "44 square feet"
+      },
+      {
+        "label": "112 square feet",
+        "correct": true
+      },
+      {
+        "label": "126 square feet"
+      }
+    ],
+    "feedback": "Area is length times width: 14 times 8 equals 112."
+  },
+  {
+    "id": "ff-math-percent-079",
+    "type": "Math",
+    "grade": 8,
+    "minLevel": 3,
+    "points": 5,
+    "title": "Supply Percent",
+    "text": "The depot has 220 meal packs. The rescue team takes 30% of them. How many packs do they take?",
+    "options": [
+      {
+        "label": "76 packs"
+      },
+      {
+        "label": "66 packs",
+        "correct": true
+      },
+      {
+        "label": "58 packs"
+      }
+    ],
+    "feedback": "30% of 220 is 66."
+  },
+  {
+    "id": "ff-math-travel-080",
+    "type": "Math",
+    "grade": 8,
+    "minLevel": 3,
+    "points": 5,
+    "title": "Snowmobile Time",
+    "text": "A snowmobile route is 20 miles. The storm limits speed to 3 miles per hour. About how many hours will the trip take?",
+    "options": [
+      {
+        "label": "5 hours"
+      },
+      {
+        "label": "6.7 hours",
+        "correct": true
+      },
+      {
+        "label": "10 hours"
+      }
+    ],
+    "feedback": "Time equals distance divided by speed: 20 divided by 3 is about 6.7."
+  },
+  {
+    "id": "ff-math-equation-081",
+    "type": "Math",
+    "grade": 9,
+    "minLevel": 4,
+    "points": 6,
+    "title": "Crate Equation",
+    "text": "4 identical crates plus 5 loose blankets make 49 blankets total. How many blankets are in each crate?",
+    "options": [
+      {
+        "label": "13 blankets"
+      },
+      {
+        "label": "11 blankets",
+        "correct": true
+      },
+      {
+        "label": "9 blankets"
+      }
+    ],
+    "feedback": "Subtract 5, then divide by 4: each crate has 11 blankets."
+  },
+  {
+    "id": "ff-math-slope-082",
+    "type": "Math",
+    "grade": 10,
+    "minLevel": 4,
+    "points": 6,
+    "title": "Trail Grade",
+    "text": "A mountain trail climbs 10 meters over 5 horizontal meters on the map. What is the slope?",
+    "options": [
+      {
+        "label": "0.5"
+      },
+      {
+        "label": "2",
+        "correct": true
+      },
+      {
+        "label": "3"
+      }
+    ],
+    "feedback": "Slope is rise divided by run: 10 divided by 5 is 2."
+  },
+  {
+    "id": "ff-math-volume-083",
+    "type": "Math",
+    "grade": 11,
+    "minLevel": 5,
+    "points": 8,
+    "title": "Water Barrel Volume",
+    "text": "A round emergency barrel has radius 5 ft and height 10 ft. Using pi about 3.14, about how many cubic feet can it hold?",
+    "options": [
+      {
+        "label": "314 cubic feet"
+      },
+      {
+        "label": "785 cubic feet",
+        "correct": true
+      },
+      {
+        "label": "157 cubic feet"
+      }
+    ],
+    "feedback": "Cylinder volume is pi times radius squared times height, about 785 cubic feet."
+  },
+  {
+    "id": "ff-math-exponential-084",
+    "type": "Math",
+    "grade": 12,
+    "minLevel": 5,
+    "points": 8,
+    "title": "Heat Loss Model",
+    "text": "A sealed shelter has 150 heat units. Each hour it keeps 75% of its heat. About how many units remain after 2 hours?",
+    "options": [
+      {
+        "label": "113 units"
+      },
+      {
+        "label": "84 units",
+        "correct": true
+      },
+      {
+        "label": "75 units"
+      }
+    ],
+    "feedback": "After 2 hours the heat is 150 times 0.75 times 0.75, about 84."
+  },
+  {
+    "id": "ff-math-add-085",
+    "type": "Math",
+    "grade": 3,
+    "minLevel": 1,
+    "points": 3,
+    "title": "Firewood Count",
+    "text": "The wood pile has 23 logs. The player gathers 9 more from the tree line. How many logs are ready for the furnace?",
+    "options": [
+      {
+        "label": "31 logs"
+      },
+      {
+        "label": "32 logs",
+        "correct": true
+      },
+      {
+        "label": "34 logs"
+      }
+    ],
+    "feedback": "23 plus 9 makes 32 logs."
+  },
+  {
+    "id": "ff-math-fuel-left-086",
+    "type": "Math",
+    "grade": 4,
+    "minLevel": 1,
+    "points": 3,
+    "title": "Fuel Remaining",
+    "text": "The furnace tank starts with 44 fuel units and burns 25 units overnight. How many units remain?",
+    "options": [
+      {
+        "label": "22 units"
+      },
+      {
+        "label": "19 units",
+        "correct": true
+      },
+      {
+        "label": "15 units"
+      }
+    ],
+    "feedback": "44 minus 25 leaves 19 fuel units."
+  },
+  {
+    "id": "ff-math-meals-087",
+    "type": "Math",
+    "grade": 5,
+    "minLevel": 2,
+    "points": 4,
+    "title": "Meal Prep Batch",
+    "text": "The cook prepares 6 meals for each of 7 survivors before nightfall. How many meals are needed?",
+    "options": [
+      {
+        "label": "49 meals"
+      },
+      {
+        "label": "42 meals",
+        "correct": true
+      },
+      {
+        "label": "36 meals"
+      }
+    ],
+    "feedback": "7 groups of 6 meals equals 42 meals."
+  },
+  {
+    "id": "ff-math-generator-088",
+    "type": "Math",
+    "grade": 5,
+    "minLevel": 2,
+    "points": 4,
+    "title": "Generator Burn Rate",
+    "text": "A backup generator uses 5 fuel units each hour. It must run for 7 hours. How many fuel units should be loaded?",
+    "options": [
+      {
+        "label": "30 units"
+      },
+      {
+        "label": "35 units",
+        "correct": true
+      },
+      {
+        "label": "42 units"
+      }
+    ],
+    "feedback": "5 times 7 equals 35 fuel units."
+  },
+  {
+    "id": "ff-math-ratio-089",
+    "type": "Math",
+    "grade": 6,
+    "minLevel": 2,
+    "points": 4,
+    "title": "Antifreeze Ratio",
+    "text": "Engine mix uses 1 part antifreeze for every 3 parts water. If the team makes 30 cups of mix, how many cups are antifreeze?",
+    "options": [
+      {
+        "label": "10.5 cups"
+      },
+      {
+        "label": "7.5 cups",
+        "correct": true
+      },
+      {
+        "label": "22.5 cups"
+      }
+    ],
+    "feedback": "The ratio has 4 total parts, so 30 divided by 4 is 7.5."
+  },
+  {
+    "id": "ff-math-temperature-090",
+    "type": "Math",
+    "grade": 6,
+    "minLevel": 2,
+    "points": 4,
+    "title": "Temperature Shift",
+    "text": "The morning temperature is -28 degrees F. The sun warms the camp by 17 degrees. What is the new temperature?",
+    "options": [
+      {
+        "label": "-16 degrees F"
+      },
+      {
+        "label": "-11 degrees F",
+        "correct": true
+      },
+      {
+        "label": "-7 degrees F"
+      }
+    ],
+    "feedback": "-28 plus 17 equals -11 degrees F."
+  },
+  {
+    "id": "ff-math-perimeter-091",
+    "type": "Math",
+    "grade": 7,
+    "minLevel": 3,
+    "points": 5,
+    "title": "Fence Perimeter",
+    "text": "A repair patch is a rectangle 8 feet long and 6 feet wide. How many feet of rope trim the edge?",
+    "options": [
+      {
+        "label": "48 feet"
+      },
+      {
+        "label": "28 feet",
+        "correct": true
+      },
+      {
+        "label": "34 feet"
+      }
+    ],
+    "feedback": "Perimeter is 2 times (8 plus 6), which is 28."
+  },
+  {
+    "id": "ff-math-area-092",
+    "type": "Math",
+    "grade": 7,
+    "minLevel": 3,
+    "points": 5,
+    "title": "Tarp Coverage",
+    "text": "A roof tarp is 12 feet by 8 feet. How many square feet does it cover?",
+    "options": [
+      {
+        "label": "40 square feet"
+      },
+      {
+        "label": "96 square feet",
+        "correct": true
+      },
+      {
+        "label": "108 square feet"
+      }
+    ],
+    "feedback": "Area is length times width: 12 times 8 equals 96."
+  },
+  {
+    "id": "ff-math-percent-093",
+    "type": "Math",
+    "grade": 8,
+    "minLevel": 3,
+    "points": 5,
+    "title": "Supply Percent",
+    "text": "The depot has 140 meal packs. The rescue team takes 30% of them. How many packs do they take?",
+    "options": [
+      {
+        "label": "52 packs"
+      },
+      {
+        "label": "42 packs",
+        "correct": true
+      },
+      {
+        "label": "34 packs"
+      }
+    ],
+    "feedback": "30% of 140 is 42."
+  },
+  {
+    "id": "ff-math-travel-094",
+    "type": "Math",
+    "grade": 8,
+    "minLevel": 3,
+    "points": 5,
+    "title": "Snowmobile Time",
+    "text": "A snowmobile route is 16 miles. The storm limits speed to 6 miles per hour. About how many hours will the trip take?",
+    "options": [
+      {
+        "label": "2.3 hours"
+      },
+      {
+        "label": "2.7 hours",
+        "correct": true
+      },
+      {
+        "label": "3.2 hours"
+      }
+    ],
+    "feedback": "Time equals distance divided by speed: 16 divided by 6 is about 2.7."
+  },
+  {
+    "id": "ff-math-equation-095",
+    "type": "Math",
+    "grade": 9,
+    "minLevel": 4,
+    "points": 6,
+    "title": "Crate Equation",
+    "text": "3 identical crates plus 7 loose blankets make 43 blankets total. How many blankets are in each crate?",
+    "options": [
+      {
+        "label": "14 blankets"
+      },
+      {
+        "label": "12 blankets",
+        "correct": true
+      },
+      {
+        "label": "10 blankets"
+      }
+    ],
+    "feedback": "Subtract 7, then divide by 3: each crate has 12 blankets."
+  },
+  {
+    "id": "ff-math-slope-096",
+    "type": "Math",
+    "grade": 10,
+    "minLevel": 4,
+    "points": 6,
+    "title": "Trail Grade",
+    "text": "A mountain trail climbs 15 meters over 3 horizontal meters on the map. What is the slope?",
+    "options": [
+      {
+        "label": "0.2"
+      },
+      {
+        "label": "5",
+        "correct": true
+      },
+      {
+        "label": "6"
+      }
+    ],
+    "feedback": "Slope is rise divided by run: 15 divided by 3 is 5."
+  },
+  {
+    "id": "ff-math-volume-097",
+    "type": "Math",
+    "grade": 11,
+    "minLevel": 5,
+    "points": 8,
+    "title": "Water Barrel Volume",
+    "text": "A round emergency barrel has radius 3 ft and height 10 ft. Using pi about 3.14, about how many cubic feet can it hold?",
+    "options": [
+      {
+        "label": "188 cubic feet"
+      },
+      {
+        "label": "283 cubic feet",
+        "correct": true
+      },
+      {
+        "label": "94 cubic feet"
+      }
+    ],
+    "feedback": "Cylinder volume is pi times radius squared times height, about 283 cubic feet."
+  },
+  {
+    "id": "ff-math-exponential-098",
+    "type": "Math",
+    "grade": 12,
+    "minLevel": 5,
+    "points": 8,
+    "title": "Heat Loss Model",
+    "text": "A sealed shelter has 200 heat units. Each hour it keeps 75% of its heat. About how many units remain after 2 hours?",
+    "options": [
+      {
+        "label": "150 units"
+      },
+      {
+        "label": "113 units",
+        "correct": true
+      },
+      {
+        "label": "100 units"
+      }
+    ],
+    "feedback": "After 2 hours the heat is 200 times 0.75 times 0.75, about 113."
+  },
+  {
+    "id": "ff-math-add-099",
+    "type": "Math",
+    "grade": 3,
+    "minLevel": 1,
+    "points": 3,
+    "title": "Firewood Count",
+    "text": "The wood pile has 18 logs. The player gathers 9 more from the tree line. How many logs are ready for the furnace?",
+    "options": [
+      {
+        "label": "26 logs"
+      },
+      {
+        "label": "27 logs",
+        "correct": true
+      },
+      {
+        "label": "29 logs"
+      }
+    ],
+    "feedback": "18 plus 9 makes 27 logs."
+  },
+  {
+    "id": "ff-math-fuel-left-100",
+    "type": "Math",
+    "grade": 4,
+    "minLevel": 1,
+    "points": 3,
+    "title": "Fuel Remaining",
+    "text": "The furnace tank starts with 58 fuel units and burns 23 units overnight. How many units remain?",
+    "options": [
+      {
+        "label": "38 units"
+      },
+      {
+        "label": "35 units",
+        "correct": true
+      },
+      {
+        "label": "31 units"
+      }
+    ],
+    "feedback": "58 minus 23 leaves 35 fuel units."
+  },
+  {
+    "id": "ff-math-meals-101",
+    "type": "Math",
+    "grade": 5,
+    "minLevel": 2,
+    "points": 4,
+    "title": "Meal Prep Batch",
+    "text": "The cook prepares 4 meals for each of 7 survivors before nightfall. How many meals are needed?",
+    "options": [
+      {
+        "label": "35 meals"
+      },
+      {
+        "label": "28 meals",
+        "correct": true
+      },
+      {
+        "label": "24 meals"
+      }
+    ],
+    "feedback": "7 groups of 4 meals equals 28 meals."
+  },
+  {
+    "id": "ff-math-generator-102",
+    "type": "Math",
+    "grade": 5,
+    "minLevel": 2,
+    "points": 4,
+    "title": "Generator Burn Rate",
+    "text": "A backup generator uses 8 fuel units each hour. It must run for 3 hours. How many fuel units should be loaded?",
+    "options": [
+      {
+        "label": "16 units"
+      },
+      {
+        "label": "24 units",
+        "correct": true
+      },
+      {
+        "label": "27 units"
+      }
+    ],
+    "feedback": "8 times 3 equals 24 fuel units."
+  },
+  {
+    "id": "ff-math-ratio-103",
+    "type": "Math",
+    "grade": 6,
+    "minLevel": 2,
+    "points": 4,
+    "title": "Antifreeze Ratio",
+    "text": "Engine mix uses 1 part antifreeze for every 3 parts water. If the team makes 66 cups of mix, how many cups are antifreeze?",
+    "options": [
+      {
+        "label": "19.5 cups"
+      },
+      {
+        "label": "16.5 cups",
+        "correct": true
+      },
+      {
+        "label": "49.5 cups"
+      }
+    ],
+    "feedback": "The ratio has 4 total parts, so 66 divided by 4 is 16.5."
+  },
+  {
+    "id": "ff-math-temperature-104",
+    "type": "Math",
+    "grade": 6,
+    "minLevel": 2,
+    "points": 4,
+    "title": "Temperature Shift",
+    "text": "The morning temperature is -30 degrees F. The sun warms the camp by 7 degrees. What is the new temperature?",
+    "options": [
+      {
+        "label": "-28 degrees F"
+      },
+      {
+        "label": "-23 degrees F",
+        "correct": true
+      },
+      {
+        "label": "-19 degrees F"
+      }
+    ],
+    "feedback": "-30 plus 7 equals -23 degrees F."
+  },
+  {
+    "id": "ff-math-perimeter-105",
+    "type": "Math",
+    "grade": 7,
+    "minLevel": 3,
+    "points": 5,
+    "title": "Fence Perimeter",
+    "text": "A repair patch is a rectangle 13 feet long and 4 feet wide. How many feet of rope trim the edge?",
+    "options": [
+      {
+        "label": "52 feet"
+      },
+      {
+        "label": "34 feet",
+        "correct": true
+      },
+      {
+        "label": "38 feet"
+      }
+    ],
+    "feedback": "Perimeter is 2 times (13 plus 4), which is 34."
+  },
+  {
+    "id": "ff-math-area-106",
+    "type": "Math",
+    "grade": 7,
+    "minLevel": 3,
+    "points": 5,
+    "title": "Tarp Coverage",
+    "text": "A roof tarp is 10 feet by 8 feet. How many square feet does it cover?",
+    "options": [
+      {
+        "label": "36 square feet"
+      },
+      {
+        "label": "80 square feet",
+        "correct": true
+      },
+      {
+        "label": "90 square feet"
+      }
+    ],
+    "feedback": "Area is length times width: 10 times 8 equals 80."
+  },
+  {
+    "id": "ff-math-percent-107",
+    "type": "Math",
+    "grade": 8,
+    "minLevel": 3,
+    "points": 5,
+    "title": "Supply Percent",
+    "text": "The depot has 240 meal packs. The rescue team takes 30% of them. How many packs do they take?",
+    "options": [
+      {
+        "label": "82 packs"
+      },
+      {
+        "label": "72 packs",
+        "correct": true
+      },
+      {
+        "label": "64 packs"
+      }
+    ],
+    "feedback": "30% of 240 is 72."
+  },
+  {
+    "id": "ff-math-travel-108",
+    "type": "Math",
+    "grade": 8,
+    "minLevel": 3,
+    "points": 5,
+    "title": "Snowmobile Time",
+    "text": "A snowmobile route is 12 miles. The storm limits speed to 4 miles per hour. About how many hours will the trip take?",
+    "options": [
+      {
+        "label": "2.4 hours"
+      },
+      {
+        "label": "3 hours",
+        "correct": true
+      },
+      {
+        "label": "4 hours"
+      }
+    ],
+    "feedback": "Time equals distance divided by speed: 12 divided by 4 is about 3."
+  },
+  {
+    "id": "ff-math-equation-109",
+    "type": "Math",
+    "grade": 9,
+    "minLevel": 4,
+    "points": 6,
+    "title": "Crate Equation",
+    "text": "7 identical crates plus 3 loose blankets make 94 blankets total. How many blankets are in each crate?",
+    "options": [
+      {
+        "label": "15 blankets"
+      },
+      {
+        "label": "13 blankets",
+        "correct": true
+      },
+      {
+        "label": "11 blankets"
+      }
+    ],
+    "feedback": "Subtract 3, then divide by 7: each crate has 13 blankets."
+  },
+  {
+    "id": "ff-math-slope-110",
+    "type": "Math",
+    "grade": 10,
+    "minLevel": 4,
+    "points": 6,
+    "title": "Trail Grade",
+    "text": "A mountain trail climbs 11 meters over 7 horizontal meters on the map. What is the slope?",
+    "options": [
+      {
+        "label": "0.64"
+      },
+      {
+        "label": "1.57",
+        "correct": true
+      },
+      {
+        "label": "2.57"
+      }
+    ],
+    "feedback": "Slope is rise divided by run: 11 divided by 7 is 1.57."
+  },
+  {
+    "id": "ff-math-volume-111",
+    "type": "Math",
+    "grade": 11,
+    "minLevel": 5,
+    "points": 8,
+    "title": "Water Barrel Volume",
+    "text": "A round emergency barrel has radius 5 ft and height 10 ft. Using pi about 3.14, about how many cubic feet can it hold?",
+    "options": [
+      {
+        "label": "314 cubic feet"
+      },
+      {
+        "label": "785 cubic feet",
+        "correct": true
+      },
+      {
+        "label": "157 cubic feet"
+      }
+    ],
+    "feedback": "Cylinder volume is pi times radius squared times height, about 785 cubic feet."
+  },
+  {
+    "id": "ff-math-exponential-112",
+    "type": "Math",
+    "grade": 12,
+    "minLevel": 5,
+    "points": 8,
+    "title": "Heat Loss Model",
+    "text": "A sealed shelter has 160 heat units. Each hour it keeps 75% of its heat. About how many units remain after 2 hours?",
+    "options": [
+      {
+        "label": "120 units"
+      },
+      {
+        "label": "90 units",
+        "correct": true
+      },
+      {
+        "label": "80 units"
+      }
+    ],
+    "feedback": "After 2 hours the heat is 160 times 0.75 times 0.75, about 90."
+  },
+  {
+    "id": "ff-math-add-113",
+    "type": "Math",
+    "grade": 3,
+    "minLevel": 1,
+    "points": 3,
+    "title": "Firewood Count",
+    "text": "The wood pile has 32 logs. The player gathers 9 more from the tree line. How many logs are ready for the furnace?",
+    "options": [
+      {
+        "label": "40 logs"
+      },
+      {
+        "label": "41 logs",
+        "correct": true
+      },
+      {
+        "label": "43 logs"
+      }
+    ],
+    "feedback": "32 plus 9 makes 41 logs."
+  },
+  {
+    "id": "ff-math-fuel-left-114",
+    "type": "Math",
+    "grade": 4,
+    "minLevel": 1,
+    "points": 3,
+    "title": "Fuel Remaining",
+    "text": "The furnace tank starts with 44 fuel units and burns 21 units overnight. How many units remain?",
+    "options": [
+      {
+        "label": "26 units"
+      },
+      {
+        "label": "23 units",
+        "correct": true
+      },
+      {
+        "label": "19 units"
+      }
+    ],
+    "feedback": "44 minus 21 leaves 23 fuel units."
+  },
+  {
+    "id": "ff-math-meals-115",
+    "type": "Math",
+    "grade": 5,
+    "minLevel": 2,
+    "points": 4,
+    "title": "Meal Prep Batch",
+    "text": "The cook prepares 2 meals for each of 7 survivors before nightfall. How many meals are needed?",
+    "options": [
+      {
+        "label": "21 meals"
+      },
+      {
+        "label": "14 meals",
+        "correct": true
+      },
+      {
+        "label": "12 meals"
+      }
+    ],
+    "feedback": "7 groups of 2 meals equals 14 meals."
+  },
+  {
+    "id": "ff-math-generator-116",
+    "type": "Math",
+    "grade": 5,
+    "minLevel": 2,
+    "points": 4,
+    "title": "Generator Burn Rate",
+    "text": "A backup generator uses 6 fuel units each hour. It must run for 5 hours. How many fuel units should be loaded?",
+    "options": [
+      {
+        "label": "24 units"
+      },
+      {
+        "label": "30 units",
+        "correct": true
+      },
+      {
+        "label": "35 units"
+      }
+    ],
+    "feedback": "6 times 5 equals 30 fuel units."
+  },
+  {
+    "id": "ff-math-ratio-117",
+    "type": "Math",
+    "grade": 6,
+    "minLevel": 2,
+    "points": 4,
+    "title": "Antifreeze Ratio",
+    "text": "Engine mix uses 1 part antifreeze for every 3 parts water. If the team makes 54 cups of mix, how many cups are antifreeze?",
+    "options": [
+      {
+        "label": "16.5 cups"
+      },
+      {
+        "label": "13.5 cups",
+        "correct": true
+      },
+      {
+        "label": "40.5 cups"
+      }
+    ],
+    "feedback": "The ratio has 4 total parts, so 54 divided by 4 is 13.5."
+  },
+  {
+    "id": "ff-math-temperature-118",
+    "type": "Math",
+    "grade": 6,
+    "minLevel": 2,
+    "points": 4,
+    "title": "Temperature Shift",
+    "text": "The morning temperature is -32 degrees F. The sun warms the camp by 10 degrees. What is the new temperature?",
+    "options": [
+      {
+        "label": "-27 degrees F"
+      },
+      {
+        "label": "-22 degrees F",
+        "correct": true
+      },
+      {
+        "label": "-18 degrees F"
+      }
+    ],
+    "feedback": "-32 plus 10 equals -22 degrees F."
+  },
+  {
+    "id": "ff-math-perimeter-119",
+    "type": "Math",
+    "grade": 7,
+    "minLevel": 3,
+    "points": 5,
+    "title": "Fence Perimeter",
+    "text": "A repair patch is a rectangle 9 feet long and 8 feet wide. How many feet of rope trim the edge?",
+    "options": [
+      {
+        "label": "72 feet"
+      },
+      {
+        "label": "34 feet",
+        "correct": true
+      },
+      {
+        "label": "42 feet"
+      }
+    ],
+    "feedback": "Perimeter is 2 times (9 plus 8), which is 34."
+  },
+  {
+    "id": "ff-math-area-120",
+    "type": "Math",
+    "grade": 7,
+    "minLevel": 3,
+    "points": 5,
+    "title": "Tarp Coverage",
+    "text": "A roof tarp is 8 feet by 8 feet. How many square feet does it cover?",
+    "options": [
+      {
+        "label": "32 square feet"
+      },
+      {
+        "label": "64 square feet",
+        "correct": true
+      },
+      {
+        "label": "72 square feet"
+      }
+    ],
+    "feedback": "Area is length times width: 8 times 8 equals 64."
+  },
+  {
+    "id": "ff-read-capital-001",
+    "type": "Reading",
+    "grade": 4,
+    "minLevel": 1,
+    "points": 3,
+    "title": "Radio Log Capitalization",
+    "text": "Which radio log uses capitalization correctly?",
+    "options": [
+      {
+        "label": "we reached cabin three before dusk."
+      },
+      {
+        "label": "We reached Cabin Three before dusk.",
+        "correct": true
+      },
+      {
+        "label": "We Reached cabin three Before dusk."
+      }
+    ],
+    "feedback": "The first word and the specific place name should be capitalized."
+  },
+  {
+    "id": "ff-read-punct-002",
+    "type": "Reading",
+    "grade": 5,
+    "minLevel": 2,
+    "points": 4,
+    "title": "Emergency Punctuation",
+    "text": "Choose the sentence with correct end punctuation.",
+    "options": [
+      {
+        "label": "Is the north gate clear?",
+        "correct": true
+      },
+      {
+        "label": "Is the north gate clear."
+      },
+      {
+        "label": "Is the north gate clear,"
+      }
+    ],
+    "feedback": "A direct question needs a question mark."
+  },
+  {
+    "id": "ff-read-too-003",
+    "type": "Reading",
+    "grade": 6,
+    "minLevel": 2,
+    "points": 4,
+    "title": "Homophone Check",
+    "text": "Which sentence uses to, too, or two correctly?",
+    "options": [
+      {
+        "label": "Bring two lanterns to the dining hall.",
+        "correct": true
+      },
+      {
+        "label": "Bring too lanterns two the dining hall."
+      },
+      {
+        "label": "Bring to lanterns too the dining hall."
+      }
+    ],
+    "feedback": "Two is the number, and to shows direction."
+  },
+  {
+    "id": "ff-read-sense-004",
+    "type": "Reading",
+    "grade": 8,
+    "minLevel": 3,
+    "points": 5,
+    "title": "Signal Note",
+    "text": "Which sentence uses since or sense correctly?",
+    "options": [
+      {
+        "label": "Since the radio failed, the scout used a flare.",
+        "correct": true
+      },
+      {
+        "label": "Sense the radio failed, the scout used a flare."
+      },
+      {
+        "label": "The scout had no since of direction."
+      }
+    ],
+    "feedback": "Since explains time or cause; sense means awareness or meaning."
+  },
+  {
+    "id": "ff-read-there-005",
+    "type": "Reading",
+    "grade": 9,
+    "minLevel": 4,
+    "points": 6,
+    "title": "Supply Depot Note",
+    "text": "Pick the sentence with the correct there, their, or they are form.",
+    "options": [
+      {
+        "label": "Their gloves are drying near the furnace.",
+        "correct": true
+      },
+      {
+        "label": "There gloves are drying near the furnace."
+      },
+      {
+        "label": "They are gloves are drying near the furnace."
+      }
+    ],
+    "feedback": "Their shows ownership."
+  },
+  {
+    "id": "ff-read-weather-006",
+    "type": "Reading",
+    "grade": 11,
+    "minLevel": 5,
+    "points": 8,
+    "title": "Weather Report",
+    "text": "Weather report: Winds rise after midnight. Snow is light until 10 p.m. What is the best plan?",
+    "options": [
+      {
+        "label": "Delay all travel until midnight."
+      },
+      {
+        "label": "Move supplies before 10 p.m.",
+        "correct": true
+      },
+      {
+        "label": "Open the gates during high wind."
+      }
+    ],
+    "feedback": "The report says conditions are safer before 10 p.m."
+  },
+  {
+    "id": "ff-read-map-007",
+    "type": "Reading",
+    "grade": 12,
+    "minLevel": 5,
+    "points": 8,
+    "title": "Map Clue",
+    "text": "Map note: The cache is east of the creek and south of the broken tower. Where should the scout search?",
+    "options": [
+      {
+        "label": "North of the tower and west of the creek."
+      },
+      {
+        "label": "East of the creek and south of the tower.",
+        "correct": true
+      },
+      {
+        "label": "Inside the creek near the tower."
+      }
+    ],
+    "feedback": "Both map clues must be followed together."
+  },
+  {
+    "id": "ff-read-sequence-008",
+    "type": "Reading",
+    "grade": 7,
+    "minLevel": 3,
+    "points": 5,
+    "title": "Repair Steps",
+    "text": "Instruction card: First close the vent. Next add fuel. Last restart the generator. What happens second?",
+    "options": [
+      {
+        "label": "Close the vent."
+      },
+      {
+        "label": "Add fuel.",
+        "correct": true
+      },
+      {
+        "label": "Restart the generator."
+      }
+    ],
+    "feedback": "Next means the second step."
+  },
+  {
+    "id": "ff-read-infer-009",
+    "type": "Reading",
+    "grade": 10,
+    "minLevel": 4,
+    "points": 6,
+    "title": "Journal Inference",
+    "text": "Journal: I heard ice crack twice near the old road, so I marked a safer route through the trees. What can you infer?",
+    "options": [
+      {
+        "label": "The old road may be unsafe.",
+        "correct": true
+      },
+      {
+        "label": "The trees are underwater."
+      },
+      {
+        "label": "The writer wants to melt the road."
+      }
+    ],
+    "feedback": "The cracking ice suggests danger on the old road."
+  },
+  {
+    "id": "ff-read-tone-010",
+    "type": "Reading",
+    "grade": 8,
+    "minLevel": 3,
+    "points": 5,
+    "title": "Message Tone",
+    "text": "Message: Please hurry, but keep the children calm and warm. What is the tone?",
+    "options": [
+      {
+        "label": "Urgent but caring.",
+        "correct": true
+      },
+      {
+        "label": "Playful and careless."
+      },
+      {
+        "label": "Angry and sarcastic."
+      }
+    ],
+    "feedback": "The message asks for speed while showing concern."
+  },
+  {
+    "id": "ff-read-claim-011",
+    "type": "Reading",
+    "grade": 12,
+    "minLevel": 5,
+    "points": 8,
+    "title": "Evidence Check",
+    "text": "Claim: The east bridge is dangerous. Which note best supports the claim?",
+    "options": [
+      {
+        "label": "The bridge planks are cracked and sagging.",
+        "correct": true
+      },
+      {
+        "label": "The bridge has a good view of the river."
+      },
+      {
+        "label": "The bridge was painted red last summer."
+      }
+    ],
+    "feedback": "Cracked, sagging planks are evidence of danger."
+  },
+  {
+    "id": "ff-read-contrast-012",
+    "type": "Reading",
+    "grade": 10,
+    "minLevel": 4,
+    "points": 6,
+    "title": "Signal Contrast",
+    "text": "Report: The ridge trail is shorter; however, the valley trail is sheltered from wind. What does however signal?",
+    "options": [
+      {
+        "label": "A contrast between route features.",
+        "correct": true
+      },
+      {
+        "label": "A list of identical facts."
+      },
+      {
+        "label": "The end of all travel."
+      }
+    ],
+    "feedback": "However introduces a contrast."
+  },
+  {
+    "id": "ff-read-mainidea-013",
+    "type": "Reading",
+    "grade": 12,
+    "minLevel": 5,
+    "points": 8,
+    "title": "Main Idea",
+    "text": "Briefing: The camp must store fuel, keep meals moving, and repair gates before night. What is the main idea?",
+    "options": [
+      {
+        "label": "Prepare the camp systems before the attack.",
+        "correct": true
+      },
+      {
+        "label": "Paint the cabins before sunrise."
+      },
+      {
+        "label": "Avoid using the dining hall."
+      }
+    ],
+    "feedback": "The details all support preparing camp systems."
+  },
+  {
+    "id": "ff-read-precision-014",
+    "type": "Reading",
+    "grade": 12,
+    "minLevel": 5,
+    "points": 8,
+    "title": "Precise Rescue Order",
+    "text": "Order: Evacuate only the west shed after the second alarm. Which action matches the order?",
+    "options": [
+      {
+        "label": "Evacuate the west shed after the second alarm.",
+        "correct": true
+      },
+      {
+        "label": "Evacuate every shed before any alarm."
+      },
+      {
+        "label": "Ignore the west shed until morning."
+      }
+    ],
+    "feedback": "Only, west shed, and after the second alarm are all important details."
+  },
+  {
+    "id": "ff-read-capital-015",
+    "type": "Reading",
+    "grade": 8,
+    "minLevel": 3,
+    "points": 5,
+    "title": "Radio Log Capitalization",
+    "text": "Which radio log uses capitalization correctly?",
+    "options": [
+      {
+        "label": "we reached cabin three before dusk."
+      },
+      {
+        "label": "We reached Cabin Three before dusk.",
+        "correct": true
+      },
+      {
+        "label": "We Reached cabin three Before dusk."
+      }
+    ],
+    "feedback": "The first word and the specific place name should be capitalized."
+  },
+  {
+    "id": "ff-read-punct-016",
+    "type": "Reading",
+    "grade": 9,
+    "minLevel": 4,
+    "points": 6,
+    "title": "Emergency Punctuation",
+    "text": "Choose the sentence with correct end punctuation.",
+    "options": [
+      {
+        "label": "Is the north gate clear?",
+        "correct": true
+      },
+      {
+        "label": "Is the north gate clear."
+      },
+      {
+        "label": "Is the north gate clear,"
+      }
+    ],
+    "feedback": "A direct question needs a question mark."
+  },
+  {
+    "id": "ff-read-too-017",
+    "type": "Reading",
+    "grade": 10,
+    "minLevel": 4,
+    "points": 6,
+    "title": "Homophone Check",
+    "text": "Which sentence uses to, too, or two correctly?",
+    "options": [
+      {
+        "label": "Bring two lanterns to the dining hall.",
+        "correct": true
+      },
+      {
+        "label": "Bring too lanterns two the dining hall."
+      },
+      {
+        "label": "Bring to lanterns too the dining hall."
+      }
+    ],
+    "feedback": "Two is the number, and to shows direction."
+  },
+  {
+    "id": "ff-read-sense-018",
+    "type": "Reading",
+    "grade": 4,
+    "minLevel": 1,
+    "points": 3,
+    "title": "Signal Note",
+    "text": "Which sentence uses since or sense correctly?",
+    "options": [
+      {
+        "label": "Since the radio failed, the scout used a flare.",
+        "correct": true
+      },
+      {
+        "label": "Sense the radio failed, the scout used a flare."
+      },
+      {
+        "label": "The scout had no since of direction."
+      }
+    ],
+    "feedback": "Since explains time or cause; sense means awareness or meaning."
+  },
+  {
+    "id": "ff-read-there-019",
+    "type": "Reading",
+    "grade": 5,
+    "minLevel": 2,
+    "points": 4,
+    "title": "Supply Depot Note",
+    "text": "Pick the sentence with the correct there, their, or they are form.",
+    "options": [
+      {
+        "label": "Their gloves are drying near the furnace.",
+        "correct": true
+      },
+      {
+        "label": "There gloves are drying near the furnace."
+      },
+      {
+        "label": "They are gloves are drying near the furnace."
+      }
+    ],
+    "feedback": "Their shows ownership."
+  },
+  {
+    "id": "ff-read-weather-020",
+    "type": "Reading",
+    "grade": 9,
+    "minLevel": 4,
+    "points": 6,
+    "title": "Weather Report",
+    "text": "Weather report: Winds rise after midnight. Snow is light until 10 p.m. What is the best plan?",
+    "options": [
+      {
+        "label": "Delay all travel until midnight."
+      },
+      {
+        "label": "Move supplies before 10 p.m.",
+        "correct": true
+      },
+      {
+        "label": "Open the gates during high wind."
+      }
+    ],
+    "feedback": "The report says conditions are safer before 10 p.m."
+  },
+  {
+    "id": "ff-read-map-021",
+    "type": "Reading",
+    "grade": 10,
+    "minLevel": 4,
+    "points": 6,
+    "title": "Map Clue",
+    "text": "Map note: The cache is east of the creek and south of the broken tower. Where should the scout search?",
+    "options": [
+      {
+        "label": "North of the tower and west of the creek."
+      },
+      {
+        "label": "East of the creek and south of the tower.",
+        "correct": true
+      },
+      {
+        "label": "Inside the creek near the tower."
+      }
+    ],
+    "feedback": "Both map clues must be followed together."
+  },
+  {
+    "id": "ff-read-sequence-022",
+    "type": "Reading",
+    "grade": 7,
+    "minLevel": 3,
+    "points": 5,
+    "title": "Repair Steps",
+    "text": "Instruction card: First close the vent. Next add fuel. Last restart the generator. What happens second?",
+    "options": [
+      {
+        "label": "Close the vent."
+      },
+      {
+        "label": "Add fuel.",
+        "correct": true
+      },
+      {
+        "label": "Restart the generator."
+      }
+    ],
+    "feedback": "Next means the second step."
+  },
+  {
+    "id": "ff-read-infer-023",
+    "type": "Reading",
+    "grade": 12,
+    "minLevel": 5,
+    "points": 8,
+    "title": "Journal Inference",
+    "text": "Journal: I heard ice crack twice near the old road, so I marked a safer route through the trees. What can you infer?",
+    "options": [
+      {
+        "label": "The old road may be unsafe.",
+        "correct": true
+      },
+      {
+        "label": "The trees are underwater."
+      },
+      {
+        "label": "The writer wants to melt the road."
+      }
+    ],
+    "feedback": "The cracking ice suggests danger on the old road."
+  },
+  {
+    "id": "ff-read-tone-024",
+    "type": "Reading",
+    "grade": 12,
+    "minLevel": 5,
+    "points": 8,
+    "title": "Message Tone",
+    "text": "Message: Please hurry, but keep the children calm and warm. What is the tone?",
+    "options": [
+      {
+        "label": "Urgent but caring.",
+        "correct": true
+      },
+      {
+        "label": "Playful and careless."
+      },
+      {
+        "label": "Angry and sarcastic."
+      }
+    ],
+    "feedback": "The message asks for speed while showing concern."
+  },
+  {
+    "id": "ff-read-claim-025",
+    "type": "Reading",
+    "grade": 10,
+    "minLevel": 4,
+    "points": 6,
+    "title": "Evidence Check",
+    "text": "Claim: The east bridge is dangerous. Which note best supports the claim?",
+    "options": [
+      {
+        "label": "The bridge planks are cracked and sagging.",
+        "correct": true
+      },
+      {
+        "label": "The bridge has a good view of the river."
+      },
+      {
+        "label": "The bridge was painted red last summer."
+      }
+    ],
+    "feedback": "Cracked, sagging planks are evidence of danger."
+  },
+  {
+    "id": "ff-read-contrast-026",
+    "type": "Reading",
+    "grade": 12,
+    "minLevel": 5,
+    "points": 8,
+    "title": "Signal Contrast",
+    "text": "Report: The ridge trail is shorter; however, the valley trail is sheltered from wind. What does however signal?",
+    "options": [
+      {
+        "label": "A contrast between route features.",
+        "correct": true
+      },
+      {
+        "label": "A list of identical facts."
+      },
+      {
+        "label": "The end of all travel."
+      }
+    ],
+    "feedback": "However introduces a contrast."
+  },
+  {
+    "id": "ff-read-mainidea-027",
+    "type": "Reading",
+    "grade": 12,
+    "minLevel": 5,
+    "points": 8,
+    "title": "Main Idea",
+    "text": "Briefing: The camp must store fuel, keep meals moving, and repair gates before night. What is the main idea?",
+    "options": [
+      {
+        "label": "Prepare the camp systems before the attack.",
+        "correct": true
+      },
+      {
+        "label": "Paint the cabins before sunrise."
+      },
+      {
+        "label": "Avoid using the dining hall."
+      }
+    ],
+    "feedback": "The details all support preparing camp systems."
+  },
+  {
+    "id": "ff-read-precision-028",
+    "type": "Reading",
+    "grade": 12,
+    "minLevel": 5,
+    "points": 8,
+    "title": "Precise Rescue Order",
+    "text": "Order: Evacuate only the west shed after the second alarm. Which action matches the order?",
+    "options": [
+      {
+        "label": "Evacuate the west shed after the second alarm.",
+        "correct": true
+      },
+      {
+        "label": "Evacuate every shed before any alarm."
+      },
+      {
+        "label": "Ignore the west shed until morning."
+      }
+    ],
+    "feedback": "Only, west shed, and after the second alarm are all important details."
+  },
+  {
+    "id": "ff-read-capital-029",
+    "type": "Reading",
+    "grade": 12,
+    "minLevel": 5,
+    "points": 8,
+    "title": "Radio Log Capitalization",
+    "text": "Which radio log uses capitalization correctly?",
+    "options": [
+      {
+        "label": "we reached cabin three before dusk."
+      },
+      {
+        "label": "We reached Cabin Three before dusk.",
+        "correct": true
+      },
+      {
+        "label": "We Reached cabin three Before dusk."
+      }
+    ],
+    "feedback": "The first word and the specific place name should be capitalized."
+  },
+  {
+    "id": "ff-read-punct-030",
+    "type": "Reading",
+    "grade": 3,
+    "minLevel": 1,
+    "points": 3,
+    "title": "Emergency Punctuation",
+    "text": "Choose the sentence with correct end punctuation.",
+    "options": [
+      {
+        "label": "Is the north gate clear?",
+        "correct": true
+      },
+      {
+        "label": "Is the north gate clear."
+      },
+      {
+        "label": "Is the north gate clear,"
+      }
+    ],
+    "feedback": "A direct question needs a question mark."
+  },
+  {
+    "id": "ff-read-too-031",
+    "type": "Reading",
+    "grade": 4,
+    "minLevel": 1,
+    "points": 3,
+    "title": "Homophone Check",
+    "text": "Which sentence uses to, too, or two correctly?",
+    "options": [
+      {
+        "label": "Bring two lanterns to the dining hall.",
+        "correct": true
+      },
+      {
+        "label": "Bring too lanterns two the dining hall."
+      },
+      {
+        "label": "Bring to lanterns too the dining hall."
+      }
+    ],
+    "feedback": "Two is the number, and to shows direction."
+  },
+  {
+    "id": "ff-read-sense-032",
+    "type": "Reading",
+    "grade": 9,
+    "minLevel": 4,
+    "points": 6,
+    "title": "Signal Note",
+    "text": "Which sentence uses since or sense correctly?",
+    "options": [
+      {
+        "label": "Since the radio failed, the scout used a flare.",
+        "correct": true
+      },
+      {
+        "label": "Sense the radio failed, the scout used a flare."
+      },
+      {
+        "label": "The scout had no since of direction."
+      }
+    ],
+    "feedback": "Since explains time or cause; sense means awareness or meaning."
+  },
+  {
+    "id": "ff-read-there-033",
+    "type": "Reading",
+    "grade": 10,
+    "minLevel": 4,
+    "points": 6,
+    "title": "Supply Depot Note",
+    "text": "Pick the sentence with the correct there, their, or they are form.",
+    "options": [
+      {
+        "label": "Their gloves are drying near the furnace.",
+        "correct": true
+      },
+      {
+        "label": "There gloves are drying near the furnace."
+      },
+      {
+        "label": "They are gloves are drying near the furnace."
+      }
+    ],
+    "feedback": "Their shows ownership."
+  },
+  {
+    "id": "ff-read-weather-034",
+    "type": "Reading",
+    "grade": 7,
+    "minLevel": 3,
+    "points": 5,
+    "title": "Weather Report",
+    "text": "Weather report: Winds rise after midnight. Snow is light until 10 p.m. What is the best plan?",
+    "options": [
+      {
+        "label": "Delay all travel until midnight."
+      },
+      {
+        "label": "Move supplies before 10 p.m.",
+        "correct": true
+      },
+      {
+        "label": "Open the gates during high wind."
+      }
+    ],
+    "feedback": "The report says conditions are safer before 10 p.m."
+  },
+  {
+    "id": "ff-read-map-035",
+    "type": "Reading",
+    "grade": 8,
+    "minLevel": 3,
+    "points": 5,
+    "title": "Map Clue",
+    "text": "Map note: The cache is east of the creek and south of the broken tower. Where should the scout search?",
+    "options": [
+      {
+        "label": "North of the tower and west of the creek."
+      },
+      {
+        "label": "East of the creek and south of the tower.",
+        "correct": true
+      },
+      {
+        "label": "Inside the creek near the tower."
+      }
+    ],
+    "feedback": "Both map clues must be followed together."
+  },
+  {
+    "id": "ff-read-sequence-036",
+    "type": "Reading",
+    "grade": 7,
+    "minLevel": 3,
+    "points": 5,
+    "title": "Repair Steps",
+    "text": "Instruction card: First close the vent. Next add fuel. Last restart the generator. What happens second?",
+    "options": [
+      {
+        "label": "Close the vent."
+      },
+      {
+        "label": "Add fuel.",
+        "correct": true
+      },
+      {
+        "label": "Restart the generator."
+      }
+    ],
+    "feedback": "Next means the second step."
+  },
+  {
+    "id": "ff-read-infer-037",
+    "type": "Reading",
+    "grade": 8,
+    "minLevel": 3,
+    "points": 5,
+    "title": "Journal Inference",
+    "text": "Journal: I heard ice crack twice near the old road, so I marked a safer route through the trees. What can you infer?",
+    "options": [
+      {
+        "label": "The old road may be unsafe.",
+        "correct": true
+      },
+      {
+        "label": "The trees are underwater."
+      },
+      {
+        "label": "The writer wants to melt the road."
+      }
+    ],
+    "feedback": "The cracking ice suggests danger on the old road."
+  },
+  {
+    "id": "ff-read-tone-038",
+    "type": "Reading",
+    "grade": 11,
+    "minLevel": 5,
+    "points": 8,
+    "title": "Message Tone",
+    "text": "Message: Please hurry, but keep the children calm and warm. What is the tone?",
+    "options": [
+      {
+        "label": "Urgent but caring.",
+        "correct": true
+      },
+      {
+        "label": "Playful and careless."
+      },
+      {
+        "label": "Angry and sarcastic."
+      }
+    ],
+    "feedback": "The message asks for speed while showing concern."
+  },
+  {
+    "id": "ff-read-claim-039",
+    "type": "Reading",
+    "grade": 12,
+    "minLevel": 5,
+    "points": 8,
+    "title": "Evidence Check",
+    "text": "Claim: The east bridge is dangerous. Which note best supports the claim?",
+    "options": [
+      {
+        "label": "The bridge planks are cracked and sagging.",
+        "correct": true
+      },
+      {
+        "label": "The bridge has a good view of the river."
+      },
+      {
+        "label": "The bridge was painted red last summer."
+      }
+    ],
+    "feedback": "Cracked, sagging planks are evidence of danger."
+  },
+  {
+    "id": "ff-read-contrast-040",
+    "type": "Reading",
+    "grade": 11,
+    "minLevel": 5,
+    "points": 8,
+    "title": "Signal Contrast",
+    "text": "Report: The ridge trail is shorter; however, the valley trail is sheltered from wind. What does however signal?",
+    "options": [
+      {
+        "label": "A contrast between route features.",
+        "correct": true
+      },
+      {
+        "label": "A list of identical facts."
+      },
+      {
+        "label": "The end of all travel."
+      }
+    ],
+    "feedback": "However introduces a contrast."
+  },
+  {
+    "id": "ff-read-mainidea-041",
+    "type": "Reading",
+    "grade": 12,
+    "minLevel": 5,
+    "points": 8,
+    "title": "Main Idea",
+    "text": "Briefing: The camp must store fuel, keep meals moving, and repair gates before night. What is the main idea?",
+    "options": [
+      {
+        "label": "Prepare the camp systems before the attack.",
+        "correct": true
+      },
+      {
+        "label": "Paint the cabins before sunrise."
+      },
+      {
+        "label": "Avoid using the dining hall."
+      }
+    ],
+    "feedback": "The details all support preparing camp systems."
+  },
+  {
+    "id": "ff-read-precision-042",
+    "type": "Reading",
+    "grade": 12,
+    "minLevel": 5,
+    "points": 8,
+    "title": "Precise Rescue Order",
+    "text": "Order: Evacuate only the west shed after the second alarm. Which action matches the order?",
+    "options": [
+      {
+        "label": "Evacuate the west shed after the second alarm.",
+        "correct": true
+      },
+      {
+        "label": "Evacuate every shed before any alarm."
+      },
+      {
+        "label": "Ignore the west shed until morning."
+      }
+    ],
+    "feedback": "Only, west shed, and after the second alarm are all important details."
+  },
+  {
+    "id": "ff-read-capital-043",
+    "type": "Reading",
+    "grade": 6,
+    "minLevel": 2,
+    "points": 4,
+    "title": "Radio Log Capitalization",
+    "text": "Which radio log uses capitalization correctly?",
+    "options": [
+      {
+        "label": "we reached cabin three before dusk."
+      },
+      {
+        "label": "We reached Cabin Three before dusk.",
+        "correct": true
+      },
+      {
+        "label": "We Reached cabin three Before dusk."
+      }
+    ],
+    "feedback": "The first word and the specific place name should be capitalized."
+  },
+  {
+    "id": "ff-read-punct-044",
+    "type": "Reading",
+    "grade": 7,
+    "minLevel": 3,
+    "points": 5,
+    "title": "Emergency Punctuation",
+    "text": "Choose the sentence with correct end punctuation.",
+    "options": [
+      {
+        "label": "Is the north gate clear?",
+        "correct": true
+      },
+      {
+        "label": "Is the north gate clear."
+      },
+      {
+        "label": "Is the north gate clear,"
+      }
+    ],
+    "feedback": "A direct question needs a question mark."
+  },
+  {
+    "id": "ff-read-too-045",
+    "type": "Reading",
+    "grade": 8,
+    "minLevel": 3,
+    "points": 5,
+    "title": "Homophone Check",
+    "text": "Which sentence uses to, too, or two correctly?",
+    "options": [
+      {
+        "label": "Bring two lanterns to the dining hall.",
+        "correct": true
+      },
+      {
+        "label": "Bring too lanterns two the dining hall."
+      },
+      {
+        "label": "Bring to lanterns too the dining hall."
+      }
+    ],
+    "feedback": "Two is the number, and to shows direction."
+  },
+  {
+    "id": "ff-read-sense-046",
+    "type": "Reading",
+    "grade": 5,
+    "minLevel": 2,
+    "points": 4,
+    "title": "Signal Note",
+    "text": "Which sentence uses since or sense correctly?",
+    "options": [
+      {
+        "label": "Since the radio failed, the scout used a flare.",
+        "correct": true
+      },
+      {
+        "label": "Sense the radio failed, the scout used a flare."
+      },
+      {
+        "label": "The scout had no since of direction."
+      }
+    ],
+    "feedback": "Since explains time or cause; sense means awareness or meaning."
+  },
+  {
+    "id": "ff-read-there-047",
+    "type": "Reading",
+    "grade": 6,
+    "minLevel": 2,
+    "points": 4,
+    "title": "Supply Depot Note",
+    "text": "Pick the sentence with the correct there, their, or they are form.",
+    "options": [
+      {
+        "label": "Their gloves are drying near the furnace.",
+        "correct": true
+      },
+      {
+        "label": "There gloves are drying near the furnace."
+      },
+      {
+        "label": "They are gloves are drying near the furnace."
+      }
+    ],
+    "feedback": "Their shows ownership."
+  },
+  {
+    "id": "ff-read-weather-048",
+    "type": "Reading",
+    "grade": 5,
+    "minLevel": 2,
+    "points": 4,
+    "title": "Weather Report",
+    "text": "Weather report: Winds rise after midnight. Snow is light until 10 p.m. What is the best plan?",
+    "options": [
+      {
+        "label": "Delay all travel until midnight."
+      },
+      {
+        "label": "Move supplies before 10 p.m.",
+        "correct": true
+      },
+      {
+        "label": "Open the gates during high wind."
+      }
+    ],
+    "feedback": "The report says conditions are safer before 10 p.m."
+  },
+  {
+    "id": "ff-read-map-049",
+    "type": "Reading",
+    "grade": 6,
+    "minLevel": 2,
+    "points": 4,
+    "title": "Map Clue",
+    "text": "Map note: The cache is east of the creek and south of the broken tower. Where should the scout search?",
+    "options": [
+      {
+        "label": "North of the tower and west of the creek."
+      },
+      {
+        "label": "East of the creek and south of the tower.",
+        "correct": true
+      },
+      {
+        "label": "Inside the creek near the tower."
+      }
+    ],
+    "feedback": "Both map clues must be followed together."
+  },
+  {
+    "id": "ff-read-sequence-050",
+    "type": "Reading",
+    "grade": 7,
+    "minLevel": 3,
+    "points": 5,
+    "title": "Repair Steps",
+    "text": "Instruction card: First close the vent. Next add fuel. Last restart the generator. What happens second?",
+    "options": [
+      {
+        "label": "Close the vent."
+      },
+      {
+        "label": "Add fuel.",
+        "correct": true
+      },
+      {
+        "label": "Restart the generator."
+      }
+    ],
+    "feedback": "Next means the second step."
+  },
+  {
+    "id": "ff-read-infer-051",
+    "type": "Reading",
+    "grade": 10,
+    "minLevel": 4,
+    "points": 6,
+    "title": "Journal Inference",
+    "text": "Journal: I heard ice crack twice near the old road, so I marked a safer route through the trees. What can you infer?",
+    "options": [
+      {
+        "label": "The old road may be unsafe.",
+        "correct": true
+      },
+      {
+        "label": "The trees are underwater."
+      },
+      {
+        "label": "The writer wants to melt the road."
+      }
+    ],
+    "feedback": "The cracking ice suggests danger on the old road."
+  },
+  {
+    "id": "ff-read-tone-052",
+    "type": "Reading",
+    "grade": 10,
+    "minLevel": 4,
+    "points": 6,
+    "title": "Message Tone",
+    "text": "Message: Please hurry, but keep the children calm and warm. What is the tone?",
+    "options": [
+      {
+        "label": "Urgent but caring.",
+        "correct": true
+      },
+      {
+        "label": "Playful and careless."
+      },
+      {
+        "label": "Angry and sarcastic."
+      }
+    ],
+    "feedback": "The message asks for speed while showing concern."
+  },
+  {
+    "id": "ff-read-claim-053",
+    "type": "Reading",
+    "grade": 10,
+    "minLevel": 4,
+    "points": 6,
+    "title": "Evidence Check",
+    "text": "Claim: The east bridge is dangerous. Which note best supports the claim?",
+    "options": [
+      {
+        "label": "The bridge planks are cracked and sagging.",
+        "correct": true
+      },
+      {
+        "label": "The bridge has a good view of the river."
+      },
+      {
+        "label": "The bridge was painted red last summer."
+      }
+    ],
+    "feedback": "Cracked, sagging planks are evidence of danger."
+  },
+  {
+    "id": "ff-read-contrast-054",
+    "type": "Reading",
+    "grade": 10,
+    "minLevel": 4,
+    "points": 6,
+    "title": "Signal Contrast",
+    "text": "Report: The ridge trail is shorter; however, the valley trail is sheltered from wind. What does however signal?",
+    "options": [
+      {
+        "label": "A contrast between route features.",
+        "correct": true
+      },
+      {
+        "label": "A list of identical facts."
+      },
+      {
+        "label": "The end of all travel."
+      }
+    ],
+    "feedback": "However introduces a contrast."
+  },
+  {
+    "id": "ff-read-mainidea-055",
+    "type": "Reading",
+    "grade": 12,
+    "minLevel": 5,
+    "points": 8,
+    "title": "Main Idea",
+    "text": "Briefing: The camp must store fuel, keep meals moving, and repair gates before night. What is the main idea?",
+    "options": [
+      {
+        "label": "Prepare the camp systems before the attack.",
+        "correct": true
+      },
+      {
+        "label": "Paint the cabins before sunrise."
+      },
+      {
+        "label": "Avoid using the dining hall."
+      }
+    ],
+    "feedback": "The details all support preparing camp systems."
+  },
+  {
+    "id": "ff-read-precision-056",
+    "type": "Reading",
+    "grade": 12,
+    "minLevel": 5,
+    "points": 8,
+    "title": "Precise Rescue Order",
+    "text": "Order: Evacuate only the west shed after the second alarm. Which action matches the order?",
+    "options": [
+      {
+        "label": "Evacuate the west shed after the second alarm.",
+        "correct": true
+      },
+      {
+        "label": "Evacuate every shed before any alarm."
+      },
+      {
+        "label": "Ignore the west shed until morning."
+      }
+    ],
+    "feedback": "Only, west shed, and after the second alarm are all important details."
+  },
+  {
+    "id": "ff-read-capital-057",
+    "type": "Reading",
+    "grade": 10,
+    "minLevel": 4,
+    "points": 6,
+    "title": "Radio Log Capitalization",
+    "text": "Which radio log uses capitalization correctly?",
+    "options": [
+      {
+        "label": "we reached cabin three before dusk."
+      },
+      {
+        "label": "We reached Cabin Three before dusk.",
+        "correct": true
+      },
+      {
+        "label": "We Reached cabin three Before dusk."
+      }
+    ],
+    "feedback": "The first word and the specific place name should be capitalized."
+  },
+  {
+    "id": "ff-read-punct-058",
+    "type": "Reading",
+    "grade": 11,
+    "minLevel": 5,
+    "points": 8,
+    "title": "Emergency Punctuation",
+    "text": "Choose the sentence with correct end punctuation.",
+    "options": [
+      {
+        "label": "Is the north gate clear?",
+        "correct": true
+      },
+      {
+        "label": "Is the north gate clear."
+      },
+      {
+        "label": "Is the north gate clear,"
+      }
+    ],
+    "feedback": "A direct question needs a question mark."
+  },
+  {
+    "id": "ff-read-too-059",
+    "type": "Reading",
+    "grade": 12,
+    "minLevel": 5,
+    "points": 8,
+    "title": "Homophone Check",
+    "text": "Which sentence uses to, too, or two correctly?",
+    "options": [
+      {
+        "label": "Bring two lanterns to the dining hall.",
+        "correct": true
+      },
+      {
+        "label": "Bring too lanterns two the dining hall."
+      },
+      {
+        "label": "Bring to lanterns too the dining hall."
+      }
+    ],
+    "feedback": "Two is the number, and to shows direction."
+  },
+  {
+    "id": "ff-read-sense-060",
+    "type": "Reading",
+    "grade": 10,
+    "minLevel": 4,
+    "points": 6,
+    "title": "Signal Note",
+    "text": "Which sentence uses since or sense correctly?",
+    "options": [
+      {
+        "label": "Since the radio failed, the scout used a flare.",
+        "correct": true
+      },
+      {
+        "label": "Sense the radio failed, the scout used a flare."
+      },
+      {
+        "label": "The scout had no since of direction."
+      }
+    ],
+    "feedback": "Since explains time or cause; sense means awareness or meaning."
+  },
+  {
+    "id": "ff-read-there-061",
+    "type": "Reading",
+    "grade": 11,
+    "minLevel": 5,
+    "points": 8,
+    "title": "Supply Depot Note",
+    "text": "Pick the sentence with the correct there, their, or they are form.",
+    "options": [
+      {
+        "label": "Their gloves are drying near the furnace.",
+        "correct": true
+      },
+      {
+        "label": "There gloves are drying near the furnace."
+      },
+      {
+        "label": "They are gloves are drying near the furnace."
+      }
+    ],
+    "feedback": "Their shows ownership."
+  },
+  {
+    "id": "ff-read-weather-062",
+    "type": "Reading",
+    "grade": 11,
+    "minLevel": 5,
+    "points": 8,
+    "title": "Weather Report",
+    "text": "Weather report: Winds rise after midnight. Snow is light until 10 p.m. What is the best plan?",
+    "options": [
+      {
+        "label": "Delay all travel until midnight."
+      },
+      {
+        "label": "Move supplies before 10 p.m.",
+        "correct": true
+      },
+      {
+        "label": "Open the gates during high wind."
+      }
+    ],
+    "feedback": "The report says conditions are safer before 10 p.m."
+  },
+  {
+    "id": "ff-read-map-063",
+    "type": "Reading",
+    "grade": 12,
+    "minLevel": 5,
+    "points": 8,
+    "title": "Map Clue",
+    "text": "Map note: The cache is east of the creek and south of the broken tower. Where should the scout search?",
+    "options": [
+      {
+        "label": "North of the tower and west of the creek."
+      },
+      {
+        "label": "East of the creek and south of the tower.",
+        "correct": true
+      },
+      {
+        "label": "Inside the creek near the tower."
+      }
+    ],
+    "feedback": "Both map clues must be followed together."
+  },
+  {
+    "id": "ff-read-sequence-064",
+    "type": "Reading",
+    "grade": 7,
+    "minLevel": 3,
+    "points": 5,
+    "title": "Repair Steps",
+    "text": "Instruction card: First close the vent. Next add fuel. Last restart the generator. What happens second?",
+    "options": [
+      {
+        "label": "Close the vent."
+      },
+      {
+        "label": "Add fuel.",
+        "correct": true
+      },
+      {
+        "label": "Restart the generator."
+      }
+    ],
+    "feedback": "Next means the second step."
+  },
+  {
+    "id": "ff-read-infer-065",
+    "type": "Reading",
+    "grade": 12,
+    "minLevel": 5,
+    "points": 8,
+    "title": "Journal Inference",
+    "text": "Journal: I heard ice crack twice near the old road, so I marked a safer route through the trees. What can you infer?",
+    "options": [
+      {
+        "label": "The old road may be unsafe.",
+        "correct": true
+      },
+      {
+        "label": "The trees are underwater."
+      },
+      {
+        "label": "The writer wants to melt the road."
+      }
+    ],
+    "feedback": "The cracking ice suggests danger on the old road."
+  },
+  {
+    "id": "ff-read-tone-066",
+    "type": "Reading",
+    "grade": 9,
+    "minLevel": 4,
+    "points": 6,
+    "title": "Message Tone",
+    "text": "Message: Please hurry, but keep the children calm and warm. What is the tone?",
+    "options": [
+      {
+        "label": "Urgent but caring.",
+        "correct": true
+      },
+      {
+        "label": "Playful and careless."
+      },
+      {
+        "label": "Angry and sarcastic."
+      }
+    ],
+    "feedback": "The message asks for speed while showing concern."
+  },
+  {
+    "id": "ff-read-claim-067",
+    "type": "Reading",
+    "grade": 12,
+    "minLevel": 5,
+    "points": 8,
+    "title": "Evidence Check",
+    "text": "Claim: The east bridge is dangerous. Which note best supports the claim?",
+    "options": [
+      {
+        "label": "The bridge planks are cracked and sagging.",
+        "correct": true
+      },
+      {
+        "label": "The bridge has a good view of the river."
+      },
+      {
+        "label": "The bridge was painted red last summer."
+      }
+    ],
+    "feedback": "Cracked, sagging planks are evidence of danger."
+  },
+  {
+    "id": "ff-read-contrast-068",
+    "type": "Reading",
+    "grade": 12,
+    "minLevel": 5,
+    "points": 8,
+    "title": "Signal Contrast",
+    "text": "Report: The ridge trail is shorter; however, the valley trail is sheltered from wind. What does however signal?",
+    "options": [
+      {
+        "label": "A contrast between route features.",
+        "correct": true
+      },
+      {
+        "label": "A list of identical facts."
+      },
+      {
+        "label": "The end of all travel."
+      }
+    ],
+    "feedback": "However introduces a contrast."
+  },
+  {
+    "id": "ff-read-mainidea-069",
+    "type": "Reading",
+    "grade": 12,
+    "minLevel": 5,
+    "points": 8,
+    "title": "Main Idea",
+    "text": "Briefing: The camp must store fuel, keep meals moving, and repair gates before night. What is the main idea?",
+    "options": [
+      {
+        "label": "Prepare the camp systems before the attack.",
+        "correct": true
+      },
+      {
+        "label": "Paint the cabins before sunrise."
+      },
+      {
+        "label": "Avoid using the dining hall."
+      }
+    ],
+    "feedback": "The details all support preparing camp systems."
+  },
+  {
+    "id": "ff-read-precision-070",
+    "type": "Reading",
+    "grade": 12,
+    "minLevel": 5,
+    "points": 8,
+    "title": "Precise Rescue Order",
+    "text": "Order: Evacuate only the west shed after the second alarm. Which action matches the order?",
+    "options": [
+      {
+        "label": "Evacuate the west shed after the second alarm.",
+        "correct": true
+      },
+      {
+        "label": "Evacuate every shed before any alarm."
+      },
+      {
+        "label": "Ignore the west shed until morning."
+      }
+    ],
+    "feedback": "Only, west shed, and after the second alarm are all important details."
+  },
+  {
+    "id": "ff-read-capital-071",
+    "type": "Reading",
+    "grade": 4,
+    "minLevel": 1,
+    "points": 3,
+    "title": "Radio Log Capitalization",
+    "text": "Which radio log uses capitalization correctly?",
+    "options": [
+      {
+        "label": "we reached cabin three before dusk."
+      },
+      {
+        "label": "We reached Cabin Three before dusk.",
+        "correct": true
+      },
+      {
+        "label": "We Reached cabin three Before dusk."
+      }
+    ],
+    "feedback": "The first word and the specific place name should be capitalized."
+  },
+  {
+    "id": "ff-read-punct-072",
+    "type": "Reading",
+    "grade": 5,
+    "minLevel": 2,
+    "points": 4,
+    "title": "Emergency Punctuation",
+    "text": "Choose the sentence with correct end punctuation.",
+    "options": [
+      {
+        "label": "Is the north gate clear?",
+        "correct": true
+      },
+      {
+        "label": "Is the north gate clear."
+      },
+      {
+        "label": "Is the north gate clear,"
+      }
+    ],
+    "feedback": "A direct question needs a question mark."
+  },
+  {
+    "id": "ff-read-too-073",
+    "type": "Reading",
+    "grade": 6,
+    "minLevel": 2,
+    "points": 4,
+    "title": "Homophone Check",
+    "text": "Which sentence uses to, too, or two correctly?",
+    "options": [
+      {
+        "label": "Bring two lanterns to the dining hall.",
+        "correct": true
+      },
+      {
+        "label": "Bring too lanterns two the dining hall."
+      },
+      {
+        "label": "Bring to lanterns too the dining hall."
+      }
+    ],
+    "feedback": "Two is the number, and to shows direction."
+  },
+  {
+    "id": "ff-read-sense-074",
+    "type": "Reading",
+    "grade": 6,
+    "minLevel": 2,
+    "points": 4,
+    "title": "Signal Note",
+    "text": "Which sentence uses since or sense correctly?",
+    "options": [
+      {
+        "label": "Since the radio failed, the scout used a flare.",
+        "correct": true
+      },
+      {
+        "label": "Sense the radio failed, the scout used a flare."
+      },
+      {
+        "label": "The scout had no since of direction."
+      }
+    ],
+    "feedback": "Since explains time or cause; sense means awareness or meaning."
+  },
+  {
+    "id": "ff-read-there-075",
+    "type": "Reading",
+    "grade": 7,
+    "minLevel": 3,
+    "points": 5,
+    "title": "Supply Depot Note",
+    "text": "Pick the sentence with the correct there, their, or they are form.",
+    "options": [
+      {
+        "label": "Their gloves are drying near the furnace.",
+        "correct": true
+      },
+      {
+        "label": "There gloves are drying near the furnace."
+      },
+      {
+        "label": "They are gloves are drying near the furnace."
+      }
+    ],
+    "feedback": "Their shows ownership."
+  },
+  {
+    "id": "ff-read-weather-076",
+    "type": "Reading",
+    "grade": 9,
+    "minLevel": 4,
+    "points": 6,
+    "title": "Weather Report",
+    "text": "Weather report: Winds rise after midnight. Snow is light until 10 p.m. What is the best plan?",
+    "options": [
+      {
+        "label": "Delay all travel until midnight."
+      },
+      {
+        "label": "Move supplies before 10 p.m.",
+        "correct": true
+      },
+      {
+        "label": "Open the gates during high wind."
+      }
+    ],
+    "feedback": "The report says conditions are safer before 10 p.m."
+  },
+  {
+    "id": "ff-read-map-077",
+    "type": "Reading",
+    "grade": 10,
+    "minLevel": 4,
+    "points": 6,
+    "title": "Map Clue",
+    "text": "Map note: The cache is east of the creek and south of the broken tower. Where should the scout search?",
+    "options": [
+      {
+        "label": "North of the tower and west of the creek."
+      },
+      {
+        "label": "East of the creek and south of the tower.",
+        "correct": true
+      },
+      {
+        "label": "Inside the creek near the tower."
+      }
+    ],
+    "feedback": "Both map clues must be followed together."
+  },
+  {
+    "id": "ff-read-sequence-078",
+    "type": "Reading",
+    "grade": 7,
+    "minLevel": 3,
+    "points": 5,
+    "title": "Repair Steps",
+    "text": "Instruction card: First close the vent. Next add fuel. Last restart the generator. What happens second?",
+    "options": [
+      {
+        "label": "Close the vent."
+      },
+      {
+        "label": "Add fuel.",
+        "correct": true
+      },
+      {
+        "label": "Restart the generator."
+      }
+    ],
+    "feedback": "Next means the second step."
+  },
+  {
+    "id": "ff-read-infer-079",
+    "type": "Reading",
+    "grade": 8,
+    "minLevel": 3,
+    "points": 5,
+    "title": "Journal Inference",
+    "text": "Journal: I heard ice crack twice near the old road, so I marked a safer route through the trees. What can you infer?",
+    "options": [
+      {
+        "label": "The old road may be unsafe.",
+        "correct": true
+      },
+      {
+        "label": "The trees are underwater."
+      },
+      {
+        "label": "The writer wants to melt the road."
+      }
+    ],
+    "feedback": "The cracking ice suggests danger on the old road."
+  },
+  {
+    "id": "ff-read-tone-080",
+    "type": "Reading",
+    "grade": 8,
+    "minLevel": 3,
+    "points": 5,
+    "title": "Message Tone",
+    "text": "Message: Please hurry, but keep the children calm and warm. What is the tone?",
+    "options": [
+      {
+        "label": "Urgent but caring.",
+        "correct": true
+      },
+      {
+        "label": "Playful and careless."
+      },
+      {
+        "label": "Angry and sarcastic."
+      }
+    ],
+    "feedback": "The message asks for speed while showing concern."
+  }
+]
