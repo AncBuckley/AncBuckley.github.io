@@ -20,10 +20,13 @@ const hud = {
   waveCount: document.querySelector("#waveCount"),
   carryText: document.querySelector("#carryText"),
   eventLog: document.querySelector("#eventLog"),
+  actionsToggle: document.querySelector("#actionsToggle"),
+  actionsPanel: document.querySelector("#actionsPanel"),
   mainMenuButton: document.querySelector("#mainMenuButton"),
   buildButton: document.querySelector("#buildButton"),
   upgradeMenuButton: document.querySelector("#upgradeMenuButton"),
   customizeButton: document.querySelector("#customizeButton"),
+  helpButton: document.querySelector("#helpButton"),
   pauseButton: document.querySelector("#pauseButton"),
   buildTray: document.querySelector("#buildTray"),
   buildTrayToggle: document.querySelector("#buildTrayToggle"),
@@ -59,6 +62,7 @@ const fort = {
 const resourceMeta = {
   wood: { label: "Wood", short: "WD", color: "#b77a43", stack: "#8f5f36" },
   lettuce: { label: "Lettuce", short: "LT", color: "#75df76", stack: "#3ca85c" },
+  berries: { label: "Berries", short: "BR", color: "#d94c7c", stack: "#8d2b57" },
   meat: { label: "Meat", short: "MT", color: "#d65d58", stack: "#9a3633" },
   meal: { label: "Meal", short: "ML", color: "#ffcb72", stack: "#d99135" }
 };
@@ -197,6 +201,7 @@ const defaultGameConfig = {
     wolfChance: 0.2,
     survivorCheckInterval: 300,
     survivorChance: 0.2,
+    postWaveSurvivorCooldown: 60,
     upgradeFailCooldown: 60,
     waveInterval: 300
   },
@@ -282,7 +287,11 @@ const defaultGameConfig = {
     clumps: 7,
     treesPerClump: 6,
     clumpRadius: 170,
-    fenceClearGridSpaces: 5
+    fenceClearGridSpaces: 5,
+    berryBushRatio: 0.1,
+    berryGatherSeconds: 3,
+    berryRespawnSeconds: 55,
+    berryDrops: 3
   },
   combat: {
     baseArrowCooldown: 0.56,
@@ -352,7 +361,9 @@ const defaultGameConfig = {
     stuckSeconds: 1.15,
     stuckNudgeDistance: 92,
     lumberjackWorkSeconds: 9,
-    lumberjackWoodAmount: 1,
+    lumberjackLowLevelWoodAmount: 5,
+    lumberjackHighLevelWoodAmount: 10,
+    lumberjackHighLevelThreshold: 6,
     farmerWorkSeconds: 11,
     farmerFoodAmount: 1,
     cookWorkSecondsMultiplier: 1.15,
@@ -473,7 +484,7 @@ let gameConfig = clone(defaultGameConfig);
 const spriteImages = {};
 let spritesReady = false;
 
-const storageKey = "frozen-frontier-base-v19";
+const storageKey = "frozen-frontier-base-v20";
 const keys = new Set();
 let heldMove = { x: 0, y: 0 };
 let dpr = 1;
@@ -492,6 +503,7 @@ let moveMode = false;
 let selectedMoveTarget = null;
 let movePreview = null;
 let buildTrayCollapsed = true;
+let actionsCollapsed = true;
 let paused = false;
 let wolfCheckTimer = 0;
 let survivorCheckTimer = 0;
@@ -515,7 +527,7 @@ let residentDeathNotices = [];
 const defaultState = {
   player: { x: 860, y: 690, target: null, walkTime: 0, facing: 1, direction: "down", clothes: "blue", health: 100, maxHealth: 100 },
   stored: { wood: 18, lettuce: 0, meat: 0, meal: 0 },
-  carry: { wood: 0, lettuce: 0, meat: 0, meal: 0 },
+  carry: { wood: 0, lettuce: 0, berries: 0, meat: 0, meal: 0 },
   survivors: [],
   visitor: null,
   buildings: {},
@@ -526,9 +538,10 @@ const defaultState = {
   playerUpgrades: { attack: 0, carry: 0, lumber: 0, cooking: 0 },
   playerLevel: 1,
   structures: [],
-  wave: { number: 0, timer: defaultGameConfig.timers.waveInterval, active: false },
+  wave: { number: 0, timer: defaultGameConfig.timers.waveInterval, active: false, survivorCooldown: 0, interWaveVisitorPending: false },
   towerStationedResidentId: null,
   towerInstructionShown: false,
+  tutorialFlags: { furnaceUpgrade: false, foodUpgrade: false, cabinUpgrade: false },
   cooldowns: {},
   upgradeJobs: []
 };
@@ -569,6 +582,7 @@ function loadState() {
       structures: Array.isArray(parsed.structures) ? parsed.structures : [],
       wave: { ...defaultState.wave, ...(parsed.wave || {}) },
       towerStationedResidentId: parsed.towerStationedResidentId || null,
+      tutorialFlags: { ...defaultState.tutorialFlags, ...(parsed.tutorialFlags || {}) },
       cooldowns: parsed.cooldowns || {},
       upgradeJobs: Array.isArray(parsed.upgradeJobs) ? parsed.upgradeJobs : [],
       survivors: Array.isArray(parsed.survivors) ? parsed.survivors : [],
@@ -639,8 +653,9 @@ function createTrees() {
       if (treePointAllowed(point, clearance)) points.push([point.x, point.y]);
     }
   }
-  return points.map(([x, y], index) => ({
+  const treesList = points.map(([x, y], index) => ({
     id: `tree-${index}`,
+    type: "tree",
     x,
     y,
     health: 1,
@@ -649,6 +664,30 @@ function createTrees() {
     respawn: 0,
     shake: 0
   }));
+  const bushCount = Math.max(1, Math.round(treesList.length * (config.berryBushRatio || 0.1)));
+  for (let i = 0; i < bushCount; i += 1) {
+    for (let attempt = 0; attempt < 80; attempt += 1) {
+      const point = {
+        x: 140 + Math.random() * (world.width - 280),
+        y: 130 + Math.random() * (world.height - 260)
+      };
+      const tooClose = treesList.some((tree) => dist(point, tree) < 80);
+      if (tooClose || !treePointAllowed(point, clearance)) continue;
+      treesList.push({
+        id: `berry-bush-${i}`,
+        type: "berryBush",
+        x: point.x,
+        y: point.y,
+        health: 1,
+        progress: 0,
+        alive: true,
+        respawn: 0,
+        shake: 0
+      });
+      break;
+    }
+  }
+  return treesList;
 }
 
 function treePointAllowed(point, clearance) {
@@ -828,6 +867,13 @@ function residentCooldown(survivor, seconds) {
   return Math.max(0.18, seconds / residentLevelMultiplier(survivor));
 }
 
+function lumberjackCarryAmount(survivor) {
+  const config = gameConfig.residents;
+  return residentLevel(survivor) >= (config.lumberjackHighLevelThreshold || 6)
+    ? (config.lumberjackHighLevelWoodAmount || 10)
+    : (config.lumberjackLowLevelWoodAmount || 5);
+}
+
 function playerStatBonus(stat) {
   return state.playerUpgrades[stat] || 0;
 }
@@ -891,6 +937,7 @@ function normalizeSurvivor(survivor, index = 0) {
     direction: survivor.direction || "down",
     walkTime: Number.isFinite(survivor.walkTime) ? survivor.walkTime : 0,
     carrying: survivor.carrying || null,
+    carryAmount: Number.isFinite(survivor.carryAmount) ? survivor.carryAmount : 0,
     workTimer: Number.isFinite(survivor.workTimer) ? survivor.workTimer : Math.random() * 3,
     arrowCooldown: Number.isFinite(survivor.arrowCooldown) ? survivor.arrowCooldown : Math.random(),
     target: survivor.target || null,
@@ -1474,6 +1521,11 @@ function updateDropoffs() {
         buildings.foodPrep.raw += amount;
         setMessage("Lettuce delivered to food prep.");
       });
+    } else if (state.carry.berries > 0) {
+      transferCarry("berries", 1, dropoffs.food, (amount) => {
+        buildings.foodPrep.raw += amount;
+        setMessage("Berries delivered to food prep.");
+      });
     } else if (state.carry.meat > 0) {
       transferCarry("meat", 1, dropoffs.food, (amount) => {
         buildings.foodPrep.raw += amount;
@@ -1596,18 +1648,21 @@ function updateTrees(dt) {
       tree.progress = Math.max(0, tree.progress - dt * gameConfig.trees.progressDecayPerSecond);
       return;
     }
-    const chopTime = treeChopSeconds();
+    const isBush = tree.type === "berryBush";
+    const chopTime = isBush ? (gameConfig.trees.berryGatherSeconds || 3) : treeChopSeconds();
     tree.progress += dt;
     tree.shake = 0.15;
     if (tree.progress >= chopTime) {
       tree.alive = false;
-      tree.respawn = gameConfig.trees.respawnSeconds;
+      tree.respawn = isBush ? (gameConfig.trees.berryRespawnSeconds || gameConfig.trees.respawnSeconds) : gameConfig.trees.respawnSeconds;
       tree.progress = 0;
-      addBurst(tree.x, tree.y, resourceMeta.wood.color, 16);
-      for (let i = 0; i < gameConfig.trees.woodDrops; i += 1) {
-        spawnResource("wood", tree.x - 45 + Math.random() * 90, tree.y + 15 + Math.random() * 52, 1);
+      const dropType = isBush ? "berries" : "wood";
+      const dropCount = isBush ? (gameConfig.trees.berryDrops || 3) : gameConfig.trees.woodDrops;
+      addBurst(tree.x, tree.y, resourceMeta[dropType].color, isBush ? 10 : 16);
+      for (let i = 0; i < dropCount; i += 1) {
+        spawnResource(dropType, tree.x - 45 + Math.random() * 90, tree.y + 15 + Math.random() * 52, 1);
       }
-      setMessage("The tree bursts into wood. Pick it up and bring it to the wood pile.");
+      setMessage(isBush ? "The berry bush drops food. Pick berries up and bring them to food prep." : "The tree bursts into wood. Pick it up and bring it to the wood pile.");
     }
   });
 }
@@ -1619,8 +1674,31 @@ function updateResourcePickup() {
 }
 
 function updateVisitor(dt) {
-  survivorCheckTimer += dt;
-  if (!pendingVisitor && !attackActive && survivorCheckTimer >= gameConfig.timers.survivorCheckInterval) {
+  if (state.wave.survivorCooldown > 0) {
+    state.wave.survivorCooldown = Math.max(0, state.wave.survivorCooldown - dt);
+  }
+
+  if ((attackActive || state.wave.active) && pendingVisitor && !pendingVisitor.arrived) {
+    pendingVisitor = null;
+    state.visitor = null;
+    survivorCheckTimer = 0;
+    setMessage("The gates stay closed during the attack. Survivors wait for daylight.", 4);
+    return;
+  }
+
+  const survivorBlocked = attackActive || state.wave.active || (state.wave.survivorCooldown || 0) > 0;
+  if (!pendingVisitor && survivorBlocked) {
+    survivorCheckTimer = 0;
+  } else {
+    survivorCheckTimer += dt;
+  }
+
+  if (!pendingVisitor && !survivorBlocked && state.wave.interWaveVisitorPending) {
+    spawnInterWaveVisitor();
+    return;
+  }
+
+  if (!pendingVisitor && !survivorBlocked && survivorCheckTimer >= gameConfig.timers.survivorCheckInterval) {
     survivorCheckTimer = 0;
     if (Math.random() < gameConfig.timers.survivorChance) {
       pendingVisitor = createVisitor();
@@ -1670,8 +1748,10 @@ function completeRecruitment() {
   activeTask = null;
   activeTaskContext = null;
   if (state.survivors.length < survivorCapacity()) {
+    const willReachThree = state.survivors.length === 2 && !state.tutorialFlags.cabinUpgrade;
     state.survivors.push(normalizeSurvivor(pendingRecruit, state.survivors.length));
     finishVisitor(`${pendingRecruit.name} joined the camp as a level ${pendingRecruit.level} ${pendingRecruit.title}.`);
+    if (willReachThree) window.setTimeout(maybeShowCabinUpgradeTip, 80);
     return;
   }
   replacementRecruit = pendingRecruit;
@@ -1719,18 +1799,10 @@ function moveActor(actor, target, speed, dt) {
   const next = { x: actor.x + mx, y: actor.y + my };
   if (pointBlockedByBarriers(next, true)) {
     const gate = nearestGate(actor, target);
-    if (gate && dist(actor, gate) > gameConfig.residents.workDistance) {
-      const gx = gate.x - actor.x;
-      const gy = gate.y - actor.y;
-      const gateGap = Math.hypot(gx, gy);
-      const gateStep = Math.min(gateGap, speed * dt);
-      if (gateGap > 1) {
-        actor.x += (gx / gateGap) * gateStep;
-        actor.y += (gy / gateGap) * gateStep;
-        actor.walkTime = (actor.walkTime || 0) + gateStep / gameConfig.movement.walkAnimationDivisor;
-        setActorDirection(actor, gx, gy);
-        updateActorStuckState(actor, target, before, true, dt);
-      }
+    const gatePoint = gateTransitPoint(actor, target, gate);
+    if (gatePoint && dist(actor, gatePoint) > gameConfig.residents.workDistance * 0.55) {
+      actor.pathNudge = gatePoint;
+      updateActorStuckState(actor, target, before, false, dt);
       return false;
     }
     updateActorStuckState(actor, target, before, false, dt);
@@ -1759,6 +1831,9 @@ function updateActorStuckState(actor, target, before, moved, dt) {
 }
 
 function escapeWaypoint(actor, target) {
+  const gate = nearestGate(actor, target);
+  const gatePoint = gateTransitPoint(actor, target, gate);
+  if (gatePoint && dist(actor, gatePoint) > gameConfig.residents.workDistance * 0.55) return gatePoint;
   const distance = gameConfig.residents.stuckNudgeDistance || gridSize();
   const dx = target.x - actor.x;
   const dy = target.y - actor.y;
@@ -1788,7 +1863,7 @@ function escapeWaypoint(actor, target) {
 
 function nearestAliveTree(from) {
   return trees
-    .filter((tree) => tree.alive)
+    .filter((tree) => tree.alive && tree.type !== "berryBush")
     .sort((a, b) => dist(from, a) - dist(from, b))[0] || { x: 330, y: 760 };
 }
 
@@ -1830,8 +1905,9 @@ function updateLumberjack(survivor, dt) {
   const speed = residentMoveSpeed(survivor);
   if (survivor.carrying === "wood") {
     if (moveActor(survivor, dropoffs.wood, speed, dt)) {
-      state.stored.wood += gameConfig.residents.lumberjackWoodAmount;
+      state.stored.wood += survivor.carryAmount || lumberjackCarryAmount(survivor);
       survivor.carrying = null;
+      survivor.carryAmount = 0;
       survivor.workTimer = 0;
       playSound("drop");
     }
@@ -1844,6 +1920,7 @@ function updateLumberjack(survivor, dt) {
     if (survivor.workTimer >= residentWorkSeconds(survivor, gameConfig.residents.lumberjackWorkSeconds)) {
       survivor.workTimer = 0;
       survivor.carrying = "wood";
+      survivor.carryAmount = lumberjackCarryAmount(survivor);
       addBurst(tree.x, tree.y, resourceMeta.wood.color, 5);
       playSound("pickup");
     }
@@ -2037,7 +2114,7 @@ function damageActor(actor, damage) {
 function removeResident(resident) {
   if (!resident || !resident.id) return;
   if (resident.carrying && resourceMeta[resident.carrying]) {
-    spawnResource(resident.carrying, resident.x, resident.y, 1);
+    spawnResource(resident.carrying, resident.x, resident.y, resident.carryAmount || 1);
   }
   state.survivors = state.survivors.filter((survivor) => survivor.id !== resident.id);
   if (state.towerStationedResidentId === resident.id) state.towerStationedResidentId = null;
@@ -2143,9 +2220,39 @@ function updateWolves(dt) {
     attackActive = false;
     state.wave.active = false;
     state.wave.timer = gameConfig.timers.waveInterval;
-    spawnInterWaveVisitor();
+    state.wave.survivorCooldown = gameConfig.timers.postWaveSurvivorCooldown || 60;
+    state.wave.interWaveVisitorPending = true;
+    survivorCheckTimer = 0;
+    maybeShowWaveUpgradeTip();
     maybeShowTowerInstruction();
   }
+}
+
+function maybeShowWaveUpgradeTip() {
+  if (state.wave.number === 1) {
+    showTutorialTip(
+      "furnaceUpgrade",
+      "Upgrade The Furnace",
+      "The first attack is over. Upgrade the Furnace to increase fuel capacity and slow fuel drain so the camp survives longer between wood runs.",
+      [{ label: "Open Furnace", action: () => openBuildingMenu(buildings.furnace) }]
+    );
+  } else if (state.wave.number === 2) {
+    showTutorialTip(
+      "foodUpgrade",
+      "Upgrade Food Systems",
+      "Food Prep cooks raw food into meals, and the Dining Hall serves those meals to hold hunger down. Upgrading both makes the camp much steadier during longer nights.",
+      [{ label: "Open Food Prep", action: () => openBuildingMenu(buildings.foodPrep) }]
+    );
+  }
+}
+
+function maybeShowCabinUpgradeTip() {
+  showTutorialTip(
+    "cabinUpgrade",
+    "Upgrade The Cabin",
+    "The cabin is full. Upgrade the Group Cabin to add more resident space before the next survivor reaches the gate.",
+    [{ label: "Open Cabin", action: () => openBuildingMenu(buildings.cabin) }]
+  );
 }
 
 function maybeShowTowerInstruction() {
@@ -2156,9 +2263,10 @@ function maybeShowTowerInstruction() {
 }
 
 function spawnInterWaveVisitor() {
-  if (pendingVisitor || state.visitor) return;
+  if (pendingVisitor || state.visitor || attackActive || state.wave.active || (state.wave.survivorCooldown || 0) > 0) return;
   pendingVisitor = createVisitor();
   state.visitor = pendingVisitor;
+  state.wave.interWaveVisitorPending = false;
   survivorCheckTimer = 0;
   setMessage(`${pendingVisitor.name} reached the fort between waves.`, 6);
 }
@@ -2205,6 +2313,7 @@ function spawnWolfRaid() {
   const config = gameConfig.combat;
   state.wave.number = (state.wave.number || 0) + 1;
   state.wave.active = true;
+  state.wave.interWaveVisitorPending = false;
   const tier = Math.floor((state.wave.number - 1) / 2);
   const count = config.waveBaseCount + tier * config.waveCountPerTier + Math.floor(Math.random() * config.wolfRaidBonusCount);
   wolves = [];
@@ -2375,7 +2484,51 @@ function pointBlockedByBarriers(point, friendly) {
 }
 
 function nearGatePassage(point) {
-  return state.structures.some((structure) => structure.type === "gate" && structure.health > 0 && dist(point, structure) < gridSize() * 0.86);
+  const gate = nearestGate(point);
+  if (!gate) return false;
+  const size = gridSize();
+  const axis = gateAxis(gate);
+  const dx = Math.abs(point.x - gate.x);
+  const dy = Math.abs(point.y - gate.y);
+  const aligned = axis === "horizontal"
+    ? dx <= size * 1.08 && dy <= size * 0.92
+    : dy <= size * 1.08 && dx <= size * 0.92;
+  if (!aligned) return false;
+  const tooCloseToFence = state.structures.some((structure) => {
+    if (structure.type !== "fence" || structure.health <= 0) return false;
+    return barrierSegments(structure).some((segment) => distanceToSegment(point, segment.a, segment.b) <= 16);
+  });
+  return !tooCloseToFence || dist(point, gate) <= size * 0.44;
+}
+
+function gateAxis(gate) {
+  const size = gridSize();
+  const pairedGate = state.structures.find((structure) => {
+    if (structure.type !== "gate" || structure.health <= 0 || structure === gate) return false;
+    return Math.abs(structure.x - gate.x) <= size * 1.2 && Math.abs(structure.y - gate.y) <= size * 1.2;
+  });
+  if (pairedGate) return Math.abs(pairedGate.x - gate.x) >= Math.abs(pairedGate.y - gate.y) ? "horizontal" : "vertical";
+  const connections = barrierConnections(gate);
+  return connections.e || connections.w ? "horizontal" : "vertical";
+}
+
+function gatePassagePoints(gate) {
+  if (!gate) return [];
+  const size = gridSize();
+  const offset = size * 0.78;
+  return gateAxis(gate) === "horizontal"
+    ? [{ x: gate.x, y: gate.y - offset }, { x: gate.x, y: gate.y + offset }]
+    : [{ x: gate.x - offset, y: gate.y }, { x: gate.x + offset, y: gate.y }];
+}
+
+function gateTransitPoint(actor, target, gate) {
+  if (!gate) return null;
+  const points = gatePassagePoints(gate).filter((point) => !pointBlockedByBarriers(point, true));
+  if (!points.length) return null;
+  if (nearGatePassage(actor) || dist(actor, gate) <= gridSize() * 0.96) {
+    return points.sort((a, b) => dist(a, target) - dist(b, target))[0];
+  }
+  return points.sort((a, b) => dist(a, actor) - dist(b, actor))[0];
 }
 
 function barrierSegments(structure) {
@@ -2415,6 +2568,20 @@ function updateCamera() {
   camera.y = clamp(state.player.y - viewH / 2, 0, Math.max(0, world.height - viewH));
 }
 
+function setActionsCollapsed(collapsed) {
+  actionsCollapsed = collapsed;
+  if (hud.actionsPanel) hud.actionsPanel.classList.toggle("collapsed", actionsCollapsed);
+  if (hud.actionsToggle) {
+    hud.actionsToggle.setAttribute("aria-expanded", String(!actionsCollapsed));
+    hud.actionsToggle.textContent = actionsCollapsed ? "Menu" : "Close";
+  }
+}
+
+function runHudAction(action) {
+  setActionsCollapsed(true);
+  action();
+}
+
 function updateHud(dt) {
   syncFortHealthFromGates();
   if (messageTimer > 0) messageTimer -= dt;
@@ -2443,6 +2610,7 @@ function updateHud(dt) {
   hud.waveCount.textContent = state.wave.active ? `${state.wave.number}` : `${state.wave.number} (${Math.ceil(state.wave.timer || 0)}s)`;
   hud.buildButton.textContent = buildMode || moveMode ? "Build Menu" : "Build";
   hud.pauseButton.textContent = paused ? "Resume" : "Pause";
+  setActionsCollapsed(actionsCollapsed);
   hud.pauseLayer.classList.toggle("hidden", !paused);
   hud.buildTray.classList.toggle("collapsed", buildTrayCollapsed);
   const carriedNow = carryTotal();
@@ -2482,21 +2650,21 @@ function updateNotifications() {
   const dangerChecks = [
     {
       id: "furnace",
-      active: buildings.furnace.fuel > 0 && buildings.furnace.fuel <= buildings.furnace.maxFuel * 0.05,
+      active: buildings.furnace.fuel > 0 && buildings.furnace.fuel <= buildings.furnace.maxFuel * 0.08,
       title: "Furnace Critical",
-      copy: "Fuel is within 5% of failure. Drop wood at the furnace."
+      copy: "Fuel is almost gone. Gather wood, drop it at the furnace, or upgrade the furnace so fuel lasts longer."
     },
     {
       id: "hunger",
-      active: buildings.cabin.hunger < buildings.cabin.maxHunger && buildings.cabin.hunger >= buildings.cabin.maxHunger * 0.95,
+      active: buildings.cabin.hunger < buildings.cabin.maxHunger && buildings.cabin.hunger >= buildings.cabin.maxHunger * 0.92,
       title: "Cabin Hunger Critical",
-      copy: "Hunger is within 5% of failure. Serve meals through the dining hall."
+      copy: "Hunger is nearly full. Gather berries, lettuce, or meat, process food at Food Prep, then deliver meals to the Dining Hall."
     },
     {
       id: "fort",
-      active: fort.health > 0 && fort.health <= fort.maxHealth * 0.05,
+      active: fort.health > 0 && fort.health <= fort.maxHealth * 0.08,
       title: "Fort Wall Critical",
-      copy: "The wall is within 5% of collapse. Repair it with wood."
+      copy: "The gate network is close to collapse. Tap Fort Health and repair all fences and gates with wood."
     }
   ];
   dangerChecks.forEach((warning) => {
@@ -2663,7 +2831,7 @@ function resetGame() {
     spawnResource("wood", 300 + Math.random() * 180, 760 + Math.random() * 220, 1);
   }
   forceCloseModal();
-  setMessage("A fresh camp begins. Gather wood, serve meals, and keep the furnace alive.", 6);
+  setMessage("A fresh camp begins. Gather wood from trees and food from berry bushes.", 7);
   saveState();
 }
 
@@ -2714,6 +2882,7 @@ function draw() {
   ctx.translate(-camera.x, -camera.y);
   drawWorld();
   ctx.restore();
+  drawDangerAura();
 }
 
 function drawWorld() {
@@ -3408,6 +3577,10 @@ function drawTrees() {
     if (!tree.alive) return;
     tree.shake = Math.max(0, tree.shake - 0.02);
     const shake = tree.shake ? Math.sin(performance.now() / 35) * 7 : 0;
+    if (tree.type === "berryBush") {
+      drawBerryBush(tree, shake);
+      return;
+    }
     ctx.save();
     ctx.translate(tree.x + shake, tree.y);
     if (drawSprite("tree", -64, -128, 128, 208)) {
@@ -3460,6 +3633,36 @@ function drawTrees() {
   });
 }
 
+function drawBerryBush(bush, shake = 0) {
+  ctx.save();
+  ctx.translate(bush.x + shake, bush.y);
+  ctx.fillStyle = "rgba(0,0,0,0.2)";
+  ctx.beginPath();
+  ctx.ellipse(0, 36, 42, 16, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "#284831";
+  ctx.beginPath();
+  ctx.ellipse(-18, 10, 36, 46, -0.35, 0, Math.PI * 2);
+  ctx.ellipse(18, 10, 36, 46, 0.35, 0, Math.PI * 2);
+  ctx.ellipse(0, -2, 42, 50, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "#d94c7c";
+  for (let i = 0; i < 9; i += 1) {
+    const angle = i * 1.7;
+    ctx.beginPath();
+    ctx.arc(Math.cos(angle) * 22, -4 + Math.sin(angle) * 22, 5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  if (bush.progress > 0) {
+    const duration = gameConfig.trees.berryGatherSeconds || 3;
+    ctx.fillStyle = "rgba(3, 12, 22, 0.66)";
+    roundRect(-38, 52, 76, 9, 5);
+    ctx.fillStyle = "#d94c7c";
+    roundRect(-38, 52, 76 * clamp(bush.progress / duration, 0, 1), 9, 5);
+  }
+  ctx.restore();
+}
+
 function drawResources() {
   resources.forEach((resource) => {
     const meta = resourceMeta[resource.type];
@@ -3480,7 +3683,7 @@ function drawVisitor() {
 
 function drawResidents() {
   state.survivors.forEach((survivor) => {
-    const badge = survivor.carrying ? resourceMeta[survivor.carrying].short : "";
+    const badge = survivor.carrying ? `${resourceMeta[survivor.carrying].short}${survivor.carryAmount || ""}` : "";
     drawPerson(survivor.x, survivor.y, clothingColor(survivor.clothes), badge, characterSprite("visitor", survivor.clothes), survivor.facing < 0, survivor.walkTime, directionRow(survivor));
     drawActorHealth(survivor, 58);
   });
@@ -3732,6 +3935,46 @@ function drawDayNightOverlay() {
   ctx.beginPath();
   ctx.arc(orbX, orbY, state.wave.active ? 24 : 32, 0, Math.PI * 2);
   ctx.fill();
+  ctx.restore();
+}
+
+function dangerAuraLevel() {
+  const furnace = buildings.furnace;
+  const cabin = buildings.cabin;
+  const fuelLevel = furnace.maxFuel ? 1 - furnace.fuel / (furnace.maxFuel * 0.12) : 0;
+  const hungerLevel = cabin.maxHunger ? (cabin.hunger / cabin.maxHunger - 0.88) / 0.12 : 0;
+  const fortLevel = fort.maxHealth ? 1 - fort.health / (fort.maxHealth * 0.12) : 0;
+  return clamp(Math.max(fuelLevel, hungerLevel, fortLevel), 0, 1);
+}
+
+function drawDangerAura() {
+  const level = dangerAuraLevel();
+  if (level <= 0) return;
+  const width = window.innerWidth;
+  const height = window.innerHeight;
+  const alpha = 0.1 + level * 0.24;
+  ctx.save();
+  const edge = Math.min(120, Math.max(70, Math.min(width, height) * 0.18));
+  const left = ctx.createLinearGradient(0, 0, edge, 0);
+  left.addColorStop(0, `rgba(255, 93, 102, ${alpha})`);
+  left.addColorStop(1, "rgba(255, 93, 102, 0)");
+  ctx.fillStyle = left;
+  ctx.fillRect(0, 0, edge, height);
+  const right = ctx.createLinearGradient(width, 0, width - edge, 0);
+  right.addColorStop(0, `rgba(255, 93, 102, ${alpha})`);
+  right.addColorStop(1, "rgba(255, 93, 102, 0)");
+  ctx.fillStyle = right;
+  ctx.fillRect(width - edge, 0, edge, height);
+  const top = ctx.createLinearGradient(0, 0, 0, edge);
+  top.addColorStop(0, `rgba(255, 93, 102, ${alpha * 0.85})`);
+  top.addColorStop(1, "rgba(255, 93, 102, 0)");
+  ctx.fillStyle = top;
+  ctx.fillRect(0, 0, width, edge);
+  const bottom = ctx.createLinearGradient(0, height, 0, height - edge);
+  bottom.addColorStop(0, `rgba(255, 93, 102, ${alpha * 0.85})`);
+  bottom.addColorStop(1, "rgba(255, 93, 102, 0)");
+  ctx.fillStyle = bottom;
+  ctx.fillRect(0, height - edge, width, edge);
   ctx.restore();
 }
 
@@ -4579,6 +4822,65 @@ function openMainMenu() {
   document.querySelector("#openBuildMenu").addEventListener("click", openBuildMenu);
 }
 
+function openHelpMenu() {
+  hud.modalEyebrow.textContent = "Help";
+  hud.modalTitle.textContent = "Camp Guide";
+  hud.modalBody.innerHTML = `
+    <div class="menu-grid">
+      <div class="menu-card">
+        <h3>First Moves</h3>
+        <p>Gather wood from trees for the furnace and repairs. Gather berries or lettuce for raw food.</p>
+      </div>
+      <div class="menu-card">
+        <h3>Food Loop</h3>
+        <p>Drop raw food at Food Prep, stand there to cook meals, then carry meals to the Dining Hall.</p>
+      </div>
+      <div class="menu-card">
+        <h3>Defense</h3>
+        <p>Build outposts between waves. Station residents in towers for stronger arrows.</p>
+      </div>
+      <div class="menu-card">
+        <h3>Upgrades</h3>
+        <p>Open Upgrade to improve buildings and the player. Upgrade missions give learning points and long-term survival boosts.</p>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button id="helpBuild" class="primary" type="button">Open Build</button>
+      <button id="helpUpgrade" type="button">Open Upgrade</button>
+      <button id="helpClose" type="button">Close</button>
+    </div>
+  `;
+  openModal();
+  document.querySelector("#helpBuild").addEventListener("click", openBuildMenu);
+  document.querySelector("#helpUpgrade").addEventListener("click", openUpgradeMenu);
+  document.querySelector("#helpClose").addEventListener("click", () => closeModal(true));
+}
+
+function showTutorialTip(flag, title, copy, actions = []) {
+  state.tutorialFlags = { ...defaultState.tutorialFlags, ...(state.tutorialFlags || {}) };
+  if (state.tutorialFlags[flag] || modalOpen || paused || gameOver || failureLock || activeTaskContext) return false;
+  state.tutorialFlags[flag] = true;
+  saveState();
+  hud.modalEyebrow.textContent = "Camp Tip";
+  hud.modalTitle.textContent = title;
+  hud.modalBody.innerHTML = `
+    <p>${copy}</p>
+    <div class="modal-actions">
+      ${actions.map((action, index) => `<button ${index === 0 ? 'class="primary"' : ""} data-tip-action="${index}" type="button">${action.label}</button>`).join("")}
+      <button id="tipClose" type="button">Keep Playing</button>
+    </div>
+  `;
+  openModal();
+  document.querySelectorAll("[data-tip-action]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const action = actions[Number(button.dataset.tipAction)];
+      if (action && action.action) action.action();
+    });
+  });
+  document.querySelector("#tipClose").addEventListener("click", () => closeModal(true));
+  return true;
+}
+
 function openVisitorModal(visitor) {
   hud.modalEyebrow.textContent = "Survivor At The Gate";
   hud.modalTitle.textContent = visitor.name;
@@ -4887,11 +5189,13 @@ canvas.addEventListener("pointermove", (event) => {
   if (moveMode && selectedMoveTarget) movePreview = snapToGrid(screenToWorld(event));
 });
 hud.closeModal.addEventListener("click", () => closeModal());
-hud.mainMenuButton.addEventListener("click", openMainMenu);
-hud.buildButton.addEventListener("click", openBuildMenu);
-hud.upgradeMenuButton.addEventListener("click", openUpgradeMenu);
-hud.customizeButton.addEventListener("click", openCustomizationMenu);
-hud.pauseButton.addEventListener("click", togglePause);
+hud.actionsToggle.addEventListener("click", () => setActionsCollapsed(!actionsCollapsed));
+hud.mainMenuButton.addEventListener("click", () => runHudAction(openMainMenu));
+hud.buildButton.addEventListener("click", () => runHudAction(openBuildMenu));
+hud.upgradeMenuButton.addEventListener("click", () => runHudAction(openUpgradeMenu));
+hud.customizeButton.addEventListener("click", () => runHudAction(openCustomizationMenu));
+hud.helpButton.addEventListener("click", () => runHudAction(openHelpMenu));
+hud.pauseButton.addEventListener("click", () => runHudAction(togglePause));
 hud.resumeFromPause.addEventListener("click", () => setPaused(false));
 hud.pauseMainMenu.addEventListener("click", openMainMenu);
 hud.buildTrayToggle.addEventListener("click", () => {
@@ -4928,7 +5232,7 @@ async function init() {
   for (let i = 0; i < 5; i += 1) {
     spawnResource("wood", 300 + Math.random() * 180, 760 + Math.random() * 220, 1);
   }
-  setMessage("The fort is online. Gather wood, serve meals in the dining hall, and keep watch for survivors and wolves.", 6);
+  setMessage("Start by gathering wood from trees and food from berry bushes. Wood fuels heat; food becomes meals.", 8);
   window.requestAnimationFrame(frame);
 }
 

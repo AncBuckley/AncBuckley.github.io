@@ -16,6 +16,7 @@
     "wolfChance": 0.2,
     "survivorCheckInterval": 300,
     "survivorChance": 0.2,
+    "postWaveSurvivorCooldown": 60,
     "upgradeFailCooldown": 60,
     "waveInterval": 300
   },
@@ -101,7 +102,11 @@
     "clumps": 7,
     "treesPerClump": 6,
     "clumpRadius": 170,
-    "fenceClearGridSpaces": 5
+    "fenceClearGridSpaces": 5,
+    "berryBushRatio": 0.1,
+    "berryGatherSeconds": 3,
+    "berryRespawnSeconds": 55,
+    "berryDrops": 3
   },
   "combat": {
     "baseArrowCooldown": 0.56,
@@ -171,7 +176,9 @@
     "stuckSeconds": 1.15,
     "stuckNudgeDistance": 92,
     "lumberjackWorkSeconds": 9,
-    "lumberjackWoodAmount": 1,
+    "lumberjackLowLevelWoodAmount": 5,
+    "lumberjackHighLevelWoodAmount": 10,
+    "lumberjackHighLevelThreshold": 6,
     "farmerWorkSeconds": 11,
     "farmerFoodAmount": 1,
     "cookWorkSecondsMultiplier": 1.15,

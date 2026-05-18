@@ -18,11 +18,16 @@
           <span id="phaseLabel">Fort Camp</span>
         </div>
 
-        <button id="mainMenuButton" class="main-menu-button" type="button">Main Menu</button>
-        <button id="buildButton" class="main-menu-button build-menu-button" type="button">Build</button>
-        <button id="upgradeMenuButton" class="main-menu-button utility-button" type="button">Upgrade</button>
-        <button id="customizeButton" class="main-menu-button utility-button" type="button">Customize</button>
-        <button id="pauseButton" class="main-menu-button pause-button" type="button">Pause</button>
+        <button id="actionsToggle" class="main-menu-button actions-toggle" type="button" aria-expanded="false">Menu</button>
+
+        <div id="actionsPanel" class="actions-panel collapsed" aria-label="Game menus">
+          <button id="mainMenuButton" class="main-menu-button" type="button">Main</button>
+          <button id="buildButton" class="main-menu-button build-menu-button" type="button">Build</button>
+          <button id="upgradeMenuButton" class="main-menu-button utility-button" type="button">Upgrade</button>
+          <button id="customizeButton" class="main-menu-button utility-button" type="button">Customize</button>
+          <button id="helpButton" class="main-menu-button utility-button" type="button">Help</button>
+          <button id="pauseButton" class="main-menu-button pause-button" type="button">Pause</button>
+        </div>
 
         <div class="meter-card">
           <span>Furnace</span>
@@ -60,7 +65,7 @@
       </section>
 
       <section class="hud hint-hud" aria-live="polite">
-        <p id="eventLog">Walk with WASD, arrow keys, touch buttons, or tap the snow. Click buildings for upgrades.</p>
+        <p id="eventLog">Gather wood and food to keep the camp alive.</p>
       </section>
 
       <section id="centerToast" class="center-toast hidden" aria-live="polite"></section>

@@ -75,9 +75,10 @@ button:focus-visible {
   min-height: 76px;
   padding: 10px;
   display: grid;
-  grid-template-columns: minmax(130px, 1.1fr) 110px 88px 96px 110px 88px repeat(3, minmax(120px, 1fr));
+  grid-template-columns: minmax(132px, 1fr) 92px repeat(3, minmax(118px, 0.72fr));
   gap: 8px;
   align-items: stretch;
+  overflow: visible;
 }
 
 .brand,
@@ -91,6 +92,7 @@ button:focus-visible {
 }
 
 .main-menu-button {
+  min-width: 0;
   min-height: 100%;
   padding: 10px;
   color: #251005;
@@ -98,6 +100,35 @@ button:focus-visible {
   border-color: rgba(255, 179, 92, 0.42);
   font-weight: 950;
   text-align: center;
+}
+
+.actions-toggle {
+  position: relative;
+  z-index: 2;
+}
+
+.actions-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 8;
+  width: min(324px, calc(100vw - 24px));
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-strong);
+  box-shadow: var(--shadow);
+}
+
+.actions-panel.collapsed {
+  display: none;
+}
+
+.actions-panel .main-menu-button {
+  min-height: 46px;
 }
 
 .build-menu-button {
@@ -274,12 +305,14 @@ button:focus-visible {
   top: calc(max(12px, env(safe-area-inset-top)) + 118px);
   right: max(12px, env(safe-area-inset-right));
   width: 210px;
+  max-height: calc(100vh - 146px);
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--panel);
   box-shadow: var(--shadow);
   backdrop-filter: blur(14px);
   overflow: hidden;
+  overflow-y: auto;
 }
 
 .build-tray.collapsed {
@@ -642,52 +675,209 @@ button:focus-visible {
 
 @media (max-width: 760px) {
   .top-hud {
-    grid-template-columns: 1fr 1fr;
+    left: max(8px, env(safe-area-inset-left));
+    right: max(8px, env(safe-area-inset-right));
+    top: max(8px, env(safe-area-inset-top));
+    grid-template-columns: minmax(112px, 1.05fr) 72px repeat(3, minmax(74px, 1fr));
+    gap: 6px;
+    min-height: 0;
+    padding: 7px;
+    overflow: visible;
   }
 
-  .brand,
+  .brand {
+    min-height: 48px;
+    padding: 8px;
+  }
+
+  .brand p {
+    font-size: 0.98rem;
+  }
+
   .main-menu-button {
-    grid-column: 1 / -1;
+    min-height: 42px;
+    padding: 7px 6px;
+    font-size: 0.82rem;
+  }
+
+  .actions-panel {
+    top: calc(100% + 6px);
+    right: 0;
+    width: min(286px, calc(100vw - 16px));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+    padding: 7px;
+  }
+
+  .actions-panel .main-menu-button {
+    min-height: 44px;
+  }
+
+  .meter-card {
+    min-height: 48px;
+    padding: 7px;
+  }
+
+  .meter-card strong {
+    margin-bottom: 5px;
+    font-size: 0.88rem;
   }
 
   .inventory-hud {
-    grid-template-columns: repeat(4, 1fr);
-    width: calc(100% - 182px);
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    width: min(420px, calc(100% - 134px));
+    gap: 5px;
+    padding: 6px;
+  }
+
+  .resource-pill {
+    min-height: 46px;
+    padding: 6px 4px;
+  }
+
+  .resource-pill strong {
+    font-size: 0.86rem;
+  }
+
+  .resource-pill span {
+    font-size: 0.56rem;
   }
 
   .carry-hud {
-    width: 154px;
+    width: 128px;
+    min-height: 58px;
+    padding: 8px;
+  }
+
+  .carry-hud strong {
+    font-size: 0.82rem;
   }
 
   .hint-hud {
-    bottom: calc(max(12px, env(safe-area-inset-bottom)) + 172px);
+    left: 8px;
+    right: 8px;
+    width: auto;
+    transform: none;
+    bottom: calc(max(8px, env(safe-area-inset-bottom)) + 154px);
+    padding: 8px 10px;
+  }
+
+  .hint-hud p {
+    font-size: 0.78rem;
   }
 
   .notification-stack {
     top: auto;
-    right: 12px;
-    bottom: calc(max(12px, env(safe-area-inset-bottom)) + 238px);
-    width: calc(100% - 24px);
+    left: 8px;
+    right: 8px;
+    bottom: calc(max(8px, env(safe-area-inset-bottom)) + 212px);
+    width: auto;
+  }
+
+  .build-tray {
+    top: calc(max(8px, env(safe-area-inset-top)) + 92px);
+    right: max(8px, env(safe-area-inset-right));
+    width: 176px;
+    max-height: calc(100vh - 210px);
+  }
+
+  .build-tray.collapsed {
+    width: 72px;
+  }
+
+  .build-token {
+    min-height: 40px;
+    padding: 7px;
+    font-size: 0.72rem;
+  }
+
+  .move-pad {
+    right: max(8px, env(safe-area-inset-right));
+    bottom: calc(max(8px, env(safe-area-inset-bottom)) + 72px);
+    width: 132px;
+    height: 132px;
+    grid-template-columns: repeat(3, 40px);
+    grid-template-rows: repeat(3, 40px);
+  }
+
+  .modal-layer {
+    padding: 10px;
+  }
+
+  .modal-card {
+    width: calc(100vw - 20px);
+    max-height: calc(100dvh - 20px);
+    padding: 14px;
   }
 }
 
 @media (max-width: 520px) {
   .top-hud {
-    grid-template-columns: 1fr;
-    max-height: 46vh;
-    overflow-y: auto;
+    grid-template-columns: minmax(104px, 1fr) 66px minmax(70px, 0.85fr);
+  }
+
+  .brand {
+    grid-column: auto;
+  }
+
+  .meter-card {
+    min-height: 44px;
+  }
+
+  .meter-card span {
+    font-size: 0.58rem;
+  }
+
+  .meter-card strong {
+    font-size: 0.78rem;
+  }
+
+  #fortHealthCard {
+    grid-column: 1 / -1;
+  }
+
+  .actions-panel {
+    width: calc(100vw - 16px);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .inventory-hud {
-    grid-template-columns: repeat(3, 1fr);
-    width: calc(100% - 178px);
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    width: calc(100% - 124px);
+    bottom: max(8px, env(safe-area-inset-bottom));
+  }
+
+  .carry-hud {
+    right: max(8px, env(safe-area-inset-right));
+    bottom: max(8px, env(safe-area-inset-bottom));
+    width: 110px;
+  }
+
+  .move-pad {
+    width: 114px;
+    height: 114px;
+    grid-template-columns: repeat(3, 34px);
+    grid-template-rows: repeat(3, 34px);
+    gap: 4px;
+  }
+
+  .build-tray {
+    top: auto;
+    bottom: calc(max(8px, env(safe-area-inset-bottom)) + 190px);
+    width: 154px;
+    max-height: 42vh;
+  }
+
+  .build-tray.collapsed {
+    width: 68px;
   }
 
   .hint-hud {
-    left: 12px;
-    right: 12px;
-    width: auto;
-    transform: none;
+    bottom: calc(max(8px, env(safe-area-inset-bottom)) + 188px);
+  }
+
+  .notification-stack {
+    bottom: calc(max(8px, env(safe-area-inset-bottom)) + 270px);
   }
 
   .menu-grid,
