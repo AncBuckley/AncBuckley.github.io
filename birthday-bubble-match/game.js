@@ -1,5 +1,8 @@
 const canvas = document.querySelector("#scene");
 const ctx = canvas.getContext("2d");
+const targetBubble = document.querySelector("#targetBubble");
+const targetIcon = document.querySelector("#targetIcon");
+const targetIconCtx = targetIcon.getContext("2d");
 const targetValue = document.querySelector("#targetValue");
 const startButton = document.querySelector("#startButton");
 
@@ -7,14 +10,53 @@ const letterSymbols = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 const numberSymbols = "0123456789".split("");
 const bubbleColors = ["#ff7a90", "#41c7d7", "#ffd35c", "#8bd761", "#a785ff", "#ff9f43"];
 const confettiColors = ["#f94144", "#f9c74f", "#43aa8b", "#577590", "#f3722c", "#9b5de5"];
+const correctGoal = 10;
+const spriteSize = 88;
+const spriteFrames = 4;
+
+const colorItems = [
+  { id: "red", label: "Red", type: "color", color: "#f04452" },
+  { id: "orange", label: "Orange", type: "color", color: "#ff9736" },
+  { id: "yellow", label: "Yellow", type: "color", color: "#ffd43b" },
+  { id: "green", label: "Green", type: "color", color: "#52c95f" },
+  { id: "blue", label: "Blue", type: "color", color: "#3fa7ff" },
+  { id: "purple", label: "Purple", type: "color", color: "#9b6dff" },
+  { id: "pink", label: "Pink", type: "color", color: "#ff77b7" },
+  { id: "white", label: "White", type: "color", color: "#fff6e8" },
+];
+
+const animalItems = [
+  { id: "cow", label: "Cow", group: "farm", type: "animal", body: "#f7f4ea", accent: "#3f3441" },
+  { id: "pig", label: "Pig", group: "farm", type: "animal", body: "#ff9fbc", accent: "#e8598e" },
+  { id: "horse", label: "Horse", group: "farm", type: "animal", body: "#9b623f", accent: "#3c2720" },
+  { id: "sheep", label: "Sheep", group: "farm", type: "animal", body: "#f7f3dc", accent: "#4a4a4a" },
+  { id: "chicken", label: "Chicken", group: "farm", type: "animal", body: "#fff2c7", accent: "#e64646" },
+  { id: "duck", label: "Duck", group: "farm", type: "animal", body: "#ffe066", accent: "#f28c28" },
+  { id: "lion", label: "Lion", group: "zoo", type: "animal", body: "#d99a35", accent: "#8c5224" },
+  { id: "elephant", label: "Elephant", group: "zoo", type: "animal", body: "#9aa7b8", accent: "#6f7f92" },
+  { id: "giraffe", label: "Giraffe", group: "zoo", type: "animal", body: "#e0ae4f", accent: "#8f5b2d" },
+  { id: "zebra", label: "Zebra", group: "zoo", type: "animal", body: "#f2f0e8", accent: "#2f2f37" },
+  { id: "monkey", label: "Monkey", group: "zoo", type: "animal", body: "#9a6034", accent: "#f2c08b" },
+  { id: "panda", label: "Panda", group: "zoo", type: "animal", body: "#f5f1e7", accent: "#24262d" },
+];
+
+const categories = [
+  { id: "letters", items: letterSymbols.map((symbol) => ({ id: symbol, label: symbol, type: "text" })) },
+  { id: "numbers", items: numberSymbols.map((symbol) => ({ id: symbol, label: symbol, type: "text" })) },
+  { id: "colors", items: colorItems },
+  { id: "farm-animals", items: animalItems.filter((animal) => animal.group === "farm") },
+  { id: "zoo-animals", items: animalItems.filter((animal) => animal.group === "zoo") },
+];
 
 let width = 0;
 let height = 0;
 let dpr = 1;
 let lastTime = 0;
 let spawnTimer = 0;
-let target = "A";
-let currentSymbols = letterSymbols;
+let target = categories[0].items[0];
+let currentCategory = categories[0];
+let currentItems = categories[0].items;
+let correctCount = 0;
 let cakeLayers = 0;
 let state = "waiting";
 let bubbles = [];
@@ -25,6 +67,7 @@ let draggingMatch = null;
 let match = { x: 0, y: 0, angle: -0.22, lit: true };
 let audio;
 let lastPointerTap = 0;
+let animalSpriteSheets = {};
 
 function resize() {
   dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
@@ -33,6 +76,9 @@ function resize() {
   canvas.width = Math.round(width * dpr);
   canvas.height = Math.round(height * dpr);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  targetIcon.width = Math.round(128 * dpr);
+  targetIcon.height = Math.round(128 * dpr);
+  targetIconCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
   positionMatch();
   layoutCandles();
 }
@@ -42,13 +88,22 @@ function rand(min, max) {
 }
 
 function pickSymbol() {
-  return currentSymbols[Math.floor(Math.random() * currentSymbols.length)];
+  return currentItems[Math.floor(Math.random() * currentItems.length)];
 }
 
 function chooseTarget() {
-  currentSymbols = Math.random() < 0.5 ? letterSymbols : numberSymbols;
+  currentCategory = categories[Math.floor(Math.random() * categories.length)];
+  currentItems = currentCategory.items;
   target = pickSymbol();
-  targetValue.textContent = target;
+  updateTargetDisplay();
+}
+
+function updateTargetDisplay() {
+  targetBubble.classList.toggle("has-icon", target.type !== "text");
+  targetBubble.classList.toggle("color-target", target.type === "color");
+  targetBubble.style.setProperty("--target-color", target.color || "#41c7d7");
+  targetValue.textContent = target.label;
+  targetBubble.setAttribute("aria-label", `Find ${target.label}`);
 }
 
 function makeBubble(mustMatch = false) {
@@ -61,15 +116,15 @@ function makeBubble(mustMatch = false) {
     vy: rand(42, 86),
     wobble: rand(0, Math.PI * 2),
     wobbleSpeed: rand(1.2, 2.4),
-    letter: shouldMatch ? target : differentSymbol(),
-    color: bubbleColors[Math.floor(Math.random() * bubbleColors.length)],
+    item: shouldMatch ? target : differentSymbol(),
+    color: shouldMatch && target.type === "color" ? target.color : bubbleColors[Math.floor(Math.random() * bubbleColors.length)],
     id: crypto.randomUUID ? crypto.randomUUID() : String(Math.random()),
   };
 }
 
 function differentSymbol() {
   let symbol = pickSymbol();
-  while (symbol === target) symbol = pickSymbol();
+  while (symbol.id === target.id) symbol = pickSymbol();
   return symbol;
 }
 
@@ -159,6 +214,7 @@ function startGame() {
   createAudio().context.resume();
   startButton.classList.add("hidden");
   state = "playing";
+  correctCount = 0;
   cakeLayers = 0;
   chooseTarget();
   bubbles = [makeBubble(true), makeBubble(false), makeBubble(false)];
@@ -170,6 +226,7 @@ function startGame() {
 
 function resetRound() {
   state = "playing";
+  correctCount = 0;
   cakeLayers = 0;
   chooseTarget();
   bubbles = [makeBubble(true), makeBubble(false), makeBubble(false)];
@@ -196,6 +253,9 @@ function layoutCandles() {
     x: cake.x + spacing * (index + 1),
     y: cake.y - 24,
     lit: false,
+    flamePhase: rand(0, Math.PI * 2),
+    flameScale: rand(0.9, 1.14),
+    flameLean: rand(-0.18, 0.18),
   }));
 }
 
@@ -239,14 +299,15 @@ function addPop(x, y, color) {
 }
 
 function popBubble(bubble) {
-  const correct = bubble.letter === target;
+  const correct = bubble.item.id === target.id;
   popSound(correct);
   addPop(bubble.x, bubble.y, bubble.color);
   bubbles = bubbles.filter((item) => item !== bubble);
   if (correct) {
-    cakeLayers += 1;
+    correctCount += 1;
+    cakeLayers = Math.min(5, Math.ceil(correctCount / 2));
     burstConfetti(bubble.x, bubble.y, 54);
-    if (cakeLayers >= 5) {
+    if (correctCount >= correctGoal) {
       completeCake();
     } else {
       bubbles.push(makeBubble(true));
@@ -258,7 +319,7 @@ function update(delta) {
   if (state === "playing") {
     spawnTimer -= delta;
     if (spawnTimer <= 0) {
-      bubbles.push(makeBubble(bubbles.every((bubble) => bubble.letter !== target)));
+      bubbles.push(makeBubble(bubbles.every((bubble) => bubble.item.id !== target.id)));
       spawnTimer = rand(0.75, 1.25);
     }
     bubbles.forEach((bubble) => {
@@ -295,6 +356,7 @@ function draw() {
     drawMatch();
   }
   drawConfetti();
+  drawTargetIcon();
 }
 
 function drawBackground() {
@@ -430,12 +492,284 @@ function drawBubble(bubble) {
   ctx.lineWidth = 4;
   ctx.strokeStyle = "rgba(255,255,255,0.86)";
   ctx.stroke();
-  ctx.fillStyle = "#23324d";
-  ctx.font = `900 ${bubble.radius * 1.04}px "Trebuchet MS", sans-serif`;
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText(bubble.letter, bubble.x, bubble.y + bubble.radius * 0.06);
+  drawBubbleItem(bubble.item, bubble.x, bubble.y, bubble.radius);
   ctx.restore();
+}
+
+function drawBubbleItem(item, x, y, radius) {
+  if (item.type === "text") {
+    ctx.fillStyle = "#23324d";
+    ctx.font = `900 ${radius * 1.04}px "Trebuchet MS", sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(item.label, x, y + radius * 0.06);
+    return;
+  }
+
+  if (item.type === "color") {
+    drawColorSwatch(ctx, item.color, x, y, radius * 0.68);
+    return;
+  }
+
+  drawAnimalSprite(ctx, item, x - radius * 0.68, y - radius * 0.68, radius * 1.36);
+}
+
+function drawTargetIcon() {
+  targetIconCtx.clearRect(0, 0, 128, 128);
+  if (target.type === "text") return;
+  if (target.type === "color") {
+    drawColorSwatch(targetIconCtx, target.color, 64, 64, 44);
+    return;
+  }
+  drawAnimalSprite(targetIconCtx, target, 16, 16, 96);
+}
+
+function drawColorSwatch(context, color, x, y, radius) {
+  context.save();
+  context.fillStyle = color;
+  context.beginPath();
+  context.arc(x, y, radius, 0, Math.PI * 2);
+  context.fill();
+  context.lineWidth = Math.max(3, radius * 0.1);
+  context.strokeStyle = "rgba(255,255,255,0.92)";
+  context.stroke();
+  context.fillStyle = "rgba(255,255,255,0.48)";
+  context.beginPath();
+  context.arc(x - radius * 0.32, y - radius * 0.38, radius * 0.25, 0, Math.PI * 2);
+  context.fill();
+  context.restore();
+}
+
+function drawAnimalSprite(context, animal, x, y, size) {
+  const sheet = animalSpriteSheets[animal.id];
+  if (!sheet) return;
+  const frame = Math.floor(performance.now() / 150 + animal.id.length) % spriteFrames;
+  context.drawImage(sheet, frame * spriteSize, 0, spriteSize, spriteSize, x, y, size, size);
+}
+
+function createAnimalSpriteSheets() {
+  animalSpriteSheets = {};
+  animalItems.forEach((animal) => {
+    const sheet = document.createElement("canvas");
+    sheet.width = spriteSize * spriteFrames;
+    sheet.height = spriteSize;
+    const sheetCtx = sheet.getContext("2d");
+    for (let frame = 0; frame < spriteFrames; frame += 1) {
+      drawAnimalFrame(sheetCtx, animal, frame, frame * spriteSize, 0, spriteSize);
+    }
+    animalSpriteSheets[animal.id] = sheet;
+  });
+}
+
+function drawAnimalFrame(context, animal, frame, x, y, size) {
+  const bob = Math.sin(frame / spriteFrames * Math.PI * 2) * size * 0.035;
+  const wag = Math.sin(frame / spriteFrames * Math.PI * 2) * size * 0.08;
+  const cx = x + size / 2;
+  const cy = y + size / 2 + bob;
+  const body = animal.body;
+  const accent = animal.accent;
+
+  context.save();
+  context.lineCap = "round";
+  context.lineJoin = "round";
+  context.fillStyle = "rgba(0,0,0,0.12)";
+  context.beginPath();
+  context.ellipse(cx, y + size * 0.82, size * 0.28, size * 0.08, 0, 0, Math.PI * 2);
+  context.fill();
+
+  if (animal.id === "giraffe") {
+    drawGiraffe(context, x, y + bob, size, body, accent, wag);
+  } else if (animal.id === "elephant") {
+    drawElephant(context, x, y + bob, size, body, accent, wag);
+  } else if (animal.id === "chicken" || animal.id === "duck") {
+    drawBird(context, animal, x, y + bob, size, body, accent, wag);
+  } else {
+    drawRoundAnimal(context, animal, x, y + bob, size, body, accent, wag);
+  }
+  context.restore();
+}
+
+function drawRoundAnimal(context, animal, x, y, size, body, accent, wag) {
+  const cx = x + size * 0.5;
+  const cy = y + size * 0.52;
+  context.fillStyle = body;
+  context.beginPath();
+  context.ellipse(cx, cy + size * 0.12, size * 0.3, size * 0.25, 0, 0, Math.PI * 2);
+  context.fill();
+  context.beginPath();
+  context.arc(cx + size * 0.03, cy - size * 0.08, size * 0.28, 0, Math.PI * 2);
+  context.fill();
+
+  if (animal.id === "lion") {
+    context.fillStyle = accent;
+    context.beginPath();
+    context.arc(cx + size * 0.03, cy - size * 0.08, size * 0.36, 0, Math.PI * 2);
+    context.fill();
+    context.fillStyle = body;
+    context.beginPath();
+    context.arc(cx + size * 0.03, cy - size * 0.08, size * 0.27, 0, Math.PI * 2);
+    context.fill();
+  }
+
+  context.fillStyle = animal.id === "panda" ? accent : body;
+  context.beginPath();
+  context.arc(cx - size * 0.18, cy - size * 0.28, size * 0.11, 0, Math.PI * 2);
+  context.arc(cx + size * 0.23, cy - size * 0.28, size * 0.11, 0, Math.PI * 2);
+  context.fill();
+
+  if (animal.id === "cow") {
+    context.fillStyle = accent;
+    context.beginPath();
+    context.ellipse(cx - size * 0.1, cy - size * 0.12, size * 0.09, size * 0.13, -0.7, 0, Math.PI * 2);
+    context.ellipse(cx + size * 0.15, cy + size * 0.02, size * 0.08, size * 0.12, 0.6, 0, Math.PI * 2);
+    context.fill();
+  }
+
+  if (animal.id === "zebra") {
+    context.strokeStyle = accent;
+    context.lineWidth = size * 0.045;
+    for (let i = -2; i < 3; i += 1) {
+      context.beginPath();
+      context.moveTo(cx - size * 0.18 + i * size * 0.09, cy - size * 0.22);
+      context.lineTo(cx - size * 0.05 + i * size * 0.09, cy + size * 0.12);
+      context.stroke();
+    }
+  }
+
+  if (animal.id === "sheep") {
+    context.fillStyle = "rgba(255,255,255,0.78)";
+    for (let i = 0; i < 5; i += 1) {
+      context.beginPath();
+      context.arc(cx - size * 0.22 + i * size * 0.11, cy + size * 0.06 + Math.sin(i) * size * 0.03, size * 0.12, 0, Math.PI * 2);
+      context.fill();
+    }
+  }
+
+  if (animal.id === "monkey") {
+    context.fillStyle = accent;
+    context.beginPath();
+    context.arc(cx + size * 0.03, cy - size * 0.02, size * 0.18, 0, Math.PI * 2);
+    context.fill();
+  }
+
+  if (animal.id === "horse") {
+    context.strokeStyle = accent;
+    context.lineWidth = size * 0.08;
+    context.beginPath();
+    context.moveTo(cx + size * 0.18, cy - size * 0.26);
+    context.lineTo(cx + size * 0.18 + wag, cy + size * 0.08);
+    context.stroke();
+  }
+
+  if (animal.id === "panda") {
+    context.fillStyle = accent;
+    context.beginPath();
+    context.arc(cx - size * 0.1, cy - size * 0.1, size * 0.08, 0, Math.PI * 2);
+    context.arc(cx + size * 0.16, cy - size * 0.1, size * 0.08, 0, Math.PI * 2);
+    context.fill();
+  }
+
+  drawAnimalFace(context, cx + size * 0.03, cy - size * 0.08, size, accent);
+}
+
+function drawElephant(context, x, y, size, body, accent, wag) {
+  const cx = x + size * 0.5;
+  const cy = y + size * 0.52;
+  context.fillStyle = body;
+  context.beginPath();
+  context.ellipse(cx, cy + size * 0.08, size * 0.32, size * 0.25, 0, 0, Math.PI * 2);
+  context.arc(cx - size * 0.18, cy - size * 0.05, size * 0.2, 0, Math.PI * 2);
+  context.arc(cx + size * 0.18, cy - size * 0.05, size * 0.2, 0, Math.PI * 2);
+  context.fill();
+  context.beginPath();
+  context.arc(cx, cy - size * 0.08, size * 0.27, 0, Math.PI * 2);
+  context.fill();
+  context.strokeStyle = accent;
+  context.lineWidth = size * 0.11;
+  context.beginPath();
+  context.moveTo(cx + size * 0.08, cy + size * 0.04);
+  context.quadraticCurveTo(cx + size * 0.18 + wag, cy + size * 0.24, cx + size * 0.02, cy + size * 0.34);
+  context.stroke();
+  drawAnimalFace(context, cx, cy - size * 0.1, size, "#263142");
+}
+
+function drawGiraffe(context, x, y, size, body, accent, wag) {
+  const cx = x + size * 0.5;
+  const cy = y + size * 0.53;
+  context.fillStyle = body;
+  roundMini(context, cx - size * 0.17, cy, size * 0.34, size * 0.34, size * 0.12);
+  context.fill();
+  roundMini(context, cx + size * 0.02, cy - size * 0.35, size * 0.18, size * 0.48, size * 0.08);
+  context.fill();
+  context.beginPath();
+  context.arc(cx + size * 0.15, cy - size * 0.38, size * 0.2, 0, Math.PI * 2);
+  context.fill();
+  context.fillStyle = accent;
+  for (let i = 0; i < 6; i += 1) {
+    context.beginPath();
+    context.arc(cx - size * 0.24 + (i % 3) * size * 0.14, cy - size * 0.04 - Math.floor(i / 3) * size * 0.12, size * 0.045, 0, Math.PI * 2);
+    context.fill();
+  }
+  context.strokeStyle = accent;
+  context.lineWidth = size * 0.035;
+  context.beginPath();
+  context.moveTo(cx + size * 0.07, cy - size * 0.56);
+  context.lineTo(cx + size * 0.07, cy - size * 0.7);
+  context.moveTo(cx + size * 0.2, cy - size * 0.56);
+  context.lineTo(cx + size * 0.2, cy - size * 0.7);
+  context.stroke();
+  drawAnimalFace(context, cx + size * 0.15, cy - size * 0.4, size, "#263142");
+}
+
+function drawBird(context, animal, x, y, size, body, accent, wag) {
+  const cx = x + size * 0.5;
+  const cy = y + size * 0.54;
+  context.fillStyle = body;
+  context.beginPath();
+  context.ellipse(cx, cy + size * 0.08, size * 0.28, size * 0.3, 0, 0, Math.PI * 2);
+  context.fill();
+  context.beginPath();
+  context.arc(cx + size * 0.02, cy - size * 0.17, size * 0.2, 0, Math.PI * 2);
+  context.fill();
+  context.fillStyle = accent;
+  context.beginPath();
+  context.moveTo(cx + size * 0.18, cy - size * 0.15);
+  context.lineTo(cx + size * 0.36, cy - size * 0.08 + wag * 0.2);
+  context.lineTo(cx + size * 0.18, cy - size * 0.02);
+  context.closePath();
+  context.fill();
+  if (animal.id === "chicken") {
+    context.fillStyle = accent;
+    context.beginPath();
+    context.arc(cx - size * 0.08, cy - size * 0.36, size * 0.06, 0, Math.PI * 2);
+    context.arc(cx + size * 0.02, cy - size * 0.39, size * 0.06, 0, Math.PI * 2);
+    context.arc(cx + size * 0.1, cy - size * 0.35, size * 0.06, 0, Math.PI * 2);
+    context.fill();
+  }
+  drawAnimalFace(context, cx + size * 0.02, cy - size * 0.18, size, "#263142");
+}
+
+function drawAnimalFace(context, x, y, size, accent) {
+  context.fillStyle = "#263142";
+  context.beginPath();
+  context.arc(x - size * 0.08, y - size * 0.03, size * 0.026, 0, Math.PI * 2);
+  context.arc(x + size * 0.09, y - size * 0.03, size * 0.026, 0, Math.PI * 2);
+  context.fill();
+  context.strokeStyle = accent;
+  context.lineWidth = size * 0.025;
+  context.beginPath();
+  context.arc(x + size * 0.01, y + size * 0.07, size * 0.06, 0.15, Math.PI - 0.15);
+  context.stroke();
+}
+
+function roundMini(context, x, y, w, h, r) {
+  context.beginPath();
+  context.moveTo(x + r, y);
+  context.arcTo(x + w, y, x + w, y + h, r);
+  context.arcTo(x + w, y + h, x, y + h, r);
+  context.arcTo(x, y + h, x, y, r);
+  context.arcTo(x, y, x + w, y, r);
+  context.closePath();
 }
 
 function drawPop(pop) {
@@ -494,7 +828,7 @@ function drawCandle(candle) {
   ctx.moveTo(candle.x, candle.y);
   ctx.lineTo(candle.x, candle.y - 10);
   ctx.stroke();
-  if (candle.lit) drawFlame(candle.x, candle.y - 19, 1);
+  if (candle.lit) drawFlame(candle.x, candle.y - 19, candle.flameScale, candle.flamePhase, candle.flameLean);
   ctx.restore();
 }
 
@@ -509,27 +843,57 @@ function drawMatch() {
   ctx.beginPath();
   ctx.ellipse(0, -22, 17, 24, 0, 0, Math.PI * 2);
   ctx.fill();
-  if (match.lit) drawFlame(0, -50, 1.3);
+  if (match.lit) drawFlame(0, -50, 1.3, 2.4, -0.08);
   ctx.restore();
 }
 
-function drawFlame(x, y, scale) {
-  const pulse = 1 + Math.sin(performance.now() / 90) * 0.12;
+function drawFlame(x, y, scale, phase = 0, lean = 0) {
+  const time = performance.now() / 1000;
+  const pulse = 1 + Math.sin(time * 10.5 + phase) * 0.13;
+  const sway = Math.sin(time * 6.4 + phase * 1.7) * 4 + lean * 18;
+  const stretch = 1 + Math.cos(time * 8.2 + phase) * 0.08;
   ctx.save();
   ctx.translate(x, y);
-  ctx.scale(scale * pulse, scale);
-  ctx.fillStyle = "#ff8c1a";
+  ctx.rotate(lean + Math.sin(time * 4.8 + phase) * 0.06);
+  ctx.scale(scale * pulse, scale * stretch);
+
+  const glow = ctx.createRadialGradient(0, -4, 2, 0, -4, 44);
+  glow.addColorStop(0, "rgba(255, 224, 94, 0.48)");
+  glow.addColorStop(1, "rgba(255, 140, 26, 0)");
+  ctx.fillStyle = glow;
   ctx.beginPath();
-  ctx.moveTo(0, -28);
-  ctx.bezierCurveTo(22, -5, 13, 22, 0, 25);
-  ctx.bezierCurveTo(-15, 19, -20, -4, 0, -28);
+  ctx.arc(0, 0, 44, 0, Math.PI * 2);
   ctx.fill();
-  ctx.fillStyle = "#ffe66d";
+
+  ctx.fillStyle = "#ff6f1a";
   ctx.beginPath();
-  ctx.moveTo(0, -15);
-  ctx.bezierCurveTo(10, 0, 7, 14, 0, 16);
-  ctx.bezierCurveTo(-8, 11, -9, -1, 0, -15);
+  ctx.moveTo(sway * 0.35, -34);
+  ctx.bezierCurveTo(24 + sway * 0.25, -12, 16, 24, 0, 28);
+  ctx.bezierCurveTo(-18, 20, -23 + sway * 0.2, -7, sway * 0.35, -34);
   ctx.fill();
+
+  ctx.fillStyle = "#ffba2e";
+  ctx.beginPath();
+  ctx.moveTo(sway * 0.22, -25);
+  ctx.bezierCurveTo(15, -5, 10, 18, -1, 21);
+  ctx.bezierCurveTo(-12, 13, -12, -4, sway * 0.22, -25);
+  ctx.fill();
+
+  ctx.fillStyle = "#fff7a8";
+  ctx.beginPath();
+  ctx.moveTo(sway * 0.14, -15);
+  ctx.bezierCurveTo(7, -1, 5, 11, -1, 12);
+  ctx.bezierCurveTo(-6, 7, -6, -2, sway * 0.14, -15);
+  ctx.fill();
+
+  ctx.fillStyle = "rgba(255, 241, 150, 0.76)";
+  for (let i = 0; i < 2; i += 1) {
+    const sparkY = -24 - ((time * 38 + phase * 17 + i * 16) % 32);
+    const sparkX = Math.sin(time * 5 + phase + i) * 8;
+    ctx.beginPath();
+    ctx.arc(sparkX, sparkY, 1.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
   ctx.restore();
 }
 
@@ -668,6 +1032,7 @@ canvas.addEventListener("click", clickFallback);
 document.addEventListener("click", clickFallback);
 document.addEventListener("mousedown", mouseDownFallback);
 
+createAnimalSpriteSheets();
 resize();
 chooseTarget();
 draw();

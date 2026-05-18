@@ -54,6 +54,7 @@ body {
 }
 
 .target-bubble {
+  position: relative;
   width: clamp(86px, 18vw, 132px);
   aspect-ratio: 1;
   display: grid;
@@ -69,6 +70,29 @@ body {
     linear-gradient(135deg, rgba(255, 255, 255, 0.82), rgba(81, 217, 250, 0.74));
   border: 4px solid rgba(255, 255, 255, 0.9);
   box-shadow: 0 12px 24px rgba(28, 80, 128, 0.24), inset -10px -12px 20px rgba(38, 150, 202, 0.2);
+}
+
+#targetIcon {
+  position: absolute;
+  inset: 16%;
+  width: 68%;
+  height: 68%;
+  display: none;
+}
+
+.target-bubble.has-icon #targetIcon {
+  display: block;
+}
+
+.target-bubble.has-icon #targetValue {
+  display: none;
+}
+
+.target-bubble.color-target {
+  background:
+    radial-gradient(circle at 30% 23%, rgba(255, 255, 255, 0.98) 0 12%, transparent 13%),
+    radial-gradient(circle at 68% 74%, rgba(255, 255, 255, 0.32) 0 13%, transparent 14%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.55), var(--target-color, #41c7d7));
 }
 
 #startButton {
