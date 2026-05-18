@@ -39,10 +39,6 @@ const hud = {
   modalTitle: document.querySelector("#modalTitle"),
   modalBody: document.querySelector("#modalBody"),
   closeModal: document.querySelector("#closeModal"),
-  moveUp: document.querySelector("#moveUp"),
-  moveLeft: document.querySelector("#moveLeft"),
-  moveDown: document.querySelector("#moveDown"),
-  moveRight: document.querySelector("#moveRight"),
   notificationStack: document.querySelector("#notificationStack"),
   centerToast: document.querySelector("#centerToast")
 };
@@ -185,6 +181,11 @@ let learningTasks = [];
 
 const defaultGameConfig = {
   world: { width: 2500, height: 1800 },
+  camera: {
+    minZoom: 0.65,
+    maxZoom: 1.75,
+    defaultZoom: 1
+  },
   fort: {
     x: 480,
     y: 310,
@@ -487,8 +488,11 @@ let spritesReady = false;
 const storageKey = "frozen-frontier-base-v20";
 const keys = new Set();
 let heldMove = { x: 0, y: 0 };
+let touchMove = null;
+const activeTouchPointers = new Map();
+let pinchZoom = null;
 let dpr = 1;
-let camera = { x: 0, y: 0 };
+let camera = { x: 0, y: 0, zoom: defaultGameConfig.camera.defaultZoom };
 let lastTime = performance.now();
 let modalOpen = false;
 let pendingVisitor = null;
@@ -505,6 +509,7 @@ let movePreview = null;
 let buildTrayCollapsed = true;
 let actionsCollapsed = true;
 let paused = false;
+let suppressNextCanvasClick = false;
 let wolfCheckTimer = 0;
 let survivorCheckTimer = 0;
 let attackActive = false;
@@ -985,15 +990,30 @@ function pointInRect(point, rect, padding = 0) {
   return point.x >= rect.x - padding && point.x <= rect.x + rect.w + padding && point.y >= rect.y - padding && point.y <= rect.y + rect.h + padding;
 }
 
+function cameraZoomConfig() {
+  const config = gameConfig.camera || defaultGameConfig.camera;
+  return {
+    min: config.minZoom || defaultGameConfig.camera.minZoom,
+    max: config.maxZoom || defaultGameConfig.camera.maxZoom,
+    default: config.defaultZoom || defaultGameConfig.camera.defaultZoom
+  };
+}
+
+function setCameraZoom(value) {
+  const config = cameraZoomConfig();
+  camera.zoom = clamp(value, config.min, config.max);
+  updateCamera();
+}
+
 function worldToScreen(point) {
-  return { x: point.x - camera.x, y: point.y - camera.y };
+  return { x: (point.x - camera.x) * camera.zoom, y: (point.y - camera.y) * camera.zoom };
 }
 
 function screenToWorld(event) {
   const rect = canvas.getBoundingClientRect();
   return {
-    x: event.clientX - rect.left + camera.x,
-    y: event.clientY - rect.top + camera.y
+    x: (event.clientX - rect.left) / camera.zoom + camera.x,
+    y: (event.clientY - rect.top) / camera.zoom + camera.y
   };
 }
 
@@ -1057,6 +1077,7 @@ async function loadGameConfig() {
 
 function applyGameConfig() {
   Object.assign(world, gameConfig.world || {});
+  setCameraZoom(camera.zoom || cameraZoomConfig().default);
   state.player = normalizePlayer(state.player);
   state.survivors = state.survivors.map((survivor, index) => normalizeSurvivor(survivor, index));
   const fortConfig = gameConfig.fort || {};
@@ -2562,8 +2583,8 @@ function nearestGate(from, to = null) {
 }
 
 function updateCamera() {
-  const viewW = window.innerWidth;
-  const viewH = window.innerHeight;
+  const viewW = window.innerWidth / camera.zoom;
+  const viewH = window.innerHeight / camera.zoom;
   camera.x = clamp(state.player.x - viewW / 2, 0, Math.max(0, world.width - viewW));
   camera.y = clamp(state.player.y - viewH / 2, 0, Math.max(0, world.height - viewH));
 }
@@ -2879,6 +2900,7 @@ function update(dt) {
 function draw() {
   ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
   ctx.save();
+  ctx.scale(camera.zoom, camera.zoom);
   ctx.translate(-camera.x, -camera.y);
   drawWorld();
   ctx.restore();
@@ -3928,7 +3950,8 @@ function drawDayNightOverlay() {
   ctx.save();
   ctx.fillStyle = `rgba(2, 8, 20, ${darkness})`;
   ctx.fillRect(0, 0, world.width, world.height);
-  const orbX = camera.x + window.innerWidth * (0.15 + progress * 0.72);
+  const visibleW = window.innerWidth / camera.zoom;
+  const orbX = camera.x + visibleW * (0.15 + progress * 0.72);
   const orbY = camera.y + 120 + Math.sin(progress * Math.PI) * -76;
   ctx.globalAlpha = state.wave.active ? 0.85 : 0.75;
   ctx.fillStyle = state.wave.active ? "#dff7ff" : "#ffd166";
@@ -5105,6 +5128,10 @@ function clickedStructure(point) {
 
 function handleCanvasClick(event) {
   if (paused) return;
+  if (suppressNextCanvasClick) {
+    suppressNextCanvasClick = false;
+    return;
+  }
   const point = screenToWorld(event);
   if (moveMode) {
     handleMoveClick(point);
@@ -5131,19 +5158,115 @@ function handleCanvasClick(event) {
   state.player.target = point;
 }
 
-function bindMoveButton(button, x, y) {
-  const start = (event) => {
-    event.preventDefault();
-    heldMove = { x, y };
-    state.player.target = null;
+function canStartTouchMove(point) {
+  if (paused || modalOpen || buildMode || moveMode || gameOver || failureLock) return false;
+  return !clickedBuilding(point) && !clickedStructure(point);
+}
+
+function trackedTouches() {
+  return Array.from(activeTouchPointers.values());
+}
+
+function touchDistance(points) {
+  if (points.length < 2) return 0;
+  return Math.hypot(points[1].x - points[0].x, points[1].y - points[0].y);
+}
+
+function startPinchZoom() {
+  const points = trackedTouches();
+  const distance = touchDistance(points);
+  if (distance < 12 || paused || modalOpen) return;
+  stopTouchMove(false);
+  heldMove = { x: 0, y: 0 };
+  state.player.target = null;
+  pinchZoom = {
+    startDistance: distance,
+    startZoom: camera.zoom
   };
-  const end = () => {
-    if (heldMove.x === x && heldMove.y === y) heldMove = { x: 0, y: 0 };
+  suppressNextCanvasClick = true;
+}
+
+function updatePinchZoom() {
+  const points = trackedTouches();
+  if (points.length < 2) return false;
+  if (!pinchZoom) startPinchZoom();
+  if (!pinchZoom) return false;
+  const distance = touchDistance(points);
+  if (distance < 12) return false;
+  setCameraZoom(pinchZoom.startZoom * (distance / pinchZoom.startDistance));
+  suppressNextCanvasClick = true;
+  return true;
+}
+
+function handleCanvasPointerDown(event) {
+  if (event.pointerType !== "touch" && event.pointerType !== "pen") return;
+  if (event.pointerType === "touch") {
+    activeTouchPointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    canvas.setPointerCapture?.(event.pointerId);
+    if (activeTouchPointers.size >= 2) {
+      event.preventDefault();
+      startPinchZoom();
+      return;
+    }
+  }
+  const point = screenToWorld(event);
+  if (!canStartTouchMove(point)) return;
+  touchMove = {
+    pointerId: event.pointerId,
+    startX: event.clientX,
+    startY: event.clientY,
+    active: false
   };
-  button.addEventListener("pointerdown", start);
-  button.addEventListener("pointerup", end);
-  button.addEventListener("pointerleave", end);
-  button.addEventListener("pointercancel", end);
+  canvas.setPointerCapture?.(event.pointerId);
+}
+
+function handleCanvasPointerMove(event) {
+  if (buildMode) buildPreview = snapToGrid(screenToWorld(event));
+  if (moveMode && selectedMoveTarget) movePreview = snapToGrid(screenToWorld(event));
+  if (event.pointerType === "touch" && activeTouchPointers.has(event.pointerId)) {
+    activeTouchPointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    if (pinchZoom || activeTouchPointers.size >= 2) {
+      event.preventDefault();
+      updatePinchZoom();
+      return;
+    }
+  }
+  if (!touchMove || touchMove.pointerId !== event.pointerId) return;
+  if (paused || modalOpen) {
+    stopTouchMove(false);
+    return;
+  }
+  const dx = event.clientX - touchMove.startX;
+  const dy = event.clientY - touchMove.startY;
+  const gap = Math.hypot(dx, dy);
+  const deadZone = 8;
+  if (gap < deadZone && !touchMove.active) return;
+  event.preventDefault();
+  touchMove.active = true;
+  state.player.target = null;
+  const radius = 44;
+  heldMove = {
+    x: clamp(dx / radius, -1, 1),
+    y: clamp(dy / radius, -1, 1)
+  };
+}
+
+function stopTouchMove(blockClick = true) {
+  if (!touchMove) return;
+  if (touchMove.active && blockClick) suppressNextCanvasClick = true;
+  touchMove = null;
+  heldMove = { x: 0, y: 0 };
+}
+
+function handleCanvasPointerEnd(event, blockClick = true) {
+  if (event.pointerType === "touch") {
+    activeTouchPointers.delete(event.pointerId);
+    if (pinchZoom && activeTouchPointers.size < 2) {
+      pinchZoom = null;
+      suppressNextCanvasClick = true;
+    }
+  }
+  if (touchMove && touchMove.pointerId === event.pointerId) stopTouchMove(blockClick);
 }
 
 function togglePause() {
@@ -5174,6 +5297,7 @@ window.addEventListener("resize", resize);
 window.addEventListener("pointerdown", unlockAudio, { once: true });
 window.addEventListener("keydown", unlockAudio, { once: true });
 canvas.addEventListener("click", handleCanvasClick);
+canvas.addEventListener("pointerdown", handleCanvasPointerDown);
 canvas.addEventListener("dragover", (event) => {
   if (!paused) event.preventDefault();
 });
@@ -5184,10 +5308,10 @@ canvas.addEventListener("drop", (event) => {
   if (type) selectedBuildType = type;
   confirmBuildAt(screenToWorld(event));
 });
-canvas.addEventListener("pointermove", (event) => {
-  if (buildMode) buildPreview = snapToGrid(screenToWorld(event));
-  if (moveMode && selectedMoveTarget) movePreview = snapToGrid(screenToWorld(event));
-});
+canvas.addEventListener("pointermove", handleCanvasPointerMove);
+canvas.addEventListener("pointerup", (event) => handleCanvasPointerEnd(event, true));
+canvas.addEventListener("pointercancel", (event) => handleCanvasPointerEnd(event, false));
+canvas.addEventListener("lostpointercapture", (event) => handleCanvasPointerEnd(event, false));
 hud.closeModal.addEventListener("click", () => closeModal());
 hud.actionsToggle.addEventListener("click", () => setActionsCollapsed(!actionsCollapsed));
 hud.mainMenuButton.addEventListener("click", () => runHudAction(openMainMenu));
@@ -5217,11 +5341,6 @@ window.addEventListener("keydown", (event) => {
 window.addEventListener("keyup", (event) => {
   keys.delete(event.key.toLowerCase());
 });
-
-bindMoveButton(hud.moveUp, 0, -1);
-bindMoveButton(hud.moveLeft, -1, 0);
-bindMoveButton(hud.moveDown, 0, 1);
-bindMoveButton(hud.moveRight, 1, 0);
 
 async function init() {
   await loadGameConfig();

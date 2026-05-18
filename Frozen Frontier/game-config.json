@@ -1,5 +1,10 @@
 {
   "world": { "width": 2500, "height": 1800 },
+  "camera": {
+    "minZoom": 0.65,
+    "maxZoom": 1.75,
+    "defaultZoom": 1
+  },
   "fort": {
     "x": 480,
     "y": 310,
