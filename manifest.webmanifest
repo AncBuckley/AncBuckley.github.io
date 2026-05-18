@@ -1,0 +1,11 @@
+{
+  "name": "Frozen Frontier",
+  "short_name": "Frozen Frontier",
+  "description": "A mobile survival puzzle game set in the frozen wilderness of Alaska.",
+  "start_url": "index.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#07121f",
+  "theme_color": "#07121f",
+  "categories": ["games", "education"]
+}

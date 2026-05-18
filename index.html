@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#06111f">
+    <title>Frozen Frontier</title>
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main class="game-shell" aria-label="Frozen Frontier survival camp game">
+      <canvas id="gameCanvas" aria-label="Full screen survival camp play area"></canvas>
+
+      <section class="hud top-hud" aria-label="Camp status">
+        <div class="brand">
+          <p>Frozen Frontier</p>
+          <span id="phaseLabel">Fort Camp</span>
+        </div>
+
+        <button id="actionsToggle" class="main-menu-button actions-toggle" type="button" aria-expanded="false">Menu</button>
+
+        <div id="actionsPanel" class="actions-panel collapsed" aria-label="Game menus">
+          <button id="mainMenuButton" class="main-menu-button" type="button">Main</button>
+          <button id="buildButton" class="main-menu-button build-menu-button" type="button">Build</button>
+          <button id="upgradeMenuButton" class="main-menu-button utility-button" type="button">Upgrade</button>
+          <button id="customizeButton" class="main-menu-button utility-button" type="button">Customize</button>
+          <button id="helpButton" class="main-menu-button utility-button" type="button">Help</button>
+          <button id="pauseButton" class="main-menu-button pause-button" type="button">Pause</button>
+        </div>
+
+        <div class="meter-card">
+          <span>Furnace</span>
+          <strong id="furnaceFuelText">50%</strong>
+          <div class="meter"><i id="furnaceFuelMeter"></i></div>
+        </div>
+
+        <div class="meter-card">
+          <span>Cabin Hunger</span>
+          <strong id="cabinHungerText">50%</strong>
+          <div class="meter food"><i id="cabinHungerMeter"></i></div>
+        </div>
+
+        <div id="fortHealthCard" class="meter-card danger hidden">
+          <span>Fort Health</span>
+          <strong id="fortHealthText">100%</strong>
+          <div class="meter danger"><i id="fortHealthMeter"></i></div>
+        </div>
+      </section>
+
+      <section class="hud inventory-hud" aria-label="Inventory">
+        <div class="resource-pill"><strong id="woodCount">0</strong><span>Wood</span></div>
+        <div class="resource-pill"><strong id="lettuceCount">0</strong><span>Raw Food</span></div>
+        <div class="resource-pill"><strong id="meatCount">0</strong><span>Carried</span></div>
+        <div class="resource-pill"><strong id="mealCount">0</strong><span>Meals</span></div>
+        <div class="resource-pill"><strong id="survivorCount">0/3</strong><span>Crew</span></div>
+        <div class="resource-pill"><strong id="learningPointCount">0</strong><span>Points</span></div>
+        <div class="resource-pill"><strong id="playerLevelCount">1</strong><span>Level</span></div>
+        <div class="resource-pill"><strong id="waveCount">0</strong><span>Wave</span></div>
+      </section>
+
+      <section class="hud carry-hud" aria-label="Carried stack">
+        <span>Carrying</span>
+        <strong id="carryText">Empty</strong>
+      </section>
+
+      <section class="hud hint-hud" aria-live="polite">
+        <p id="eventLog">Gather wood and food to keep the camp alive.</p>
+      </section>
+
+      <section id="centerToast" class="center-toast hidden" aria-live="polite"></section>
+
+      <section id="notificationStack" class="notification-stack" aria-live="polite"></section>
+
+      <section id="buildTray" class="build-tray collapsed" aria-label="Build tray">
+        <button id="buildTrayToggle" class="build-tray-toggle" type="button">Build</button>
+        <div id="buildTrayBody" class="build-tray-body"></div>
+      </section>
+
+      <section id="pauseLayer" class="pause-layer hidden" aria-label="Game paused">
+        <article class="pause-card">
+          <h2>Paused</h2>
+          <p>The storm waits while you plan the next move.</p>
+          <div class="modal-actions">
+            <button id="resumeFromPause" class="primary" type="button">Resume</button>
+            <button id="pauseMainMenu" type="button">Main Menu</button>
+          </div>
+        </article>
+      </section>
+
+      <div id="modalLayer" class="modal-layer hidden" role="dialog" aria-modal="true">
+        <article class="modal-card">
+          <button id="closeModal" class="icon-button" type="button" aria-label="Close menu">x</button>
+          <p id="modalEyebrow" class="eyebrow">Camp</p>
+          <h2 id="modalTitle">Building</h2>
+          <div id="modalBody"></div>
+        </article>
+      </div>
+    </main>
+
+    <script src="game.js"></script>
+  </body>
+</html>
