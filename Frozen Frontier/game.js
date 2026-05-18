@@ -3,6 +3,15 @@ const ctx = canvas.getContext("2d");
 
 const hud = {
   phaseLabel: document.querySelector("#phaseLabel"),
+  playerIconButton: document.querySelector("#playerIconButton"),
+  playerIconImage: document.querySelector("#playerIconImage"),
+  cycleText: document.querySelector("#cycleText"),
+  cycleFill: document.querySelector("#cycleFill"),
+  quickWoodText: document.querySelector("#quickWoodText"),
+  quickDiningMealText: document.querySelector("#quickDiningMealText"),
+  zoomOutButton: document.querySelector("#zoomOutButton"),
+  zoomResetButton: document.querySelector("#zoomResetButton"),
+  zoomInButton: document.querySelector("#zoomInButton"),
   furnaceFuelText: document.querySelector("#furnaceFuelText"),
   furnaceFuelMeter: document.querySelector("#furnaceFuelMeter"),
   cabinHungerText: document.querySelector("#cabinHungerText"),
@@ -43,14 +52,14 @@ const hud = {
   centerToast: document.querySelector("#centerToast")
 };
 
-const world = { width: 2500, height: 1800 };
+const world = { width: 9000, height: 7200 };
 const fort = {
-  x: 480,
-  y: 310,
+  x: 4120,
+  y: 3310,
   w: 760,
   h: 560,
-  entrance: { x: 860, y: 870 },
-  attackPoint: { x: 860, y: 846 },
+  entrance: { x: 4500, y: 3870 },
+  attackPoint: { x: 4500, y: 3846 },
   health: 100,
   maxHealth: 100
 };
@@ -67,8 +76,8 @@ const buildingData = {
   furnace: {
     id: "furnace",
     name: "Furnace",
-    x: 640,
-    y: 470,
+    x: 4280,
+    y: 3480,
     w: 150,
     h: 130,
     color: "#554255",
@@ -82,8 +91,8 @@ const buildingData = {
   foodPrep: {
     id: "foodPrep",
     name: "Food Prep",
-    x: 850,
-    y: 675,
+    x: 4490,
+    y: 3685,
     w: 190,
     h: 130,
     color: "#46626a",
@@ -98,8 +107,8 @@ const buildingData = {
   diningHall: {
     id: "diningHall",
     name: "Dining Hall",
-    x: 1060,
-    y: 655,
+    x: 4700,
+    y: 3665,
     w: 165,
     h: 130,
     color: "#5b4b3c",
@@ -114,8 +123,8 @@ const buildingData = {
   cabin: {
     id: "cabin",
     name: "Group Cabin",
-    x: 855,
-    y: 455,
+    x: 4495,
+    y: 3465,
     w: 240,
     h: 160,
     color: "#3c4b5b",
@@ -131,11 +140,11 @@ const buildingData = {
 };
 
 const dropoffs = {
-  wood: { x: 735, y: 625, label: "Wood Pile" },
-  food: { x: 905, y: 705, label: "Food Prep" },
-  mealPickup: { x: 1010, y: 705, label: "Meal Stack" },
-  dining: { x: 1145, y: 742, label: "Dining Hall" },
-  cabin: { x: 930, y: 555, label: "Cabin Table" }
+  wood: { x: 4375, y: 3635, label: "Wood Pile" },
+  food: { x: 4545, y: 3715, label: "Food Prep" },
+  mealPickup: { x: 4650, y: 3715, label: "Meal Stack" },
+  dining: { x: 4785, y: 3752, label: "Dining Hall" },
+  cabin: { x: 4570, y: 3565, label: "Cabin Table" }
 };
 
 const specialtyCatalog = [
@@ -180,19 +189,19 @@ const specialtyCatalog = [
 let learningTasks = [];
 
 const defaultGameConfig = {
-  world: { width: 2500, height: 1800 },
+  world: { width: 9000, height: 7200 },
   camera: {
-    minZoom: 0.65,
+    minZoom: 0.32,
     maxZoom: 1.75,
     defaultZoom: 1
   },
   fort: {
-    x: 480,
-    y: 310,
+    x: 4120,
+    y: 3310,
     w: 760,
     h: 560,
-    entrance: { x: 860, y: 870 },
-    attackPoint: { x: 860, y: 846 },
+    entrance: { x: 4500, y: 3870 },
+    attackPoint: { x: 4500, y: 3846 },
     baseHealth: 100,
     healthPerLevel: 25
   },
@@ -204,7 +213,12 @@ const defaultGameConfig = {
     survivorChance: 0.2,
     postWaveSurvivorCooldown: 60,
     upgradeFailCooldown: 60,
-    waveInterval: 300
+    waveInterval: 300,
+    daySeconds: 300,
+    nightSeconds: 60,
+    nightSpawnMinSeconds: 6,
+    nightSpawnMaxSeconds: 16,
+    nightFirstSpawnSeconds: 5
   },
   grid: {
     size: 80,
@@ -483,9 +497,21 @@ const defaultGameConfig = {
 
 let gameConfig = clone(defaultGameConfig);
 const spriteImages = {};
+const clothingImages = {};
+const tintedClothingCache = new Map();
+const actorIconCache = new Map();
 let spritesReady = false;
+let clothingReady = false;
 
-const storageKey = "frozen-frontier-base-v20";
+const outfitCategories = [
+  { id: "head", label: "Head", folder: "heads", colors: ["#f2a65e", "#c98252", "#8f5a3a", "#f7c99a"], count: 10 },
+  { id: "hat", label: "Hat", folder: "hats", colors: ["#173047", "#ff9f43", "#f4f9ff", "#b48cff"] },
+  { id: "shirt", label: "Shirt", folder: "shirts", colors: ["#67c7ff", "#ff5d66", "#73df9b", "#ffd166"] },
+  { id: "pants", label: "Pants", folder: "pants", colors: ["#25384d", "#5e6f80", "#3b5d47", "#6a4a78"] },
+  { id: "shoes", label: "Shoes", folder: "shoes", colors: ["#1c2530", "#704d2e", "#dff7ff", "#3a4654"] }
+];
+
+const storageKey = "frozen-frontier-base-v26";
 const keys = new Set();
 let heldMove = { x: 0, y: 0 };
 let touchMove = null;
@@ -504,6 +530,7 @@ let buildMode = false;
 let selectedBuildType = "fence";
 let buildPreview = null;
 let moveMode = false;
+let removeMode = false;
 let selectedMoveTarget = null;
 let movePreview = null;
 let buildTrayCollapsed = true;
@@ -530,7 +557,24 @@ let pendingCarry = 0;
 let residentDeathNotices = [];
 
 const defaultState = {
-  player: { x: 860, y: 690, target: null, walkTime: 0, facing: 1, direction: "down", clothes: "blue", health: 100, maxHealth: 100 },
+  player: {
+    x: 4500,
+    y: 3700,
+    target: null,
+    walkTime: 0,
+    facing: 1,
+    direction: "down",
+    clothes: "blue",
+    outfit: {
+      head: { id: "head-01", color: "#f2a65e" },
+      hat: { id: "hat-01", color: "#173047" },
+      shirt: { id: "shirt-01", color: "#67c7ff" },
+      pants: { id: "pants-01", color: "#25384d" },
+      shoes: { id: "shoes-01", color: "#1c2530" }
+    },
+    health: 100,
+    maxHealth: 100
+  },
   stored: { wood: 18, lettuce: 0, meat: 0, meal: 0 },
   carry: { wood: 0, lettuce: 0, berries: 0, meat: 0, meal: 0 },
   survivors: [],
@@ -543,7 +587,7 @@ const defaultState = {
   playerUpgrades: { attack: 0, carry: 0, lumber: 0, cooking: 0 },
   playerLevel: 1,
   structures: [],
-  wave: { number: 0, timer: defaultGameConfig.timers.waveInterval, active: false, survivorCooldown: 0, interWaveVisitorPending: false },
+  wave: { number: 0, timer: defaultGameConfig.timers.daySeconds, active: false, survivorCooldown: 0, interWaveVisitorPending: false, spawnTimer: 0, nightSpawned: 0 },
   towerStationedResidentId: null,
   towerInstructionShown: false,
   tutorialFlags: { furnaceUpgrade: false, foodUpgrade: false, cabinUpgrade: false },
@@ -563,7 +607,7 @@ let snow = createSnow();
 state.player = normalizePlayer(state.player);
 state.survivors = state.survivors.map((survivor, index) => normalizeSurvivor(survivor, index));
 if (!state.structures.length) state.structures = createInitialDefenseStructures();
-state.wave = { ...defaultState.wave, ...(state.wave || {}) };
+state.wave = normalizeNightCycleState({ ...defaultState.wave, ...(state.wave || {}) });
 syncFortHealthFromGates();
 trees = createTrees();
 
@@ -822,6 +866,7 @@ function stopBuildMode(message = "Build mode stopped.") {
   buildMode = false;
   buildPreview = null;
   moveMode = false;
+  removeMode = false;
   selectedMoveTarget = null;
   movePreview = null;
   renderBuildTray();
@@ -895,6 +940,56 @@ function clothingColor(id) {
   return (clothingOptions().find((option) => option.id === id) || clothingOptions()[0]).color;
 }
 
+function outfitCatalog() {
+  return outfitCategories.reduce((catalog, category) => {
+    catalog[category.id] = Array.from({ length: category.count || 10 }, (_, index) => {
+      const number = String(index + 1).padStart(2, "0");
+      return {
+        id: `${category.id}-${number}`,
+        label: `${category.label} ${index + 1}`,
+        source: `assets/clothing/${category.folder}/${category.id}-${number}.gif`
+      };
+    });
+    return catalog;
+  }, {});
+}
+
+function defaultOutfit(tint = gameConfig.characters.defaultPlayerClothes) {
+  return {
+    head: { id: "head-01", color: "#f2a65e" },
+    hat: { id: "hat-01", color: "#173047" },
+    shirt: { id: "shirt-01", color: clothingColor(tint || gameConfig.characters.defaultPlayerClothes) },
+    pants: { id: "pants-01", color: "#25384d" },
+    shoes: { id: "shoes-01", color: "#1c2530" }
+  };
+}
+
+function normalizeOutfit(outfit = null, tint = null) {
+  const base = defaultOutfit(tint);
+  const catalog = outfitCatalog();
+  outfitCategories.forEach((category) => {
+    const saved = outfit?.[category.id] || {};
+    const options = catalog[category.id];
+    const valid = options.some((option) => option.id === saved.id);
+    base[category.id] = {
+      id: valid ? saved.id : base[category.id].id,
+      color: saved.color || base[category.id].color
+    };
+  });
+  return base;
+}
+
+function randomOutfit() {
+  const catalog = outfitCatalog();
+  return outfitCategories.reduce((outfit, category) => {
+    outfit[category.id] = {
+      id: randomChoice(catalog[category.id]).id,
+      color: randomChoice(category.colors)
+    };
+    return outfit;
+  }, {});
+}
+
 function characterSprite(prefix, clothes) {
   return `${prefix}-${clothes || gameConfig.characters.defaultPlayerClothes}`;
 }
@@ -902,12 +997,14 @@ function characterSprite(prefix, clothes) {
 function setActorDirection(actor, dx, dy) {
   if (Math.abs(dx) > 0.05) actor.facing = dx > 0 ? 1 : -1;
   if (Math.abs(dy) > Math.abs(dx) * 1.15) actor.direction = dy < 0 ? "up" : "down";
-  else if (Math.abs(dx) > 0.05) actor.direction = "side";
+  else if (Math.abs(dx) > 0.05) actor.direction = dx > 0 ? "right" : "left";
 }
 
 function directionRow(actor) {
-  if (actor.direction === "side") return 1;
+  if (actor.direction === "right") return 1;
   if (actor.direction === "up") return 2;
+  if (actor.direction === "left") return 3;
+  if (actor.direction === "side") return actor.facing < 0 ? 3 : 1;
   return 0;
 }
 
@@ -921,6 +1018,7 @@ function normalizePlayer(player = {}) {
     ...defaultState.player,
     ...player,
     clothes: player.clothes || gameConfig.characters.defaultPlayerClothes,
+    outfit: normalizeOutfit(player.outfit, player.clothes),
     maxHealth,
     health: clamp(Number.isFinite(player.health) ? player.health : maxHealth, 0, maxHealth)
   };
@@ -933,6 +1031,7 @@ function normalizeSurvivor(survivor, index = 0) {
     ...survivor,
     level: residentLevel(survivor),
     clothes: survivor.clothes || randomClothingId(),
+    outfit: normalizeOutfit(survivor.outfit, survivor.clothes),
     x: Number.isFinite(survivor.x) ? survivor.x : start.x,
     y: Number.isFinite(survivor.y) ? survivor.y : start.y,
     maxHealth,
@@ -971,6 +1070,47 @@ function playerUpgradeOptions() {
   ];
 }
 
+function dayDuration() {
+  return gameConfig.timers.daySeconds || defaultGameConfig.timers.daySeconds || 300;
+}
+
+function nightDuration() {
+  return gameConfig.timers.nightSeconds || defaultGameConfig.timers.nightSeconds || 60;
+}
+
+function currentPhaseDuration() {
+  return state.wave.active ? nightDuration() : dayDuration();
+}
+
+function cyclePhaseProgress() {
+  const duration = currentPhaseDuration();
+  return clamp(1 - (state.wave.timer || 0) / duration, 0, 1);
+}
+
+function cycleTimeText() {
+  const seconds = Math.max(0, Math.ceil(state.wave.timer || 0));
+  return `${state.wave.active ? "Night" : "Day"} ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+}
+
+function normalizeNightCycleState(wave = {}) {
+  return {
+    ...defaultState.wave,
+    ...wave,
+    timer: Number.isFinite(wave.timer) ? wave.timer : (wave.active ? nightDuration() : dayDuration()),
+    spawnTimer: Number.isFinite(wave.spawnTimer) ? wave.spawnTimer : 0,
+    nightSpawned: Number.isFinite(wave.nightSpawned) ? wave.nightSpawned : 0,
+    active: Boolean(wave.active)
+  };
+}
+
+function randomNightSpawnDelay(first = false) {
+  const timers = gameConfig.timers;
+  if (first) return timers.nightFirstSpawnSeconds || 5;
+  const min = timers.nightSpawnMinSeconds || 6;
+  const max = Math.max(min, timers.nightSpawnMaxSeconds || 16);
+  return min + Math.random() * (max - min);
+}
+
 function affordablePlayerUpgrade() {
   return playerUpgradeOptions()
     .map((upgrade) => ({ ...upgrade, cost: playerUpgradeCost(upgrade.id) }))
@@ -1003,6 +1143,14 @@ function setCameraZoom(value) {
   const config = cameraZoomConfig();
   camera.zoom = clamp(value, config.min, config.max);
   updateCamera();
+}
+
+function adjustCameraZoom(multiplier) {
+  setCameraZoom(camera.zoom * multiplier);
+}
+
+function resetCameraZoom() {
+  setCameraZoom(cameraZoomConfig().default);
 }
 
 function worldToScreen(point) {
@@ -1088,6 +1236,7 @@ function applyGameConfig() {
   if (fortConfig.attackPoint) fort.attackPoint = { ...fort.attackPoint, ...fortConfig.attackPoint };
   fort.maxHealth = fortMaxHealth();
   fort.health = clamp(state.fortHealth || fort.maxHealth, 0, fort.maxHealth);
+  state.wave = normalizeNightCycleState(state.wave);
   snapAllBuildingsToGrid();
   snow = createSnow();
 }
@@ -1313,6 +1462,20 @@ function loadSprites() {
     spriteImages[name] = image;
   }))).then(() => {
     spritesReady = true;
+  });
+}
+
+function loadClothingAssets() {
+  const catalog = outfitCatalog();
+  const entries = outfitCategories.flatMap((category) => catalog[category.id]);
+  return Promise.all(entries.map((item) => new Promise((resolve) => {
+    const image = new Image();
+    image.onload = () => resolve();
+    image.onerror = () => resolve();
+    image.src = item.source;
+    clothingImages[item.id] = image;
+  }))).then(() => {
+    clothingReady = true;
   });
 }
 
@@ -1746,10 +1909,11 @@ function createVisitor() {
     bonus: specialty.bonus,
     level: randomResidentLevel(),
     clothes: randomClothingId(),
+    outfit: randomOutfit(),
     health: gameConfig.characters.visitorHealth,
     maxHealth: gameConfig.characters.visitorHealth,
-    x: 860 + (-90 + Math.random() * 180),
-    y: 1165,
+    x: fort.entrance.x + (-90 + Math.random() * 180),
+    y: fort.entrance.y + 295,
     facing: 1,
     direction: "up",
     walkTime: 0,
@@ -1885,7 +2049,7 @@ function escapeWaypoint(actor, target) {
 function nearestAliveTree(from) {
   return trees
     .filter((tree) => tree.alive && tree.type !== "berryBush")
-    .sort((a, b) => dist(from, a) - dist(from, b))[0] || { x: 330, y: 760 };
+    .sort((a, b) => dist(from, a) - dist(from, b))[0] || { x: fort.x - 150, y: fort.entrance.y - 110 };
 }
 
 function upgradeJobTarget(job) {
@@ -2169,14 +2333,9 @@ function damageEnemyTarget(target, damage, enemy) {
 }
 
 function updateWolves(dt) {
-  if (!wolves.length) {
-    attackActive = false;
-    state.wave.active = false;
-    state.wave.timer = Math.max(0, (state.wave.timer || gameConfig.timers.waveInterval) - dt);
-    if (state.wave.timer <= 0) spawnWolfRaid();
-  } else {
-    attackActive = true;
-  }
+  updateNightCycle(dt);
+  const wasUnderAttack = attackActive;
+  attackActive = wolves.length > 0;
 
   wolves.forEach((wolf) => {
     const target = enemyTarget(wolf);
@@ -2237,24 +2396,59 @@ function updateWolves(dt) {
     playSound("success");
     return false;
   });
-  if (!wolves.length && attackActive) {
+  if (!wolves.length && wasUnderAttack) {
     attackActive = false;
-    state.wave.active = false;
-    state.wave.timer = gameConfig.timers.waveInterval;
-    state.wave.survivorCooldown = gameConfig.timers.postWaveSurvivorCooldown || 60;
-    state.wave.interWaveVisitorPending = true;
     survivorCheckTimer = 0;
-    maybeShowWaveUpgradeTip();
-    maybeShowTowerInstruction();
   }
 }
 
-function maybeShowWaveUpgradeTip() {
+function updateNightCycle(dt) {
+  state.wave = normalizeNightCycleState(state.wave);
+  state.wave.timer -= dt;
+  if (state.wave.active) {
+    state.wave.spawnTimer -= dt;
+    if (state.wave.spawnTimer <= 0) {
+      spawnNightAttacker();
+      state.wave.spawnTimer = randomNightSpawnDelay();
+    }
+    if (state.wave.timer <= 0) endNight();
+    return;
+  }
+  if (state.wave.timer <= 0) startNight();
+}
+
+function startNight() {
+  state.wave.number = (state.wave.number || 0) + 1;
+  state.wave.active = true;
+  state.wave.timer = nightDuration();
+  state.wave.spawnTimer = randomNightSpawnDelay(true);
+  state.wave.nightSpawned = 0;
+  state.wave.interWaveVisitorPending = false;
+  setMessage(`Night ${state.wave.number} has fallen. Attackers may come from the dark until dawn.`, 6);
+  playSound("alarm");
+}
+
+function endNight() {
+  const attackersRemaining = wolves.length;
+  wolves = [];
+  attackActive = false;
+  state.wave.active = false;
+  state.wave.timer = dayDuration();
+  state.wave.spawnTimer = 0;
+  state.wave.survivorCooldown = gameConfig.timers.postWaveSurvivorCooldown || 60;
+  state.wave.interWaveVisitorPending = true;
+  survivorCheckTimer = 0;
+  setMessage(attackersRemaining ? "Dawn breaks. The remaining attackers scatter into the snow." : "Dawn breaks. Repair, gather, and prepare before night returns.", 6);
+  maybeShowNightUpgradeTip();
+  maybeShowTowerInstruction();
+}
+
+function maybeShowNightUpgradeTip() {
   if (state.wave.number === 1) {
     showTutorialTip(
       "furnaceUpgrade",
       "Upgrade The Furnace",
-      "The first attack is over. Upgrade the Furnace to increase fuel capacity and slow fuel drain so the camp survives longer between wood runs.",
+      "The first night is over. Upgrade the Furnace to increase fuel capacity and slow fuel drain so the camp survives longer between wood runs.",
       [{ label: "Open Furnace", action: () => openBuildingMenu(buildings.furnace) }]
     );
   } else if (state.wave.number === 2) {
@@ -2289,7 +2483,7 @@ function spawnInterWaveVisitor() {
   state.visitor = pendingVisitor;
   state.wave.interWaveVisitorPending = false;
   survivorCheckTimer = 0;
-  setMessage(`${pendingVisitor.name} reached the fort between waves.`, 6);
+  setMessage(`${pendingVisitor.name} reached the fort during daylight.`, 6);
 }
 
 function spawnEnemyPoint(type) {
@@ -2330,16 +2524,13 @@ function isPointInsideBarrierLoop(point) {
   return crossings % 2 === 1;
 }
 
-function spawnWolfRaid() {
+function spawnNightAttacker() {
   const config = gameConfig.combat;
-  state.wave.number = (state.wave.number || 0) + 1;
-  state.wave.active = true;
-  state.wave.interWaveVisitorPending = false;
+  state.wave.nightSpawned = (state.wave.nightSpawned || 0) + 1;
   const tier = Math.floor((state.wave.number - 1) / 2);
-  const count = config.waveBaseCount + tier * config.waveCountPerTier + Math.floor(Math.random() * config.wolfRaidBonusCount);
-  wolves = [];
+  const count = 1 + (Math.random() < Math.min(0.45, 0.12 + tier * 0.08) ? 1 : 0);
   for (let i = 0; i < count; i += 1) {
-    const elite = state.wave.number >= 4 && i === count - 1;
+    const elite = state.wave.number >= 4 && Math.random() < 0.22;
     const hp = config.wolfBaseHp + tier * config.waveHpPerTier + Math.random() * config.wolfBonusHp + (elite ? 60 : 0);
     const spawn = spawnEnemyPoint("wolf");
     wolves.push({
@@ -2356,8 +2547,8 @@ function spawnWolfRaid() {
       facing: 1
     });
   }
-  const eagleCount = state.wave.number >= config.eagleStartWave
-    ? Math.max(1, Math.floor((state.wave.number - config.eagleStartWave) / config.eagleEveryWaves) + tier * config.eagleBonusPerTier)
+  const eagleCount = state.wave.number >= config.eagleStartWave && Math.random() < Math.min(0.5, 0.18 + tier * 0.08)
+    ? 1 + (tier >= 2 && Math.random() < 0.25 ? 1 : 0)
     : 0;
   for (let i = 0; i < eagleCount; i += 1) {
     const hp = config.eagleBaseHp + tier * 14 + Math.random() * 20;
@@ -2377,7 +2568,7 @@ function spawnWolfRaid() {
     });
   }
   attackActive = true;
-  setMessage(`Wave ${state.wave.number} is attacking. Ground enemies hit walls, eagles dive over them.`, 5);
+  setMessage(`Night attack. Ground enemies hit walls, eagles dive over them.`, 5);
   playSound("alarm");
 }
 
@@ -2617,37 +2808,46 @@ function updateHud(dt) {
   const cabin = buildings.cabin;
   const fuelPct = furnace.maxFuel ? (furnace.fuel / furnace.maxFuel) * 100 : 0;
   const hungerPct = cabin.maxHunger ? (cabin.hunger / cabin.maxHunger) * 100 : 0;
-  hud.furnaceFuelText.textContent = `${Math.round(fuelPct)}%`;
-  hud.furnaceFuelMeter.style.width = `${fuelPct}%`;
-  hud.cabinHungerText.textContent = `${Math.round(hungerPct)}%`;
-  hud.cabinHungerMeter.style.width = `${hungerPct}%`;
-  hud.woodCount.textContent = state.stored.wood;
-  hud.lettuceCount.textContent = buildings.foodPrep.raw;
-  hud.meatCount.textContent = carryTotal();
-  hud.mealCount.textContent = buildings.foodPrep.meals + (buildings.diningHall ? buildings.diningHall.meals : 0);
-  hud.survivorCount.textContent = `${state.survivors.length}/${survivorCapacity()}`;
-  hud.learningPointCount.textContent = state.learningPoints;
-  hud.playerLevelCount.textContent = playerLevel();
-  hud.waveCount.textContent = state.wave.active ? `${state.wave.number}` : `${state.wave.number} (${Math.ceil(state.wave.timer || 0)}s)`;
-  hud.buildButton.textContent = buildMode || moveMode ? "Build Menu" : "Build";
-  hud.pauseButton.textContent = paused ? "Resume" : "Pause";
+  if (hud.furnaceFuelText) hud.furnaceFuelText.textContent = `${Math.round(fuelPct)}%`;
+  if (hud.furnaceFuelMeter) hud.furnaceFuelMeter.style.width = `${fuelPct}%`;
+  if (hud.cabinHungerText) hud.cabinHungerText.textContent = `${Math.round(hungerPct)}%`;
+  if (hud.cabinHungerMeter) hud.cabinHungerMeter.style.width = `${hungerPct}%`;
+  if (hud.quickWoodText) hud.quickWoodText.textContent = state.stored.wood;
+  if (hud.quickDiningMealText) hud.quickDiningMealText.textContent = buildings.diningHall ? buildings.diningHall.meals : 0;
+  if (hud.cycleText) hud.cycleText.textContent = cycleTimeText();
+  if (hud.cycleFill) {
+    hud.cycleFill.style.width = `${cyclePhaseProgress() * 100}%`;
+    hud.cycleFill.closest(".cycle-hud")?.classList.toggle("night", state.wave.active);
+  }
+  if (hud.woodCount) hud.woodCount.textContent = state.stored.wood;
+  if (hud.lettuceCount) hud.lettuceCount.textContent = buildings.foodPrep.raw;
+  if (hud.meatCount) hud.meatCount.textContent = carryTotal();
+  if (hud.mealCount) hud.mealCount.textContent = buildings.foodPrep.meals + (buildings.diningHall ? buildings.diningHall.meals : 0);
+  if (hud.survivorCount) hud.survivorCount.textContent = `${state.survivors.length}/${survivorCapacity()}`;
+  if (hud.learningPointCount) hud.learningPointCount.textContent = state.learningPoints;
+  if (hud.playerLevelCount) hud.playerLevelCount.textContent = playerLevel();
+  if (hud.waveCount) hud.waveCount.textContent = state.wave.active ? `Night ${state.wave.number}` : cycleTimeText();
+  if (hud.buildButton) hud.buildButton.textContent = buildMode || moveMode || removeMode ? "Build Menu" : "Build";
+  if (hud.pauseButton) hud.pauseButton.textContent = paused ? "Resume" : "Pause";
+  if (hud.zoomResetButton) hud.zoomResetButton.textContent = `${camera.zoom.toFixed(1)}x`;
+  if (hud.playerIconImage && clothingReady) hud.playerIconImage.src = actorIconDataUrl(state.player, 64);
   setActionsCollapsed(actionsCollapsed);
-  hud.pauseLayer.classList.toggle("hidden", !paused);
-  hud.buildTray.classList.toggle("collapsed", buildTrayCollapsed);
+  if (hud.pauseLayer) hud.pauseLayer.classList.toggle("hidden", !paused);
+  if (hud.buildTray) hud.buildTray.classList.toggle("collapsed", buildTrayCollapsed);
   const carriedNow = carryTotal();
-  hud.carryText.textContent = carriedNow
+  if (hud.carryText) hud.carryText.textContent = carriedNow
     ? `${Object.entries(state.carry)
       .filter(([, amount]) => amount > 0)
       .map(([type, amount]) => `${resourceMeta[type].label} ${amount}`)
       .join(", ")} (${carriedNow}/${carryCapacity()} max)`
     : `Empty (${carryCapacity()} max)`;
 
-  hud.fortHealthCard.classList.remove("hidden");
+  if (hud.fortHealthCard) hud.fortHealthCard.classList.remove("hidden");
   const fortPct = fort.maxHealth ? (fort.health / fort.maxHealth) * 100 : 0;
-  hud.fortHealthText.textContent = `${Math.round(fortPct)}%`;
-  hud.fortHealthMeter.style.width = `${fortPct}%`;
+  if (hud.fortHealthText) hud.fortHealthText.textContent = `${Math.round(fortPct)}%`;
+  if (hud.fortHealthMeter) hud.fortHealthMeter.style.width = `${fortPct}%`;
 
-  hud.phaseLabel.textContent = paused ? "Paused" : moveMode ? "Move Buildings" : buildMode ? "Build Mode" : gameOver ? "Camp Lost" : failureLock ? "Emergency" : attackActive ? `Wave ${state.wave.number}` : pendingVisitor ? "Visitor Approaching" : "Fort Camp";
+  if (hud.phaseLabel) hud.phaseLabel.textContent = paused ? "Paused" : removeMode ? "Remove Mode" : moveMode ? "Move Buildings" : buildMode ? "Build Mode" : gameOver ? "Camp Lost" : failureLock ? "Emergency" : attackActive ? `Night ${state.wave.number}` : pendingVisitor ? "Visitor Approaching" : state.wave.active ? "Night Watch" : "Daylight Prep";
   updateNotifications();
 }
 
@@ -2816,7 +3016,7 @@ function resetGame() {
   buildings = hydrateBuildings();
   snapAllBuildingsToGrid();
   state.structures = createInitialDefenseStructures();
-  state.wave = { ...defaultState.wave, timer: gameConfig.timers.waveInterval };
+  state.wave = normalizeNightCycleState({ ...defaultState.wave, timer: dayDuration(), active: false });
   state.playerLevel = 1;
   state.towerInstructionShown = false;
   resources = [];
@@ -2839,7 +3039,11 @@ function resetGame() {
   warningState = { furnace: false, hunger: false, fort: false };
   pendingCarry = 0;
   residentDeathNotices = [];
+  buildMode = false;
   moveMode = false;
+  removeMode = false;
+  selectedBuildType = null;
+  buildPreview = null;
   selectedMoveTarget = null;
   movePreview = null;
   attackActive = false;
@@ -2849,7 +3053,7 @@ function resetGame() {
   starterTowerCooldown = 0;
   saveTimer = 0;
   for (let i = 0; i < 5; i += 1) {
-    spawnResource("wood", 300 + Math.random() * 180, 760 + Math.random() * 220, 1);
+    spawnResource("wood", fort.x - 180 + Math.random() * 180, fort.entrance.y - 110 + Math.random() * 220, 1);
   }
   forceCloseModal();
   setMessage("A fresh camp begins. Gather wood from trees and food from berry bushes.", 7);
@@ -2940,37 +3144,12 @@ function drawGround() {
   gradient.addColorStop(1, "#d6f2ff");
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, world.width, world.height);
-
-  ctx.save();
-  ctx.globalAlpha = 0.18;
-  ctx.strokeStyle = "#ffffff";
-  ctx.lineWidth = 4;
-  for (let i = 0; i < 14; i += 1) {
-    ctx.beginPath();
-    ctx.moveTo(-80, 170 + i * 82);
-    ctx.bezierCurveTo(360, 110 + i * 78, 740, 245 + i * 72, 1800, 135 + i * 76);
-    ctx.stroke();
-  }
-  ctx.restore();
-
-  ctx.save();
-  ctx.globalAlpha = 0.28;
-  for (let i = 0; i < 20; i += 1) {
-    const x = 90 + ((i * 227) % 1510);
-    const y = 140 + ((i * 157) % 1000);
-    const w = 70 + (i % 4) * 28;
-    ctx.fillStyle = i % 2 ? "rgba(255,255,255,0.34)" : "rgba(111, 176, 197, 0.22)";
-    ctx.beginPath();
-    ctx.ellipse(x, y, w, 18 + (i % 3) * 8, -0.18, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  ctx.restore();
 }
 
 function drawGrid() {
   const size = gridSize();
   ctx.save();
-  ctx.globalAlpha = buildMode || moveMode ? 0.34 : gameConfig.grid.alpha;
+  ctx.globalAlpha = buildMode || moveMode || removeMode ? 0.34 : gameConfig.grid.alpha;
   ctx.strokeStyle = "#dff7ff";
   ctx.lineWidth = 1;
   for (let x = 0; x <= world.width; x += size) {
@@ -3215,10 +3394,6 @@ function drawStructuresForPreview(structure) {
 }
 
 function drawFort() {
-  ctx.fillStyle = "rgba(240, 250, 255, 0.48)";
-  roundRect(fort.x + 18, fort.y + 18, fort.w - 36, fort.h - 36, 18);
-  ctx.fillStyle = "rgba(215, 239, 250, 0.86)";
-  roundRect(fort.entrance.x - 88, fort.y + fort.h - 22, 176, 50, 8);
   drawFortDamage();
 }
 
@@ -3699,14 +3874,14 @@ function drawResources() {
 
 function drawVisitor() {
   if (!pendingVisitor) return;
-  drawPerson(pendingVisitor.x, pendingVisitor.y, clothingColor(pendingVisitor.clothes), pendingVisitor.arrived ? "?" : "!", characterSprite("visitor", pendingVisitor.clothes), pendingVisitor.facing < 0, pendingVisitor.walkTime, directionRow(pendingVisitor));
+  drawPerson(pendingVisitor, pendingVisitor.arrived ? "?" : "!");
   drawActorHealth(pendingVisitor, 58);
 }
 
 function drawResidents() {
   state.survivors.forEach((survivor) => {
     const badge = survivor.carrying ? `${resourceMeta[survivor.carrying].short}${survivor.carryAmount || ""}` : "";
-    drawPerson(survivor.x, survivor.y, clothingColor(survivor.clothes), badge, characterSprite("visitor", survivor.clothes), survivor.facing < 0, survivor.walkTime, directionRow(survivor));
+    drawPerson(survivor, badge);
     drawActorHealth(survivor, 58);
   });
 }
@@ -3789,8 +3964,7 @@ function drawWolves() {
 
 function drawPlayer() {
   const p = state.player;
-  const bob = Math.sin(p.walkTime * 2.6) * 4;
-  drawPerson(p.x, p.y + bob, clothingColor(p.clothes), "", characterSprite("player", p.clothes), p.facing < 0, p.walkTime, directionRow(p));
+  drawPerson(p, "");
   drawActorHealth(p, 58);
   drawCarryStack();
 }
@@ -3806,64 +3980,81 @@ function drawActorHealth(actor, yOffset) {
   ctx.restore();
 }
 
-function drawPerson(x, y, coat, badge, spriteName = "player", flip = false, walkTime = 0, row = 0) {
-  ctx.save();
-  ctx.fillStyle = "rgba(0,0,0,0.18)";
-  ctx.beginPath();
-  ctx.ellipse(x, y + 42, 38, 15, 0, 0, Math.PI * 2);
-  ctx.fill();
-  const frame = Math.floor((walkTime || 0) * (gameConfig.animation.walkFps || 8)) % spriteFrameCount(spriteName);
-  if (drawSprite(spriteName, x - 42, y - 104, 84, 142, { flip, frame, row, fps: gameConfig.animation.walkFps || 8 })) {
-    if (badge) {
-      ctx.fillStyle = "#ffffff";
-      ctx.font = "900 20px Inter, system-ui, sans-serif";
-      ctx.textAlign = "center";
-      ctx.fillText(badge, x, y - 86);
-    }
-    ctx.restore();
-    return;
-  }
-  ctx.strokeStyle = "#182332";
-  ctx.lineWidth = 8;
-  const step = Math.sin(performance.now() / 130) * 9;
-  ctx.beginPath();
-  ctx.moveTo(x - 12, y + 34);
-  ctx.lineTo(x - 19 - step, y + 70);
-  ctx.moveTo(x + 12, y + 34);
-  ctx.lineTo(x + 19 + step, y + 70);
-  ctx.stroke();
-  ctx.fillStyle = coat;
-  roundRect(x - 24, y - 18, 48, 62, 18);
-  ctx.fillStyle = "rgba(255,255,255,0.2)";
-  roundRect(x - 16, y - 10, 32, 10, 5);
-  ctx.fillStyle = "#263545";
-  roundRect(x + 19, y - 9, 18, 42, 8);
-  ctx.fillStyle = "#f2a65e";
-  ctx.beginPath();
-  ctx.arc(x, y - 38, 18, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = "#173047";
-  roundRect(x - 23, y - 59, 46, 18, 7);
-  ctx.fillStyle = "#dff7ff";
-  ctx.beginPath();
-  ctx.arc(x - 6, y - 39, 3, 0, Math.PI * 2);
-  ctx.arc(x + 7, y - 39, 3, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.strokeStyle = "#182332";
-  ctx.lineWidth = 5;
-  ctx.beginPath();
-  ctx.moveTo(x - 22, y + 2);
-  ctx.lineTo(x - 45, y + 28);
-  ctx.moveTo(x + 22, y + 2);
-  ctx.lineTo(x + 45, y + 28);
-  ctx.stroke();
+function tintedClothingImage(id, color) {
+  const image = clothingImages[id];
+  if (!clothingReady || !image || !image.complete || !image.naturalWidth) return null;
+  const width = image.naturalWidth || 512;
+  const height = image.naturalHeight || 864;
+  const key = `${id}:${color}:${width}x${height}`;
+  if (tintedClothingCache.has(key)) return tintedClothingCache.get(key);
+  const layer = document.createElement("canvas");
+  layer.width = width;
+  layer.height = height;
+  const layerCtx = layer.getContext("2d");
+  layerCtx.drawImage(image, 0, 0, width, height);
+  layerCtx.globalCompositeOperation = "source-in";
+  layerCtx.fillStyle = color;
+  layerCtx.fillRect(0, 0, width, height);
+  tintedClothingCache.set(key, layer);
+  return layer;
+}
+
+function clothingFrame(actor) {
+  if (!actor || !actor.walkTime) return 0;
+  return Math.floor(actor.walkTime * (gameConfig.animation.walkFps || 8)) % 4;
+}
+
+function drawOutfitLayer(targetCtx, actor, category, x, y, w, h) {
+  const part = normalizeOutfit(actor.outfit, actor.clothes)[category];
+  const image = tintedClothingImage(part.id, part.color);
+  if (!image) return;
+  const frames = 4;
+  const rows = 4;
+  const sourceW = image.width / frames;
+  const sourceH = image.height / rows;
+  const sourceX = sourceW * clothingFrame(actor);
+  const sourceY = sourceH * directionRow(actor);
+  targetCtx.drawImage(image, sourceX, sourceY, sourceW, sourceH, x, y, w, h);
+}
+
+function drawPerson(actor, badge = "", targetCtx = ctx, scale = 1) {
+  const x = actor.x;
+  const y = actor.y + Math.sin((actor.walkTime || 0) * 2.6) * 4 * scale;
+  const w = 84 * scale;
+  const h = 142 * scale;
+  const left = x - w / 2;
+  const top = y - 104 * scale;
+  targetCtx.save();
+  targetCtx.fillStyle = "rgba(0,0,0,0.18)";
+  targetCtx.beginPath();
+  targetCtx.ellipse(x, y + 42 * scale, 38 * scale, 15 * scale, 0, 0, Math.PI * 2);
+  targetCtx.fill();
+  drawOutfitLayer(targetCtx, actor, "shoes", left, top, w, h);
+  drawOutfitLayer(targetCtx, actor, "pants", left, top, w, h);
+  drawOutfitLayer(targetCtx, actor, "shirt", left, top, w, h);
+  drawOutfitLayer(targetCtx, actor, "head", left, top, w, h);
+  drawOutfitLayer(targetCtx, actor, "hat", left, top, w, h);
   if (badge) {
-    ctx.fillStyle = "#ffffff";
-    ctx.font = "900 20px Inter, system-ui, sans-serif";
-    ctx.textAlign = "center";
-    ctx.fillText(badge, x, y - 72);
+    targetCtx.fillStyle = "#ffffff";
+    targetCtx.font = `900 ${20 * scale}px Inter, system-ui, sans-serif`;
+    targetCtx.textAlign = "center";
+    targetCtx.fillText(badge, x, y - 72 * scale);
   }
-  ctx.restore();
+  targetCtx.restore();
+}
+
+function actorIconDataUrl(actor, size = 56) {
+  const key = `${size}:${JSON.stringify(normalizeOutfit(actor.outfit, actor.clothes))}`;
+  if (actorIconCache.has(key)) return actorIconCache.get(key);
+  const icon = document.createElement("canvas");
+  icon.width = size;
+  icon.height = size;
+  const iconCtx = icon.getContext("2d");
+  iconCtx.translate(size / 2, size * 0.73);
+  drawPerson({ ...actor, x: 0, y: 0, walkTime: 0, direction: "down", facing: 1 }, "", iconCtx, size / 156);
+  const url = icon.toDataURL("image/png");
+  actorIconCache.set(key, url);
+  return url;
 }
 
 function drawCarryStack() {
@@ -3943,8 +4134,7 @@ function drawSnow() {
 }
 
 function drawDayNightOverlay() {
-  const interval = gameConfig.timers.waveInterval || 300;
-  const progress = state.wave.active ? 1 : clamp(1 - (state.wave.timer || 0) / interval, 0, 1);
+  const progress = cyclePhaseProgress();
   const daylight = state.wave.active ? 0 : Math.sin(progress * Math.PI);
   const darkness = state.wave.active ? 0.48 : 0.42 * (1 - daylight);
   ctx.save();
@@ -4053,7 +4243,7 @@ function openBuildingMenu(building) {
       <button id="upgradeBuilding" class="primary" type="button">${job ? "Upgrading" : "Upgrade Options"}</button>
     </div>
   `;
-  openModal();
+  openModal("main-menu");
   const loadButton = document.querySelector("#loadFurnace");
   if (loadButton) {
     loadButton.addEventListener("click", () => {
@@ -4098,11 +4288,14 @@ function renderCabinResidents() {
     `;
   }
   const rows = state.survivors.map((survivor) => `
-    <article>
-      <strong>${survivor.name}</strong>
-      <span>Level ${residentLevel(survivor)} ${survivor.title}: ${survivor.bonus}</span>
-      <span>Health: ${Math.round(survivor.health)}/${survivor.maxHealth}</span>
-      <span>Current work: ${residentWorkLabel(survivor)}</span>
+    <article class="resident-row">
+      <img class="resident-icon" src="${actorIconDataUrl(survivor, 56)}" alt="">
+      <div>
+        <strong>${survivor.name}</strong>
+        <span>Level ${residentLevel(survivor)} ${survivor.title}: ${survivor.bonus}</span>
+        <span>Health: ${Math.round(survivor.health)}/${survivor.maxHealth}</span>
+        <span>Current work: ${residentWorkLabel(survivor)}</span>
+      </div>
     </article>
   `).join("");
   return `
@@ -4466,14 +4659,14 @@ function openPlayerMenu() {
           </button>
         `;
       }).join("")}
-      <button id="playerBack" type="button">Main Menu</button>
+      <button id="playerBack" type="button">Player Menu</button>
     </div>
   `;
   openModal();
   document.querySelectorAll("[data-player-upgrade]").forEach((button) => {
     button.addEventListener("click", () => upgradePlayer(button.dataset.playerUpgrade));
   });
-  document.querySelector("#playerBack").addEventListener("click", openMainMenu);
+  document.querySelector("#playerBack").addEventListener("click", openPlayerHubMenu);
 }
 
 function upgradePlayer(stat) {
@@ -4491,32 +4684,85 @@ function upgradePlayer(stat) {
   openPlayerMenu();
 }
 
-function openCustomizationMenu() {
+function openPlayerHubMenu() {
   hud.modalEyebrow.textContent = "Player";
-  hud.modalTitle.textContent = "Customize Clothes";
-  const options = clothingOptions().map((option) => `
-    <button data-clothes="${option.id}" type="button">
-      <span style="display:inline-block;width:18px;height:18px;border-radius:50%;background:${option.color};vertical-align:middle;margin-right:8px"></span>
-      ${option.label}${state.player.clothes === option.id ? " Selected" : ""}
-    </button>
-  `).join("");
+  hud.modalTitle.textContent = "Player";
   hud.modalBody.innerHTML = `
-    <p>Choose the color of the player's survival coat.</p>
-    <div class="option-list">${options}</div>
+    <div class="player-hub">
+      <img class="large-resident-icon" src="${actorIconDataUrl(state.player, 96)}" alt="">
+      <div>
+        <p><strong>Player Level ${playerLevel()}.</strong> ${state.learningPoints} learning points available.</p>
+        <p>Customize layered clothing or buy survival upgrades.</p>
+      </div>
+    </div>
     <div class="modal-actions">
-      <button id="customizeBack" type="button">Main Menu</button>
+      <button id="openCharacterCreator" class="primary" type="button">Character Creation</button>
+      <button id="openPlayerUpgrades" type="button">Player Upgrades</button>
+      <button id="playerHubBack" type="button">Main Menu</button>
     </div>
   `;
   openModal();
-  document.querySelectorAll("[data-clothes]").forEach((button) => {
+  document.querySelector("#openCharacterCreator").addEventListener("click", openCharacterCreator);
+  document.querySelector("#openPlayerUpgrades").addEventListener("click", openPlayerMenu);
+  document.querySelector("#playerHubBack").addEventListener("click", openMainMenu);
+}
+
+function openCustomizationMenu() {
+  openCharacterCreator();
+}
+
+function openCharacterCreator() {
+  hud.modalEyebrow.textContent = "Player";
+  hud.modalTitle.textContent = "Character Creation";
+  const catalog = outfitCatalog();
+  const sections = outfitCategories.map((category) => {
+    const current = state.player.outfit[category.id];
+    const buttons = catalog[category.id].map((option) => `
+      <button class="clothing-option ${current.id === option.id ? "selected" : ""}" data-category="${category.id}" data-outfit-id="${option.id}" type="button">
+        <span class="part-thumb" style="background-image:url('${option.source}')"></span>
+        <span>${option.label}</span>
+      </button>
+    `).join("");
+    return `
+      <section class="creator-section">
+        <div class="creator-section-header">
+          <h3>${category.label}</h3>
+          <label>Color <input data-color-category="${category.id}" type="color" value="${current.color}"></label>
+        </div>
+        <div class="clothing-grid">${buttons}</div>
+      </section>
+    `;
+  }).join("");
+  hud.modalBody.innerHTML = `
+    <div class="creator-preview">
+      <img class="large-resident-icon" src="${actorIconDataUrl(state.player, 112)}" alt="">
+      <p>Pick a head and each clothing part, then choose its color.</p>
+    </div>
+    ${sections}
+    <div class="modal-actions">
+      <button id="creatorBack" type="button">Player Menu</button>
+    </div>
+  `;
+  openModal();
+  document.querySelectorAll("[data-outfit-id]").forEach((button) => {
     button.addEventListener("click", () => {
-      state.player.clothes = button.dataset.clothes;
+      const category = button.dataset.category;
+      state.player.outfit[category].id = button.dataset.outfitId;
+      actorIconCache.clear();
       saveState();
       playSound("success");
-      openCustomizationMenu();
+      openCharacterCreator();
     });
   });
-  document.querySelector("#customizeBack").addEventListener("click", openMainMenu);
+  document.querySelectorAll("[data-color-category]").forEach((input) => {
+    input.addEventListener("change", () => {
+      state.player.outfit[input.dataset.colorCategory].color = input.value;
+      actorIconCache.clear();
+      saveState();
+      openCharacterCreator();
+    });
+  });
+  document.querySelector("#creatorBack").addEventListener("click", openPlayerHubMenu);
 }
 
 function openUpgradeMenu() {
@@ -4564,12 +4810,13 @@ function selectBuildTypeForPlacement(type) {
   selectedBuildType = type;
   buildMode = true;
   moveMode = false;
+  removeMode = false;
   selectedMoveTarget = null;
   movePreview = null;
   buildPreview = null;
   buildTrayCollapsed = false;
   renderBuildTray();
-  setMessage(`Build mode: tap a grid cell or drag from the build tray to place ${structureDisplayName(selectedBuildType)}.`, 5);
+  setMessage(`Build mode: tap a grid cell to place ${structureDisplayName(selectedBuildType)}. Open Build again to stop or choose another structure.`, 5);
 }
 
 function enterMoveBuildingMode() {
@@ -4577,6 +4824,7 @@ function enterMoveBuildingMode() {
   selectedBuildType = null;
   buildPreview = null;
   moveMode = true;
+  removeMode = false;
   selectedMoveTarget = null;
   movePreview = null;
   buildTrayCollapsed = false;
@@ -4584,11 +4832,25 @@ function enterMoveBuildingMode() {
   setMessage("Move mode: tap any building or tower, then tap a new grid cell.", 6);
 }
 
+function enterRemoveMode() {
+  buildMode = false;
+  selectedBuildType = null;
+  buildPreview = null;
+  moveMode = false;
+  removeMode = true;
+  selectedMoveTarget = null;
+  movePreview = null;
+  buildTrayCollapsed = false;
+  renderBuildTray();
+  setMessage("Remove mode: tap a fence, gate, outpost, placed cabin, or farm to remove it.", 6);
+}
+
 function renderBuildTray() {
   if (!hud.buildTrayBody) return;
-  const stopButton = (buildMode || moveMode) ? '<button class="build-token stop-building" data-stop-building type="button">Stop Building</button>' : "";
+  const stopButton = (buildMode || moveMode || removeMode) ? '<button class="build-token stop-building" data-stop-building type="button">Stop Building</button>' : "";
   const moveButton = `<button class="build-token ${moveMode ? "active" : ""}" data-move-buildings type="button"><strong>Move</strong><br>Buildings</button>`;
-  hud.buildTrayBody.innerHTML = stopButton + moveButton + buildCatalog().map((item) => {
+  const removeButton = `<button class="build-token ${removeMode ? "active" : ""}" data-remove-buildings type="button"><strong>Remove</strong><br>Objects</button>`;
+  hud.buildTrayBody.innerHTML = stopButton + moveButton + removeButton + buildCatalog().map((item) => {
     const cost = structureCost(item.type);
     return `
       <button class="build-token ${buildMode && selectedBuildType === item.type ? "active" : ""}" data-tray-build="${item.type}" draggable="${item.unlocked}" type="button" ${item.unlocked ? "" : "disabled"}>
@@ -4604,12 +4866,18 @@ function renderBuildTray() {
     if (moveMode) stopBuildMode("Stopped moving buildings.");
     else enterMoveBuildingMode();
   });
+  const remove = hud.buildTrayBody.querySelector("[data-remove-buildings]");
+  if (remove) remove.addEventListener("click", () => {
+    if (removeMode) stopBuildMode("Stopped removing objects.");
+    else enterRemoveMode();
+  });
   hud.buildTrayBody.querySelectorAll("[data-tray-build]").forEach((button) => {
     button.addEventListener("click", () => selectBuildTypeForPlacement(button.dataset.trayBuild));
     button.addEventListener("dragstart", (event) => {
       selectedBuildType = button.dataset.trayBuild;
       buildMode = true;
       moveMode = false;
+      removeMode = false;
       selectedMoveTarget = null;
       movePreview = null;
       buildPreview = null;
@@ -4637,7 +4905,8 @@ function openBuildMenu() {
     <div class="option-list">${cards}</div>
     <div class="modal-actions">
       <button id="moveBuildings" class="${moveMode ? "primary" : ""}" type="button">${moveMode ? "Stop Moving" : "Move Buildings"}</button>
-      ${buildMode || moveMode ? '<button id="stopBuildMode" class="primary" type="button">Stop Building</button>' : ""}
+      <button id="removeBuildings" class="${removeMode ? "primary" : ""}" type="button">${removeMode ? "Stop Removing" : "Remove Objects"}</button>
+      ${buildMode || moveMode || removeMode ? '<button id="stopBuildMode" class="primary" type="button">Stop Building</button>' : ""}
       <button id="cancelBuildMode" type="button">Close</button>
     </div>
   `;
@@ -4651,6 +4920,11 @@ function openBuildMenu() {
   document.querySelector("#moveBuildings").addEventListener("click", () => {
     if (moveMode) stopBuildMode("Stopped moving buildings.");
     else enterMoveBuildingMode();
+    closeModal(true);
+  });
+  document.querySelector("#removeBuildings").addEventListener("click", () => {
+    if (removeMode) stopBuildMode("Stopped removing objects.");
+    else enterRemoveMode();
     closeModal(true);
   });
   const stopBuildButton = document.querySelector("#stopBuildMode");
@@ -4801,6 +5075,30 @@ function handleMoveClick(point) {
   applyMoveTarget(snapToGrid(point));
 }
 
+function removeObjectAt(point) {
+  const structure = clickedStructure(point);
+  if (structure) {
+    if (structure.stationedResidentId) {
+      const resident = state.survivors.find((survivor) => survivor.id === structure.stationedResidentId);
+      if (resident) resident.stationedAt = null;
+    }
+    state.structures = state.structures.filter((item) => item.id !== structure.id);
+    if (isBarrierType(structure.type)) syncFortHealthFromGates();
+    saveState();
+    setMessage(`${structureDisplayName(structure.type)} removed. Tap another object or Stop Building to exit.`, 5);
+    playSound("pickup");
+    return true;
+  }
+  const building = clickedBuilding(point);
+  if (building) {
+    showCenterMessage("Core buildings cannot be removed.");
+    setMessage("Move core buildings from the Build menu. Survival systems stay in camp.", 5);
+    return false;
+  }
+  setMessage("Remove mode: tap a fence, gate, tower, placed cabin, or farm.", 4);
+  return false;
+}
+
 function openMainMenu() {
   hud.modalEyebrow.textContent = "Camp";
   hud.modalTitle.textContent = "Main Menu";
@@ -4826,11 +5124,11 @@ function openMainMenu() {
         <h3>Player</h3>
         <p>Level ${playerLevel()}. ${state.learningPoints} learning points. Carry ${carryCapacity()} items. Attack +${playerStatBonus("attack") * gameConfig.combat.playerAttackDamage}.</p>
         <button id="openPlayerMenu" type="button">Player Upgrades</button>
-        <button id="openCustomizeMenu" type="button">Customize Clothes</button>
+        <button id="openCustomizeMenu" type="button">Character Creation</button>
       </div>
       <div class="menu-card">
         <h3>Tower Defense</h3>
-        <p>Wave ${state.wave.number}. Next wave in ${Math.ceil(state.wave.timer || 0)}s after the field is clear.</p>
+        <p>Night ${Math.max(1, state.wave.number || 1)}. ${state.wave.active ? `Night ends in ${Math.ceil(state.wave.timer || 0)}s.` : `Next night in ${Math.ceil(state.wave.timer || 0)}s.`}</p>
         <button id="openBuildMenu" type="button">Build Mode</button>
       </div>
     </div>
@@ -4860,7 +5158,7 @@ function openHelpMenu() {
       </div>
       <div class="menu-card">
         <h3>Defense</h3>
-        <p>Build outposts between waves. Station residents in towers for stronger arrows.</p>
+        <p>Build outposts during the day. At night, attackers arrive from the dark at random intervals.</p>
       </div>
       <div class="menu-card">
         <h3>Upgrades</h3>
@@ -4987,9 +5285,12 @@ function renderReplacementMenu(recruit) {
   hud.modalEyebrow.textContent = "Camp Full";
   hud.modalTitle.textContent = "Choose A Survivor";
   const rows = state.survivors.map((survivor, index) => `
-    <article class="resident-list">
-      <strong>${survivor.name}</strong>
-      <span>Level ${residentLevel(survivor)} ${survivor.title}: ${survivor.bonus}</span>
+    <article class="resident-list resident-row">
+      <img class="resident-icon" src="${actorIconDataUrl(survivor, 56)}" alt="">
+      <div>
+        <strong>${survivor.name}</strong>
+        <span>Level ${residentLevel(survivor)} ${survivor.title}: ${survivor.bonus}</span>
+      </div>
       <button data-replace="${index}" type="button">Replace With ${recruit.name}</button>
     </article>
   `).join("");
@@ -5002,8 +5303,13 @@ function renderReplacementMenu(recruit) {
       </div>
       <div class="replacement-column">
         <h3>New Survivor</h3>
-        <p><strong>${recruit.name}</strong></p>
-        <p>Level ${recruit.level} ${recruit.title}: ${recruit.bonus}</p>
+        <div class="resident-row">
+          <img class="resident-icon" src="${actorIconDataUrl(recruit, 56)}" alt="">
+          <div>
+            <p><strong>${recruit.name}</strong></p>
+            <p>Level ${recruit.level} ${recruit.title}: ${recruit.bonus}</p>
+          </div>
+        </div>
         <button id="keepCrew" type="button">Keep Current Crew</button>
       </div>
     </div>
@@ -5019,8 +5325,9 @@ function renderReplacementMenu(recruit) {
   document.querySelector("#keepCrew").addEventListener("click", () => finishVisitor(`${recruit.name} leaves the fort gate.`));
 }
 
-function openModal() {
+function openModal(mode = "") {
   modalOpen = true;
+  hud.modalLayer.classList.toggle("main-menu-open", mode === "main-menu");
   hud.modalLayer.classList.remove("hidden");
 }
 
@@ -5028,6 +5335,7 @@ function closeModal(force = false) {
   if (!force && (gameOver || (activeTaskContext && activeTaskContext.kind === "failure"))) return;
   modalOpen = false;
   hud.modalLayer.classList.add("hidden");
+  hud.modalLayer.classList.remove("main-menu-open");
 }
 
 function forceCloseModal() {
@@ -5137,6 +5445,10 @@ function handleCanvasClick(event) {
     handleMoveClick(point);
     return;
   }
+  if (removeMode) {
+    removeObjectAt(point);
+    return;
+  }
   if (buildMode) {
     confirmBuildAt(point);
     return;
@@ -5159,7 +5471,7 @@ function handleCanvasClick(event) {
 }
 
 function canStartTouchMove(point) {
-  if (paused || modalOpen || buildMode || moveMode || gameOver || failureLock) return false;
+  if (paused || modalOpen || buildMode || moveMode || removeMode || gameOver || failureLock) return false;
   return !clickedBuilding(point) && !clickedStructure(point);
 }
 
@@ -5306,29 +5618,36 @@ canvas.addEventListener("drop", (event) => {
   event.preventDefault();
   const type = event.dataTransfer.getData("text/plain");
   if (type) selectedBuildType = type;
+  removeMode = false;
+  moveMode = false;
+  buildMode = true;
   confirmBuildAt(screenToWorld(event));
 });
 canvas.addEventListener("pointermove", handleCanvasPointerMove);
 canvas.addEventListener("pointerup", (event) => handleCanvasPointerEnd(event, true));
 canvas.addEventListener("pointercancel", (event) => handleCanvasPointerEnd(event, false));
 canvas.addEventListener("lostpointercapture", (event) => handleCanvasPointerEnd(event, false));
-hud.closeModal.addEventListener("click", () => closeModal());
-hud.actionsToggle.addEventListener("click", () => setActionsCollapsed(!actionsCollapsed));
-hud.mainMenuButton.addEventListener("click", () => runHudAction(openMainMenu));
-hud.buildButton.addEventListener("click", () => runHudAction(openBuildMenu));
-hud.upgradeMenuButton.addEventListener("click", () => runHudAction(openUpgradeMenu));
-hud.customizeButton.addEventListener("click", () => runHudAction(openCustomizationMenu));
-hud.helpButton.addEventListener("click", () => runHudAction(openHelpMenu));
-hud.pauseButton.addEventListener("click", () => runHudAction(togglePause));
-hud.resumeFromPause.addEventListener("click", () => setPaused(false));
-hud.pauseMainMenu.addEventListener("click", openMainMenu);
-hud.buildTrayToggle.addEventListener("click", () => {
+hud.closeModal?.addEventListener("click", () => closeModal());
+hud.actionsToggle?.addEventListener("click", () => setActionsCollapsed(!actionsCollapsed));
+hud.playerIconButton?.addEventListener("click", () => runHudAction(openPlayerHubMenu));
+hud.mainMenuButton?.addEventListener("click", () => runHudAction(openMainMenu));
+hud.buildButton?.addEventListener("click", () => runHudAction(openBuildMenu));
+hud.upgradeMenuButton?.addEventListener("click", () => runHudAction(openUpgradeMenu));
+hud.customizeButton?.addEventListener("click", () => runHudAction(openCharacterCreator));
+hud.helpButton?.addEventListener("click", () => runHudAction(openHelpMenu));
+hud.pauseButton?.addEventListener("click", () => runHudAction(togglePause));
+hud.resumeFromPause?.addEventListener("click", () => setPaused(false));
+hud.pauseMainMenu?.addEventListener("click", openMainMenu);
+hud.zoomOutButton?.addEventListener("click", () => adjustCameraZoom(0.82));
+hud.zoomResetButton?.addEventListener("click", resetCameraZoom);
+hud.zoomInButton?.addEventListener("click", () => adjustCameraZoom(1.22));
+hud.buildTrayToggle?.addEventListener("click", () => {
   if (paused) return;
   buildTrayCollapsed = !buildTrayCollapsed;
   renderBuildTray();
   updateHud(0);
 });
-hud.fortHealthCard.addEventListener("click", openFortMenu);
+hud.fortHealthCard?.addEventListener("click", openFortMenu);
 
 window.addEventListener("keydown", (event) => {
   const key = event.key.toLowerCase();
@@ -5345,11 +5664,12 @@ window.addEventListener("keyup", (event) => {
 async function init() {
   await loadGameConfig();
   await loadLearningTasks();
+  await loadClothingAssets();
   await loadSprites();
   resize();
   renderBuildTray();
   for (let i = 0; i < 5; i += 1) {
-    spawnResource("wood", 300 + Math.random() * 180, 760 + Math.random() * 220, 1);
+    spawnResource("wood", fort.x - 180 + Math.random() * 180, fort.entrance.y - 110 + Math.random() * 220, 1);
   }
   setMessage("Start by gathering wood from trees and food from berry bushes. Wood fuels heat; food becomes meals.", 8);
   window.requestAnimationFrame(frame);

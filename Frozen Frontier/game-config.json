@@ -1,17 +1,17 @@
 {
-  "world": { "width": 2500, "height": 1800 },
+  "world": { "width": 9000, "height": 7200 },
   "camera": {
-    "minZoom": 0.65,
+    "minZoom": 0.32,
     "maxZoom": 1.75,
     "defaultZoom": 1
   },
   "fort": {
-    "x": 480,
-    "y": 310,
+    "x": 4120,
+    "y": 3310,
     "w": 760,
     "h": 560,
-    "entrance": { "x": 860, "y": 870 },
-    "attackPoint": { "x": 860, "y": 846 },
+    "entrance": { "x": 4500, "y": 3870 },
+    "attackPoint": { "x": 4500, "y": 3846 },
     "baseHealth": 100,
     "healthPerLevel": 25
   },
@@ -23,7 +23,12 @@
     "survivorChance": 0.2,
     "postWaveSurvivorCooldown": 60,
     "upgradeFailCooldown": 60,
-    "waveInterval": 300
+    "waveInterval": 300,
+    "daySeconds": 300,
+    "nightSeconds": 60,
+    "nightSpawnMinSeconds": 6,
+    "nightSpawnMaxSeconds": 16,
+    "nightFirstSpawnSeconds": 5
   },
   "grid": {
     "size": 80,
