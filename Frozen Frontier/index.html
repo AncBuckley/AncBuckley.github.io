@@ -16,15 +16,8 @@
         <button id="actionsToggle" class="main-menu-button actions-toggle" type="button" aria-expanded="false">Menu</button>
         <button id="playerIconButton" class="player-icon-button" type="button" aria-label="Player menu">
           <img id="playerIconImage" alt="">
+          <span id="playerLevelBadge" class="player-level-badge">Lv 1</span>
         </button>
-
-        <div id="actionsPanel" class="actions-panel collapsed" aria-label="Game menus">
-          <button id="mainMenuButton" class="main-menu-button" type="button">Main</button>
-          <button id="buildButton" class="main-menu-button build-menu-button" type="button">Build</button>
-          <button id="upgradeMenuButton" class="main-menu-button utility-button" type="button">Upgrade</button>
-          <button id="helpButton" class="main-menu-button utility-button" type="button">Help</button>
-          <button id="pauseButton" class="main-menu-button pause-button" type="button">Pause</button>
-        </div>
 
         <div class="meter-card">
           <span>Furnace</span>
@@ -38,11 +31,6 @@
           <div class="meter food"><i id="cabinHungerMeter"></i></div>
         </div>
 
-        <div id="fortHealthCard" class="meter-card danger hidden">
-          <span>Fort Health</span>
-          <strong id="fortHealthText">100%</strong>
-          <div class="meter danger"><i id="fortHealthMeter"></i></div>
-        </div>
       </section>
 
       <section class="hud cycle-hud" aria-label="Day and night cycle">
@@ -53,6 +41,8 @@
       <section class="hud quick-stats" aria-label="Camp resources">
         <div class="quick-chip"><span class="resource-icon wood-icon"></span><strong id="quickWoodText">0</strong></div>
         <div class="quick-chip"><span class="resource-icon meal-icon"></span><strong id="quickDiningMealText">0</strong></div>
+        <div id="quickVisitorChip" class="quick-chip city-chip hidden"><span class="resource-icon visitor-icon"></span><strong id="quickVisitorText">0</strong></div>
+        <div id="quickResidentChip" class="quick-chip city-chip hidden"><span class="resource-icon resident-count-icon"></span><strong id="quickResidentText">0</strong></div>
       </section>
 
       <section class="hud carry-hud" aria-label="Carried stack">
@@ -70,7 +60,17 @@
         <p id="eventLog">Gather wood and food to keep the camp alive.</p>
       </section>
 
+      <section id="buildTray" class="hud build-tray collapsed" aria-label="Build menu">
+        <button id="buildTrayToggle" class="build-tray-toggle" type="button" aria-expanded="false">Build</button>
+        <div class="build-tray-scroller">
+          <button id="buildScrollLeft" class="build-scroll-button" type="button" aria-label="Scroll build menu left">&lt;</button>
+          <div id="buildTrayBody" class="build-tray-body"></div>
+          <button id="buildScrollRight" class="build-scroll-button" type="button" aria-label="Scroll build menu right">&gt;</button>
+        </div>
+      </section>
+
       <section id="centerToast" class="center-toast hidden" aria-live="polite"></section>
+      <section id="pauseBadge" class="pause-badge hidden" aria-live="polite">Paused</section>
 
       <section id="notificationStack" class="notification-stack" aria-live="polite"></section>
 

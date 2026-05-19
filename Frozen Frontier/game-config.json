@@ -64,6 +64,10 @@
     "cabinDropDistance": 70,
     "diningDropDistance": 70
   },
+  "resources": {
+    "groundTtlSeconds": 120,
+    "popSeconds": 0.35
+  },
   "carry": {
     "baseCapacity": 10,
     "lumberjackBonus": 5,
@@ -161,12 +165,33 @@
     "outpostHealth": 90,
     "cabinCost": 90,
     "farmCost": 55,
+    "welcomeCenterCost": 120,
+    "houseCost": 70,
+    "shrubCost": 8,
+    "torchCost": 10,
+    "pathCost": 2,
+    "fountainCost": 35,
+    "benchCost": 12,
+    "largeFountainCost": 95,
+    "statueCost": 75,
+    "gardenCost": 55,
     "hunterPostCost": 70,
     "signalTowerCost": 85,
     "iceTrapCost": 60,
+    "welcomeCenterPlayerLevel": 10,
     "advancedTowerPlayerLevel": 5,
     "signalTowerPlayerLevel": 8,
     "iceTrapPlayerLevel": 12
+  },
+  "city": {
+    "houseCapacity": 5,
+    "visitorIntervalSeconds": 55,
+    "visitorChance": 0.7,
+    "maxVisitors": 3,
+    "residentSpeed": 62,
+    "visitorSpeed": 58,
+    "interactionSeconds": 3.4,
+    "roamRadius": 260
   },
   "towers": {
     "outpost": { "range": 250, "damage": 6, "cooldown": 1.45 },

@@ -5,10 +5,15 @@ const hud = {
   phaseLabel: document.querySelector("#phaseLabel"),
   playerIconButton: document.querySelector("#playerIconButton"),
   playerIconImage: document.querySelector("#playerIconImage"),
+  playerLevelBadge: document.querySelector("#playerLevelBadge"),
   cycleText: document.querySelector("#cycleText"),
   cycleFill: document.querySelector("#cycleFill"),
   quickWoodText: document.querySelector("#quickWoodText"),
   quickDiningMealText: document.querySelector("#quickDiningMealText"),
+  quickVisitorChip: document.querySelector("#quickVisitorChip"),
+  quickVisitorText: document.querySelector("#quickVisitorText"),
+  quickResidentChip: document.querySelector("#quickResidentChip"),
+  quickResidentText: document.querySelector("#quickResidentText"),
   zoomOutButton: document.querySelector("#zoomOutButton"),
   zoomResetButton: document.querySelector("#zoomResetButton"),
   zoomInButton: document.querySelector("#zoomInButton"),
@@ -16,9 +21,6 @@ const hud = {
   furnaceFuelMeter: document.querySelector("#furnaceFuelMeter"),
   cabinHungerText: document.querySelector("#cabinHungerText"),
   cabinHungerMeter: document.querySelector("#cabinHungerMeter"),
-  fortHealthCard: document.querySelector("#fortHealthCard"),
-  fortHealthText: document.querySelector("#fortHealthText"),
-  fortHealthMeter: document.querySelector("#fortHealthMeter"),
   woodCount: document.querySelector("#woodCount"),
   lettuceCount: document.querySelector("#lettuceCount"),
   meatCount: document.querySelector("#meatCount"),
@@ -40,6 +42,9 @@ const hud = {
   buildTray: document.querySelector("#buildTray"),
   buildTrayToggle: document.querySelector("#buildTrayToggle"),
   buildTrayBody: document.querySelector("#buildTrayBody"),
+  buildScrollLeft: document.querySelector("#buildScrollLeft"),
+  buildScrollRight: document.querySelector("#buildScrollRight"),
+  pauseBadge: document.querySelector("#pauseBadge"),
   pauseLayer: document.querySelector("#pauseLayer"),
   resumeFromPause: document.querySelector("#resumeFromPause"),
   pauseMainMenu: document.querySelector("#pauseMainMenu"),
@@ -135,7 +140,7 @@ const buildingData = {
     maxHunger: 100,
     meals: 0,
     mealUseProgress: 0,
-    task: "Tracks how hungry the current residents are."
+    task: "Tracks how hungry the current Experts are."
   },
 };
 
@@ -254,6 +259,10 @@ const defaultGameConfig = {
     cabinDropDistance: 70,
     diningDropDistance: 70
   },
+  resources: {
+    groundTtlSeconds: 120,
+    popSeconds: 0.35
+  },
   carry: {
     baseCapacity: 10,
     lumberjackBonus: 5,
@@ -351,12 +360,33 @@ const defaultGameConfig = {
     outpostHealth: 90,
     cabinCost: 90,
     farmCost: 55,
+    welcomeCenterCost: 120,
+    houseCost: 70,
+    shrubCost: 8,
+    torchCost: 10,
+    pathCost: 2,
+    fountainCost: 35,
+    benchCost: 12,
+    largeFountainCost: 95,
+    statueCost: 75,
+    gardenCost: 55,
     hunterPostCost: 70,
     signalTowerCost: 85,
     iceTrapCost: 60,
+    welcomeCenterPlayerLevel: 10,
     advancedTowerPlayerLevel: 5,
     signalTowerPlayerLevel: 8,
     iceTrapPlayerLevel: 12
+  },
+  city: {
+    houseCapacity: 5,
+    visitorIntervalSeconds: 55,
+    visitorChance: 0.7,
+    maxVisitors: 3,
+    residentSpeed: 62,
+    visitorSpeed: 58,
+    interactionSeconds: 3.4,
+    roamRadius: 260
   },
   towers: {
     outpost: { range: 250, damage: 6, cooldown: 1.45 },
@@ -511,7 +541,7 @@ const outfitCategories = [
   { id: "shoes", label: "Shoes", folder: "shoes", colors: ["#1c2530", "#704d2e", "#dff7ff", "#3a4654"] }
 ];
 
-const storageKey = "frozen-frontier-base-v26";
+const storageKey = "frozen-frontier-base-v28";
 const keys = new Set();
 let heldMove = { x: 0, y: 0 };
 let touchMove = null;
@@ -531,11 +561,14 @@ let selectedBuildType = "fence";
 let buildPreview = null;
 let moveMode = false;
 let removeMode = false;
+let repairMode = false;
 let selectedMoveTarget = null;
 let movePreview = null;
 let buildTrayCollapsed = true;
+let buildTrayRenderKey = "";
 let actionsCollapsed = true;
 let paused = false;
+let modalPauseActive = false;
 let suppressNextCanvasClick = false;
 let wolfCheckTimer = 0;
 let survivorCheckTimer = 0;
@@ -550,11 +583,12 @@ let audioContext = null;
 let audioUnlocked = false;
 let dismissedUpgradeNoticeAt = -1;
 let notificationMarkup = "";
-let warningState = { furnace: false, hunger: false, fort: false };
+let warningState = { furnace: false, hunger: false };
 let centerToastTimer = 0;
 let recentLearningTaskIds = [];
 let pendingCarry = 0;
 let residentDeathNotices = [];
+let cityVisitorTimer = 0;
 
 const defaultState = {
   player: {
@@ -578,9 +612,11 @@ const defaultState = {
   stored: { wood: 18, lettuce: 0, meat: 0, meal: 0 },
   carry: { wood: 0, lettuce: 0, berries: 0, meat: 0, meal: 0 },
   survivors: [],
+  cityResidents: [],
+  cityVisitors: [],
+  city: { visitorTimer: 0 },
   visitor: null,
   buildings: {},
-  fortHealth: 100,
   fortLevel: 1,
   fortUpgradeCost: 35,
   learningPoints: 0,
@@ -590,7 +626,7 @@ const defaultState = {
   wave: { number: 0, timer: defaultGameConfig.timers.daySeconds, active: false, survivorCooldown: 0, interWaveVisitorPending: false, spawnTimer: 0, nightSpawned: 0 },
   towerStationedResidentId: null,
   towerInstructionShown: false,
-  tutorialFlags: { furnaceUpgrade: false, foodUpgrade: false, cabinUpgrade: false },
+  tutorialFlags: { furnaceUpgrade: false, foodUpgrade: false, cabinUpgrade: false, cityUnlock: false },
   cooldowns: {},
   upgradeJobs: []
 };
@@ -606,9 +642,10 @@ let particles = [];
 let snow = createSnow();
 state.player = normalizePlayer(state.player);
 state.survivors = state.survivors.map((survivor, index) => normalizeSurvivor(survivor, index));
+state.cityResidents = (state.cityResidents || []).map((resident, index) => normalizeCityPerson(resident, index, "resident"));
+state.cityVisitors = (state.cityVisitors || []).map((visitor, index) => normalizeCityPerson(visitor, index, "visitor"));
 if (!state.structures.length) state.structures = createInitialDefenseStructures();
 state.wave = normalizeNightCycleState({ ...defaultState.wave, ...(state.wave || {}) });
-syncFortHealthFromGates();
 trees = createTrees();
 
 function clone(value) {
@@ -635,6 +672,9 @@ function loadState() {
       cooldowns: parsed.cooldowns || {},
       upgradeJobs: Array.isArray(parsed.upgradeJobs) ? parsed.upgradeJobs : [],
       survivors: Array.isArray(parsed.survivors) ? parsed.survivors : [],
+      cityResidents: Array.isArray(parsed.cityResidents) ? parsed.cityResidents : [],
+      cityVisitors: Array.isArray(parsed.cityVisitors) ? parsed.cityVisitors : [],
+      city: { ...defaultState.city, ...(parsed.city || {}) },
       buildings: parsed.buildings || {}
     };
   } catch (error) {
@@ -659,7 +699,6 @@ function saveState() {
       processProgress: building.processProgress
     };
   });
-  state.fortHealth = fort.health;
   localStorage.setItem(storageKey, JSON.stringify(state));
 }
 
@@ -672,7 +711,7 @@ function hydrateBuildings() {
     }
   });
   fort.maxHealth = fortMaxHealth();
-  fort.health = clamp(state.fortHealth || fort.maxHealth, 0, fort.maxHealth);
+  fort.health = fort.maxHealth;
   Object.values(result).forEach((building) => snapBuildingPositionToGrid(building));
   return result;
 }
@@ -796,14 +835,26 @@ function structureRect(structure) {
   const size = gridSize();
   if (isBarrierType(structure.type)) return { x: structure.x - size / 2, y: structure.y - size / 2, w: size, h: size };
   if (structure.type === "cabin") return { x: structure.x - 90, y: structure.y - 70, w: 180, h: 130 };
+  if (structure.type === "house") return { x: structure.x - 82, y: structure.y - 64, w: 164, h: 124 };
+  if (structure.type === "welcomeCenter") return { x: structure.x - 104, y: structure.y - 68, w: 208, h: 136 };
   if (structure.type === "farm") return { x: structure.x - 80, y: structure.y - 50, w: 160, h: 110 };
+  if (isLargeDecorationType(structure.type)) return { x: structure.x - 82, y: structure.y - 66, w: 164, h: 132 };
+  if (isDecorationType(structure.type)) return { x: structure.x - size / 2, y: structure.y - size / 2, w: size, h: size };
   return { x: structure.x - 48, y: structure.y - 72, w: 96, h: 126 };
 }
 
 function createStructure(type, x, y, extras = {}) {
   const build = gameConfig.build;
   const level = isBarrierType(type) ? state.fortLevel || 1 : 1;
-  const health = type === "fence" || type === "gate" ? barrierMaxHealth(type, level) : type === "cabin" ? 120 : type === "farm" ? 85 : build.outpostHealth;
+  const health = type === "fence" || type === "gate"
+    ? barrierMaxHealth(type, level)
+    : type === "cabin" || type === "house" || type === "welcomeCenter"
+      ? 120
+      : type === "farm"
+        ? 85
+        : isDecorationType(type)
+          ? 40
+          : build.outpostHealth;
   return {
     id: `${type}-${Date.now()}-${Math.random().toString(16).slice(2)}`,
     type,
@@ -820,24 +871,7 @@ function createStructure(type, x, y, extras = {}) {
 }
 
 function createInitialDefenseStructures() {
-  const size = defaultGameConfig.grid.size;
-  const structures = [];
-  const cellCenter = (value) => Math.floor(value / size) * size + size / 2;
-  const leftX = cellCenter(fort.x - 48);
-  const rightX = cellCenter(fort.x + fort.w + 48);
-  const topY = cellCenter(fort.y - 48);
-  const bottomY = cellCenter(fort.y + fort.h + 48);
-  const gateX = cellCenter(fort.entrance.x);
-  for (let x = leftX; x <= rightX; x += size) {
-    structures.push(createStructure("fence", x, topY));
-    const nearEntrance = x === gateX || x === gateX - size;
-    structures.push(createStructure(nearEntrance ? "gate" : "fence", x, bottomY));
-  }
-  for (let y = topY + size; y <= bottomY - size; y += size) {
-    structures.push(createStructure("fence", leftX, y));
-    structures.push(createStructure("fence", rightX, y));
-  }
-  return structures;
+  return [];
 }
 
 function resize() {
@@ -867,6 +901,7 @@ function stopBuildMode(message = "Build mode stopped.") {
   buildPreview = null;
   moveMode = false;
   removeMode = false;
+  repairMode = false;
   selectedMoveTarget = null;
   movePreview = null;
   renderBuildTray();
@@ -1001,10 +1036,10 @@ function setActorDirection(actor, dx, dy) {
 }
 
 function directionRow(actor) {
-  if (actor.direction === "right") return 1;
+  if (actor.direction === "right") return 3;
   if (actor.direction === "up") return 2;
-  if (actor.direction === "left") return 3;
-  if (actor.direction === "side") return actor.facing < 0 ? 3 : 1;
+  if (actor.direction === "left") return 1;
+  if (actor.direction === "side") return actor.facing < 0 ? 1 : 3;
   return 0;
 }
 
@@ -1057,6 +1092,82 @@ function survivorPosition(index = 0) {
   };
 }
 
+const cityResidentNames = [
+  "Nora Fields", "Eli Ward", "Mina Brook", "Tessa Vale", "Owen Hart",
+  "Ivy Stone", "Finn Cross", "Luca Reed", "Maya Snow", "Rafi Lane",
+  "June Harbor", "Cole Birch", "Anya Pike", "Theo Glass", "Sage North"
+];
+
+const suitColors = ["#26384a", "#1c2530", "#344a5f", "#4a3d5c", "#5a4938", "#204c48", "#6b3f57"];
+const dressColors = ["#ff9fbe", "#ffd166", "#73df9b", "#67c7ff", "#b48cff", "#ff8a4c", "#f4f9ff"];
+const cityPatterns = ["pinstripe", "check", "dots", "solid"];
+
+function nextCityGender() {
+  const people = [...(state.cityVisitors || []), ...(state.cityResidents || [])];
+  const men = people.filter((person) => person.gender === "man").length;
+  const women = people.filter((person) => person.gender === "woman").length;
+  if (men > women) return "woman";
+  if (women > men) return "man";
+  return Math.random() < 0.5 ? "man" : "woman";
+}
+
+function randomCityStyle(gender = "man") {
+  return {
+    gender,
+    main: randomChoice(gender === "woman" ? dressColors : suitColors),
+    accent: randomChoice(["#f4f9ff", "#ffd166", "#ff5d66", "#67c7ff", "#1c2530"]),
+    pattern: randomChoice(cityPatterns),
+    hair: randomChoice(["#1c2530", "#6c4529", "#c08a4b", "#d7c1a2", "#3a2b24"]),
+    skin: randomChoice(["#f2a65e", "#c98252", "#8f5a3a", "#f7c99a"])
+  };
+}
+
+function cityResidentCapacity() {
+  return state.structures.filter((structure) => structure.type === "house").length * (gameConfig.city.houseCapacity || 5);
+}
+
+function availableCityHousing() {
+  return Math.max(0, cityResidentCapacity() - state.cityResidents.length);
+}
+
+function welcomeCenters() {
+  return state.structures.filter((structure) => structure.type === "welcomeCenter");
+}
+
+function cityAttractions() {
+  return state.structures.filter((structure) => isDecorationType(structure.type) || isCityBuildingType(structure.type));
+}
+
+function normalizeCityPerson(person = {}, index = 0, kind = "resident") {
+  const welcome = welcomeCenters()[0];
+  const start = welcome ? { x: welcome.x, y: welcome.y + 70 } : { x: fort.entrance.x + 42 + index * 22, y: fort.entrance.y + 120 };
+  const maxHealth = Number.isFinite(person.maxHealth) ? person.maxHealth : gameConfig.characters.residentHealth;
+  const gender = person.gender || (Math.random() < 0.5 ? "man" : "woman");
+  return {
+    id: person.id || `${kind}-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    name: person.name || randomChoice(cityResidentNames),
+    role: kind,
+    gender,
+    cityStyle: person.cityStyle || randomCityStyle(gender),
+    clothes: person.clothes || randomClothingId(),
+    outfit: normalizeOutfit(person.outfit, person.clothes),
+    x: Number.isFinite(person.x) ? person.x : start.x,
+    y: Number.isFinite(person.y) ? person.y : start.y,
+    target: person.target || null,
+    homeId: person.homeId || null,
+    arrived: Boolean(person.arrived),
+    interactTimer: Number.isFinite(person.interactTimer) ? person.interactTimer : Math.random() * 2,
+    chatTimer: Number.isFinite(person.chatTimer) ? person.chatTimer : 0,
+    facing: person.facing || 1,
+    direction: person.direction || "down",
+    walkTime: Number.isFinite(person.walkTime) ? person.walkTime : 0,
+    stuckTimer: Number.isFinite(person.stuckTimer) ? person.stuckTimer : 0,
+    pathNudge: person.pathNudge || null,
+    maxHealth,
+    health: clamp(Number.isFinite(person.health) ? person.health : maxHealth, 0, maxHealth)
+  };
+}
+
 function playerUpgradeCost(stat) {
   return 8 + playerStatBonus(stat) * 6;
 }
@@ -1087,9 +1198,15 @@ function cyclePhaseProgress() {
   return clamp(1 - (state.wave.timer || 0) / duration, 0, 1);
 }
 
+function worldDayNumber() {
+  const nightsStarted = Math.max(0, state.wave.number || 0);
+  return Math.max(1, nightsStarted + (state.wave.active ? 0 : 1));
+}
+
 function cycleTimeText() {
   const seconds = Math.max(0, Math.ceil(state.wave.timer || 0));
-  return `${state.wave.active ? "Night" : "Day"} ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+  const clock = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+  return `D${worldDayNumber()} ${clock}`;
 }
 
 function normalizeNightCycleState(wave = {}) {
@@ -1200,6 +1317,31 @@ function randomChoice(list) {
   return list[Math.floor(Math.random() * list.length)];
 }
 
+function allExpertNames() {
+  return specialtyCatalog.flatMap((specialty) => specialty.names || []);
+}
+
+function reservedExpertNames() {
+  return new Set([
+    ...(state.survivors || []),
+    pendingVisitor,
+    pendingRecruit,
+    replacementRecruit
+  ].filter(Boolean).map((expert) => expert.name));
+}
+
+function uniqueExpertName(specialty) {
+  const reserved = reservedExpertNames();
+  const specialtyNames = (specialty.names || []).filter((name) => !reserved.has(name));
+  if (specialtyNames.length) return randomChoice(specialtyNames);
+  const globalNames = allExpertNames().filter((name) => !reserved.has(name));
+  if (globalNames.length) return randomChoice(globalNames);
+  const base = randomChoice(specialty.names || ["Frontier Expert"]);
+  let suffix = 2;
+  while (reserved.has(`${base} ${suffix}`)) suffix += 1;
+  return `${base} ${suffix}`;
+}
+
 function mergeConfig(base, override) {
   const result = clone(base);
   Object.entries(override || {}).forEach(([key, value]) => {
@@ -1235,7 +1377,7 @@ function applyGameConfig() {
   if (fortConfig.entrance) fort.entrance = { ...fort.entrance, ...fortConfig.entrance };
   if (fortConfig.attackPoint) fort.attackPoint = { ...fort.attackPoint, ...fortConfig.attackPoint };
   fort.maxHealth = fortMaxHealth();
-  fort.health = clamp(state.fortHealth || fort.maxHealth, 0, fort.maxHealth);
+  fort.health = fort.maxHealth;
   state.wave = normalizeNightCycleState(state.wave);
   snapAllBuildingsToGrid();
   snow = createSnow();
@@ -1266,28 +1408,6 @@ function barrierMaxHealth(type, level = state.fortLevel || 1) {
 
 function gateStructures() {
   return state.structures.filter((structure) => structure.type === "gate");
-}
-
-function gateHealthPercent() {
-  const gates = gateStructures();
-  if (!gates.length) return fort.health / Math.max(1, fort.maxHealth);
-  const total = gates.reduce((sum, gate) => sum + clamp(gate.health / gate.maxHealth, 0, 1), 0);
-  return total / gates.length;
-}
-
-function syncFortHealthFromGates() {
-  const gates = gateStructures();
-  if (!gates.length) return;
-  fort.maxHealth = Math.round(gates.reduce((sum, gate) => sum + gate.maxHealth, 0) / gates.length);
-  fort.health = Math.round(gates.reduce((sum, gate) => sum + gate.health, 0) / gates.length);
-}
-
-function setGateHealthPercent(percent) {
-  const gates = gateStructures();
-  gates.forEach((gate) => {
-    gate.health = clamp(gate.maxHealth * percent, 0, gate.maxHealth);
-  });
-  syncFortHealthFromGates();
 }
 
 function farmProduceSeconds(level = buildings.farm ? buildings.farm.level : 1) {
@@ -1354,7 +1474,17 @@ function structureDisplayName(type) {
     signalTower: "Signal Tower",
     iceTrap: "Ice Trap",
     cabin: "Cabin",
-    farm: "Farm"
+    farm: "Farm",
+    welcomeCenter: "Welcome Center",
+    house: "House",
+    shrub: "Shrub",
+    torch: "Torch",
+    path: "Path",
+    fountain: "Fountain",
+    bench: "Bench",
+    largeFountain: "Large Fountain",
+    statue: "Statue",
+    garden: "Garden"
   };
   return names[type] || "Structure";
 }
@@ -1369,7 +1499,17 @@ function structureCost(type) {
     signalTower: build.signalTowerCost,
     iceTrap: build.iceTrapCost,
     cabin: build.cabinCost,
-    farm: build.farmCost
+    farm: build.farmCost,
+    welcomeCenter: build.welcomeCenterCost,
+    house: build.houseCost,
+    shrub: build.shrubCost,
+    torch: build.torchCost,
+    path: build.pathCost,
+    fountain: build.fountainCost,
+    bench: build.benchCost,
+    largeFountain: build.largeFountainCost,
+    statue: build.statueCost,
+    garden: build.gardenCost
   };
   return costs[type] || 999;
 }
@@ -1380,12 +1520,22 @@ function buildCatalog() {
   return [
     { type: "fence", unlocked: true, note: "Blocks attackers and absorbs damage." },
     { type: "gate", unlocked: true, note: "Friendly units pass through. Enemies still have to break it." },
-    { type: "outpost", unlocked: true, note: "Basic arrow tower. Can station residents." },
+    { type: "outpost", unlocked: true, note: "Basic arrow tower. Can station Experts." },
     { type: "hunterPost", unlocked: playerLevel() >= build.advancedTowerPlayerLevel, note: `Unlocks at player level ${build.advancedTowerPlayerLevel}. Stronger arrows.` },
     { type: "signalTower", unlocked: playerLevel() >= build.signalTowerPlayerLevel, note: `Unlocks at player level ${build.signalTowerPlayerLevel}. Slows enemies in range.` },
     { type: "iceTrap", unlocked: playerLevel() >= build.iceTrapPlayerLevel, note: `Unlocks at player level ${build.iceTrapPlayerLevel}. Heavy slow, low damage.` },
     { type: "cabin", unlocked: extraCabins < extraCabinLimit(), note: `One additional cabin unlocks every 10 player levels. Available ${extraCabinLimit() - extraCabins}.` },
-    { type: "farm", unlocked: buildings.foodPrep.level >= 3, note: "Unlocks when Food Prep reaches level 3." }
+    { type: "farm", unlocked: buildings.foodPrep.level >= 3, note: "Unlocks when Food Prep reaches level 3." },
+    { type: "welcomeCenter", unlocked: playerLevel() >= build.welcomeCenterPlayerLevel, note: `Unlocks at player level ${build.welcomeCenterPlayerLevel}. Lets visitors enter and become Residents.` },
+    { type: "house", unlocked: true, note: `Adds ${gameConfig.city.houseCapacity || 5} Resident housing spaces.` },
+    { type: "path", unlocked: true, note: "A walkable town path for city layout." },
+    { type: "torch", unlocked: true, note: "Warm light that makes paths feel safer." },
+    { type: "shrub", unlocked: true, note: "Small decoration for cozy streets." },
+    { type: "bench", unlocked: true, note: "Residents pause here and chat." },
+    { type: "fountain", unlocked: true, note: "A small attraction for the center of town." },
+    { type: "garden", unlocked: true, note: "A larger attraction and gathering spot." },
+    { type: "statue", unlocked: true, note: "A landmark attraction for the settlement." },
+    { type: "largeFountain", unlocked: true, note: "A large attraction for future city appeal systems." }
   ];
 }
 
@@ -1395,6 +1545,18 @@ function isTowerType(type) {
 
 function isBarrierType(type) {
   return type === "fence" || type === "gate";
+}
+
+function isDecorationType(type) {
+  return ["shrub", "torch", "path", "fountain", "bench", "largeFountain", "statue", "garden"].includes(type);
+}
+
+function isLargeDecorationType(type) {
+  return ["largeFountain", "statue", "garden"].includes(type);
+}
+
+function isCityBuildingType(type) {
+  return type === "house" || type === "welcomeCenter";
 }
 
 function towerStats(structure) {
@@ -1620,8 +1782,29 @@ function spawnResource(type, x, y, amount = 1) {
     y,
     amount,
     bob: Math.random() * Math.PI * 2,
+    age: 0,
+    pop: 0,
+    expiring: false,
     pickupLock: false
   });
+}
+
+function updateGroundResources(dt) {
+  const config = gameConfig.resources || defaultGameConfig.resources;
+  const ttl = config.groundTtlSeconds || 120;
+  const popSeconds = config.popSeconds || 0.35;
+  resources.forEach((resource) => {
+    if (resource.pickupLock) return;
+    resource.age = (resource.age || 0) + dt;
+    if (resource.age >= ttl && !resource.expiring) {
+      resource.expiring = true;
+      resource.pop = popSeconds;
+      addBurst(resource.x, resource.y, resourceMeta[resource.type]?.color || "#dff7ff", 8);
+    } else if (resource.expiring) {
+      resource.pop -= dt;
+    }
+  });
+  resources = resources.filter((resource) => resource.pickupLock || !resource.expiring || resource.pop > 0);
 }
 
 function addFly(type, from, to, onDone) {
@@ -1645,7 +1828,7 @@ function addBurst(x, y, color, count = 10) {
 }
 
 function pickupResource(resource) {
-  if (resource.pickupLock || availableCarrySpace() <= 0) return;
+  if (resource.pickupLock || resource.expiring || availableCarrySpace() <= 0) return;
   const amount = reserveCarrySpace(resource.amount);
   if (amount <= 0) return;
   resource.pickupLock = true;
@@ -1753,7 +1936,9 @@ function updateDiningHall(dt) {
   const dining = buildings.diningHall;
   if (!dining) return;
   dining.servedPulse = Math.max(0, (dining.servedPulse || 0) - dt);
-  if (dining.meals <= 0) {
+  const cabin = buildings.cabin;
+  const hungerHoldLine = cabin.maxHunger * 0.05;
+  if (dining.meals <= 0 || cabin.hunger <= hungerHoldLine) {
     dining.serveProgress = 0;
     return;
   }
@@ -1853,7 +2038,7 @@ function updateTrees(dt) {
 
 function updateResourcePickup() {
   resources.forEach((resource) => {
-    if (dist(state.player, resource) < gameConfig.transfers.pickupDistance) pickupResource(resource);
+    if (!resource.expiring && dist(state.player, resource) < gameConfig.transfers.pickupDistance) pickupResource(resource);
   });
 }
 
@@ -1866,7 +2051,7 @@ function updateVisitor(dt) {
     pendingVisitor = null;
     state.visitor = null;
     survivorCheckTimer = 0;
-    setMessage("The gates stay closed during the attack. Survivors wait for daylight.", 4);
+    setMessage("The gates stay closed during the attack. Experts wait for daylight.", 4);
     return;
   }
 
@@ -1903,7 +2088,7 @@ function createVisitor() {
   const specialty = randomChoice(specialtyCatalog);
   return {
     id: `${specialty.id}-${Date.now()}`,
-    name: randomChoice(specialty.names),
+    name: uniqueExpertName(specialty),
     specialty: specialty.id,
     title: specialty.title,
     bonus: specialty.bonus,
@@ -1935,7 +2120,7 @@ function completeRecruitment() {
   if (state.survivors.length < survivorCapacity()) {
     const willReachThree = state.survivors.length === 2 && !state.tutorialFlags.cabinUpgrade;
     state.survivors.push(normalizeSurvivor(pendingRecruit, state.survivors.length));
-    finishVisitor(`${pendingRecruit.name} joined the camp as a level ${pendingRecruit.level} ${pendingRecruit.title}.`);
+    finishVisitor(`${pendingRecruit.name} joined the camp as a level ${pendingRecruit.level} ${pendingRecruit.title} Expert.`);
     if (willReachThree) window.setTimeout(maybeShowCabinUpgradeTip, 80);
     return;
   }
@@ -1966,6 +2151,10 @@ function moveActor(actor, target, speed, dt) {
     actor.stuckTimer = 0;
     return true;
   }
+  const gateRoute = barrierRoutePoint(actor, target);
+  if (!actor.pathNudge && gateRoute) {
+    actor.pathNudge = gateRoute;
+  }
   if (actor.pathNudge && (dist(actor, actor.pathNudge) <= gameConfig.residents.workDistance || pointBlockedByBarriers(actor.pathNudge, true))) {
     actor.pathNudge = null;
   }
@@ -1981,7 +2170,7 @@ function moveActor(actor, target, speed, dt) {
   const step = Math.min(gap, speed * dt);
   const mx = (dx / gap) * step;
   const my = (dy / gap) * step;
-  const next = { x: actor.x + mx, y: actor.y + my };
+  const next = pathBiasedNext(actor, { x: actor.x + mx, y: actor.y + my });
   if (pointBlockedByBarriers(next, true)) {
     const gate = nearestGate(actor, target);
     const gatePoint = gateTransitPoint(actor, target, gate);
@@ -1993,12 +2182,51 @@ function moveActor(actor, target, speed, dt) {
     updateActorStuckState(actor, target, before, false, dt);
     return false;
   }
-  actor.x += mx;
-  actor.y += my;
-  actor.walkTime = (actor.walkTime || 0) + Math.hypot(mx, my) / gameConfig.movement.walkAnimationDivisor;
-  setActorDirection(actor, mx, my);
+  const actualMx = next.x - actor.x;
+  const actualMy = next.y - actor.y;
+  actor.x = next.x;
+  actor.y = next.y;
+  actor.walkTime = (actor.walkTime || 0) + Math.hypot(actualMx, actualMy) / gameConfig.movement.walkAnimationDivisor;
+  setActorDirection(actor, actualMx, actualMy);
   updateActorStuckState(actor, target, before, true, dt);
   return false;
+}
+
+function pathStructures() {
+  return state.structures.filter((structure) => structure.type === "path");
+}
+
+function nearestPathStructure(point, maxDistance = gridSize()) {
+  return pathStructures()
+    .map((path) => ({ path, distance: dist(point, path) }))
+    .filter((entry) => entry.distance <= maxDistance)
+    .sort((a, b) => a.distance - b.distance)[0]?.path || null;
+}
+
+function pathBiasedNext(actor, next) {
+  const size = gridSize();
+  const nearbyPath = nearestPathStructure(next, size * 0.7) || nearestPathStructure(actor, size * 0.95);
+  if (!nearbyPath) return next;
+  const pull = actor.role === "visitor" || actor.role === "resident" ? 0.58 : 0.36;
+  return {
+    x: next.x * (1 - pull) + nearbyPath.x * pull,
+    y: next.y * (1 - pull) + nearbyPath.y * pull
+  };
+}
+
+function insideFortPerimeter(point) {
+  const margin = gridSize() * 0.82;
+  return point.x >= fort.x - margin
+    && point.x <= fort.x + fort.w + margin
+    && point.y >= fort.y - margin
+    && point.y <= fort.y + fort.h + margin;
+}
+
+function barrierRoutePoint(actor, target) {
+  if (insideFortPerimeter(actor) === insideFortPerimeter(target)) return null;
+  if (nearGatePassage(actor)) return null;
+  const gate = nearestGate(actor, target);
+  return gateTransitPoint(actor, target, gate);
 }
 
 function updateActorStuckState(actor, target, before, moved, dt) {
@@ -2075,10 +2303,177 @@ function updateResidents(dt) {
   });
 }
 
+function updateCityResidents(dt) {
+  state.cityResidents = (state.cityResidents || []).map((resident, index) => normalizeCityPerson(resident, index, "resident")).filter((resident) => resident.health > 0);
+  state.cityVisitors = (state.cityVisitors || []).map((visitor, index) => normalizeCityPerson(visitor, index, "visitor")).filter((visitor) => visitor.health > 0);
+  spawnCityVisitors(dt);
+  updateCityVisitors(dt);
+  updateCityResidentRoaming(dt);
+}
+
+function spawnCityVisitors(dt) {
+  if (!welcomeCenters().length || playerLevel() < (gameConfig.build.welcomeCenterPlayerLevel || 10)) return;
+  if (state.cityVisitors.length >= (gameConfig.city.maxVisitors || 3)) return;
+  state.city.visitorTimer = (state.city.visitorTimer || 0) + dt;
+  cityVisitorTimer = state.city.visitorTimer;
+  if (state.city.visitorTimer < (gameConfig.city.visitorIntervalSeconds || 55)) return;
+  state.city.visitorTimer = 0;
+  if (Math.random() > (gameConfig.city.visitorChance || 0.7)) return;
+  const visitor = createCityVisitor();
+  state.cityVisitors.push(visitor);
+  setMessage(`${visitor.name} arrived at the Welcome Center to look around.`, 5);
+}
+
+function createCityVisitor() {
+  const welcome = welcomeCenters()[0];
+  const spawn = nearestGate(welcome || fort.entrance) || fort.entrance;
+  const gender = nextCityGender();
+  return normalizeCityPerson({
+    id: `city-visitor-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    name: randomChoice(cityResidentNames),
+    role: "visitor",
+    gender,
+    cityStyle: randomCityStyle(gender),
+    clothes: randomClothingId(),
+    outfit: randomOutfit(),
+    x: spawn.x,
+    y: spawn.y + 100,
+    target: welcome ? { x: welcome.x, y: welcome.y + 44 } : { x: fort.entrance.x, y: fort.entrance.y }
+  }, 0, "visitor");
+}
+
+function updateCityVisitors(dt) {
+  state.cityVisitors.forEach((visitor) => {
+    const welcome = welcomeCenters()[0];
+    if (!welcome) {
+      visitor.target = { x: fort.entrance.x, y: fort.entrance.y + 180 };
+      moveActor(visitor, visitor.target, gameConfig.city.visitorSpeed || gameConfig.movement.visitorSpeed, dt);
+      return;
+    }
+    const target = visitor.target || { x: welcome.x, y: welcome.y + 44 };
+    if (!moveActor(visitor, target, gameConfig.city.visitorSpeed || gameConfig.movement.visitorSpeed, dt)) return;
+    visitor.interactTimer += dt;
+    if (visitor.interactTimer < 1.25) return;
+    if (availableCityHousing() > 0) {
+      convertVisitorToResident(visitor);
+    } else {
+      visitor.target = randomCityDestination(visitor);
+      visitor.interactTimer = 0;
+      setMessage(`${visitor.name} likes the city, but there is no open house yet.`, 4);
+    }
+  });
+}
+
+function convertVisitorToResident(visitor) {
+  const house = state.structures.find((structure) => structure.type === "house" && cityHouseOccupants(structure.id) < (gameConfig.city.houseCapacity || 5));
+  const resident = normalizeCityPerson({
+    ...visitor,
+    role: "resident",
+    homeId: house ? house.id : null,
+    target: randomCityDestination(visitor),
+    arrived: true,
+    interactTimer: 0
+  }, state.cityResidents.length, "resident");
+  state.cityResidents.push(resident);
+  state.cityVisitors = state.cityVisitors.filter((item) => item.id !== visitor.id);
+  setMessage(`${resident.name} became a Resident. Housing ${state.cityResidents.length}/${cityResidentCapacity()}.`, 5);
+  playSound("success");
+}
+
+function cityHouseOccupants(houseId) {
+  return state.cityResidents.filter((resident) => resident.homeId === houseId).length;
+}
+
+function updateCityResidentRoaming(dt) {
+  state.cityResidents.forEach((resident, index) => {
+    resident.chatTimer = Math.max(0, (resident.chatTimer || 0) - dt);
+    if (resident.interactTimer > 0 && resident.target && dist(resident, resident.target) <= gameConfig.residents.workDistance * 1.2) {
+      resident.interactTimer = Math.max(0, resident.interactTimer - dt);
+      maybeStartCityChat(resident);
+      return;
+    }
+    if (!resident.target || dist(resident, resident.target) <= gameConfig.residents.workDistance * 1.2) {
+      resident.target = randomCityDestination(resident, index);
+      resident.interactTimer = gameConfig.city.interactionSeconds || 3.4;
+    }
+    moveActor(resident, resident.target, gameConfig.city.residentSpeed || gameConfig.movement.residentSpeed * 0.82, dt);
+  });
+}
+
+function randomCityDestination(resident, index = 0) {
+  const destinations = cityAttractions().map((structure) => ({ x: structure.x, y: structure.y + (structure.type === "house" ? 50 : 28) }));
+  pathStructures().forEach((path) => destinations.push({ x: path.x, y: path.y }));
+  pathStructures().forEach((path) => destinations.push({ x: path.x, y: path.y }));
+  Object.values(buildings).forEach((building) => destinations.push({ x: building.x + building.w / 2, y: building.y + building.h + 36 }));
+  if (resident?.homeId) {
+    const home = state.structures.find((structure) => structure.id === resident.homeId);
+    if (home) destinations.push({ x: home.x, y: home.y + 52 });
+  }
+  if (!destinations.length) {
+    return {
+      x: fort.x + 120 + ((index % 5) * 42),
+      y: fort.y + fort.h + 90 + Math.floor(index / 5) * 38
+    };
+  }
+  const base = randomChoice(destinations);
+  const spread = gameConfig.city.roamRadius || 260;
+  return {
+    x: clamp(base.x + (Math.random() - 0.5) * spread * 0.5, 90, world.width - 90),
+    y: clamp(base.y + (Math.random() - 0.5) * spread * 0.35, 90, world.height - 90)
+  };
+}
+
+function maybeStartCityChat(resident) {
+  if ((resident.chatTimer || 0) > 0 || Math.random() > 0.02) return;
+  const neighbor = state.cityResidents.find((other) => other.id !== resident.id && dist(other, resident) < 70);
+  if (!neighbor) return;
+  resident.chatTimer = 2.2;
+  neighbor.chatTimer = 2.2;
+}
+
 function stationForResident(residentId) {
   if (state.towerStationedResidentId === residentId && buildings.tower) return buildingCenter(buildings.tower);
   const structure = state.structures.find((item) => item.stationedResidentId === residentId);
   return structure ? { x: structure.x, y: structure.y } : null;
+}
+
+function stationAssignmentLabel(expertId, currentStructure = null, starterTower = false) {
+  if (state.towerStationedResidentId === expertId) {
+    return starterTower ? "Stationed here" : "Stationed at Watch Tower";
+  }
+  const structure = state.structures.find((item) => item.stationedResidentId === expertId);
+  if (!structure) return "Available";
+  if (currentStructure && structure.id === currentStructure.id) return "Stationed here";
+  return `Stationed at ${structureDisplayName(structure.type)}`;
+}
+
+function clearExpertStations(expertId, keepStructureId = null) {
+  if (state.towerStationedResidentId === expertId && keepStructureId !== "starter") {
+    state.towerStationedResidentId = null;
+  }
+  state.structures.forEach((structure) => {
+    if (structure.stationedResidentId === expertId && structure.id !== keepStructureId) {
+      structure.stationedResidentId = null;
+    }
+  });
+}
+
+function stationExpertAtStarter(expertId) {
+  if (expertId === "none") {
+    state.towerStationedResidentId = null;
+    return;
+  }
+  clearExpertStations(expertId, "starter");
+  state.towerStationedResidentId = expertId;
+}
+
+function stationExpertAtStructure(structure, expertId) {
+  if (expertId === "none") {
+    structure.stationedResidentId = null;
+    return;
+  }
+  clearExpertStations(expertId, structure.id);
+  structure.stationedResidentId = expertId;
 }
 
 function hunterDefaultPost() {
@@ -2226,7 +2621,11 @@ function nearestFenceTarget(wolf) {
 }
 
 function livingPeople(includePlayer = true) {
-  const people = state.survivors.filter((survivor) => survivor.health > 0);
+  const people = [
+    ...state.survivors.filter((survivor) => survivor.health > 0),
+    ...(state.cityResidents || []).filter((resident) => resident.health > 0),
+    ...(state.cityVisitors || []).filter((visitor) => visitor.health > 0)
+  ];
   if (includePlayer && state.player.health > 0) people.push(state.player);
   return people;
 }
@@ -2275,17 +2674,20 @@ function directFenceOnPath(enemy, gate) {
 
 function damageFence(target, damage) {
   if (!target || !isBarrierType(target.type)) {
-    fort.health = clamp(fort.health - damage, 0, fort.maxHealth);
     return;
   }
   target.health = clamp(target.health - damage, 0, target.maxHealth);
-  if (target.type === "gate") syncFortHealthFromGates();
 }
 
 function damageActor(actor, damage) {
   actor.health = clamp(actor.health - damage, 0, actor.maxHealth);
   addBurst(actor.x, actor.y - 32, "#ff5d66", 7);
-  if (actor !== state.player && actor.health <= 0) {
+  if (actor !== state.player && actor.health <= 0 && actor.role === "resident") {
+    removeCityResident(actor);
+  } else if (actor !== state.player && actor.health <= 0 && actor.role === "visitor") {
+    state.cityVisitors = state.cityVisitors.filter((visitor) => visitor.id !== actor.id);
+    setMessage(`${actor.name} fled the city after the attack.`, 5);
+  } else if (actor !== state.player && actor.health <= 0) {
     removeResident(actor);
   } else if (actor === state.player && actor.health <= 0) {
     actor.health = actor.maxHealth * 0.35;
@@ -2294,6 +2696,20 @@ function damageActor(actor, damage) {
     actor.y = buildings.cabin.y + buildings.cabin.h + 70;
     setMessage("You were knocked back to the cabin and patched up.", 5);
   }
+}
+
+function removeCityResident(resident) {
+  if (!resident || !resident.id) return;
+  state.cityResidents = state.cityResidents.filter((item) => item.id !== resident.id);
+  residentDeathNotices.push({
+    id: `${resident.id}-${Date.now()}`,
+    text: `${resident.name} was lost. A house space is open.`,
+    timer: 12
+  });
+  setMessage(`${resident.name} was lost during the attack. A house space opened.`, 7);
+  showCenterMessage(`${resident.name} lost.`, 2.4);
+  playSound("fail");
+  saveState();
 }
 
 function removeResident(resident) {
@@ -2308,10 +2724,10 @@ function removeResident(resident) {
   });
   residentDeathNotices.push({
     id: `${resident.id}-${Date.now()}`,
-    text: `${resident.name} died. A cabin slot is open.`,
+    text: `${resident.name} died. An Expert slot is open.`,
     timer: 12
   });
-  setMessage(`${resident.name} died defending the camp. A cabin slot opened.`, 7);
+  setMessage(`${resident.name} died defending the camp. An Expert slot opened.`, 7);
   showCenterMessage(`${resident.name} died.`, 2.4);
   playSound("fail");
   saveState();
@@ -2465,15 +2881,29 @@ function maybeShowCabinUpgradeTip() {
   showTutorialTip(
     "cabinUpgrade",
     "Upgrade The Cabin",
-    "The cabin is full. Upgrade the Group Cabin to add more resident space before the next survivor reaches the gate.",
+    "The Expert roster is full. Upgrade the Group Cabin to add more Expert space before the next candidate reaches the gate.",
     [{ label: "Open Cabin", action: () => openBuildingMenu(buildings.cabin) }]
+  );
+}
+
+function maybeShowCityUnlockTip() {
+  const unlockLevel = gameConfig.build.welcomeCenterPlayerLevel || 10;
+  if (playerLevel() < unlockLevel || state.tutorialFlags.cityUnlock) return;
+  showTutorialTip(
+    "cityUnlock",
+    "City Building Unlocked",
+    "You can now build houses, paths, decorations, and a Welcome Center. Visitors will tour the settlement and become Residents when there is housing space.",
+    [
+      { label: "Open Build", action: openBuildMenu },
+      { label: "Upgrades", action: openUpgradeMenu }
+    ]
   );
 }
 
 function maybeShowTowerInstruction() {
   if (state.towerInstructionShown || state.wave.number < 2) return;
   state.towerInstructionShown = true;
-  setMessage("Build tip: open Build and place an Outpost. Towers fire on their own, and stationing residents makes them stronger.", 10);
+  setMessage("Build tip: open Build and place an Outpost. Towers fire on their own, and stationing Experts makes them stronger.", 10);
   saveState();
 }
 
@@ -2784,9 +3214,16 @@ function setActionsCollapsed(collapsed) {
   actionsCollapsed = collapsed;
   if (hud.actionsPanel) hud.actionsPanel.classList.toggle("collapsed", actionsCollapsed);
   if (hud.actionsToggle) {
-    hud.actionsToggle.setAttribute("aria-expanded", String(!actionsCollapsed));
-    hud.actionsToggle.textContent = actionsCollapsed ? "Menu" : "Close";
+    hud.actionsToggle.setAttribute("aria-expanded", "false");
+    hud.actionsToggle.textContent = "Menu";
   }
+}
+
+function updateCanvasToolCursor() {
+  canvas.classList.toggle("tool-build", buildMode);
+  canvas.classList.toggle("tool-move", moveMode);
+  canvas.classList.toggle("tool-remove", removeMode);
+  canvas.classList.toggle("tool-repair", repairMode);
 }
 
 function runHudAction(action) {
@@ -2795,7 +3232,6 @@ function runHudAction(action) {
 }
 
 function updateHud(dt) {
-  syncFortHealthFromGates();
   if (messageTimer > 0) messageTimer -= dt;
   if (centerToastTimer > 0) {
     centerToastTimer -= dt;
@@ -2814,6 +3250,11 @@ function updateHud(dt) {
   if (hud.cabinHungerMeter) hud.cabinHungerMeter.style.width = `${hungerPct}%`;
   if (hud.quickWoodText) hud.quickWoodText.textContent = state.stored.wood;
   if (hud.quickDiningMealText) hud.quickDiningMealText.textContent = buildings.diningHall ? buildings.diningHall.meals : 0;
+  const cityUnlocked = playerLevel() >= (gameConfig.build.welcomeCenterPlayerLevel || 10);
+  if (hud.quickVisitorChip) hud.quickVisitorChip.classList.toggle("hidden", !cityUnlocked);
+  if (hud.quickResidentChip) hud.quickResidentChip.classList.toggle("hidden", !cityUnlocked);
+  if (hud.quickVisitorText) hud.quickVisitorText.textContent = (state.cityVisitors || []).length;
+  if (hud.quickResidentText) hud.quickResidentText.textContent = (state.cityResidents || []).length;
   if (hud.cycleText) hud.cycleText.textContent = cycleTimeText();
   if (hud.cycleFill) {
     hud.cycleFill.style.width = `${cyclePhaseProgress() * 100}%`;
@@ -2826,14 +3267,18 @@ function updateHud(dt) {
   if (hud.survivorCount) hud.survivorCount.textContent = `${state.survivors.length}/${survivorCapacity()}`;
   if (hud.learningPointCount) hud.learningPointCount.textContent = state.learningPoints;
   if (hud.playerLevelCount) hud.playerLevelCount.textContent = playerLevel();
-  if (hud.waveCount) hud.waveCount.textContent = state.wave.active ? `Night ${state.wave.number}` : cycleTimeText();
+  if (hud.waveCount) hud.waveCount.textContent = cycleTimeText();
   if (hud.buildButton) hud.buildButton.textContent = buildMode || moveMode || removeMode ? "Build Menu" : "Build";
   if (hud.pauseButton) hud.pauseButton.textContent = paused ? "Resume" : "Pause";
   if (hud.zoomResetButton) hud.zoomResetButton.textContent = `${camera.zoom.toFixed(1)}x`;
   if (hud.playerIconImage && clothingReady) hud.playerIconImage.src = actorIconDataUrl(state.player, 64);
+  if (hud.playerLevelBadge) hud.playerLevelBadge.textContent = `Lv ${playerLevel()}`;
   setActionsCollapsed(actionsCollapsed);
-  if (hud.pauseLayer) hud.pauseLayer.classList.toggle("hidden", !paused);
+  if (hud.pauseLayer) hud.pauseLayer.classList.toggle("hidden", !paused || modalOpen);
+  if (hud.pauseBadge) hud.pauseBadge.classList.toggle("hidden", !paused);
   if (hud.buildTray) hud.buildTray.classList.toggle("collapsed", buildTrayCollapsed);
+  if (hud.buildTrayToggle) hud.buildTrayToggle.setAttribute("aria-expanded", String(!buildTrayCollapsed));
+  refreshBuildTrayIfNeeded();
   const carriedNow = carryTotal();
   if (hud.carryText) hud.carryText.textContent = carriedNow
     ? `${Object.entries(state.carry)
@@ -2842,12 +3287,8 @@ function updateHud(dt) {
       .join(", ")} (${carriedNow}/${carryCapacity()} max)`
     : `Empty (${carryCapacity()} max)`;
 
-  if (hud.fortHealthCard) hud.fortHealthCard.classList.remove("hidden");
-  const fortPct = fort.maxHealth ? (fort.health / fort.maxHealth) * 100 : 0;
-  if (hud.fortHealthText) hud.fortHealthText.textContent = `${Math.round(fortPct)}%`;
-  if (hud.fortHealthMeter) hud.fortHealthMeter.style.width = `${fortPct}%`;
-
-  if (hud.phaseLabel) hud.phaseLabel.textContent = paused ? "Paused" : removeMode ? "Remove Mode" : moveMode ? "Move Buildings" : buildMode ? "Build Mode" : gameOver ? "Camp Lost" : failureLock ? "Emergency" : attackActive ? `Night ${state.wave.number}` : pendingVisitor ? "Visitor Approaching" : state.wave.active ? "Night Watch" : "Daylight Prep";
+  if (hud.phaseLabel) hud.phaseLabel.textContent = paused ? "Paused" : repairMode ? "Repair Mode" : removeMode ? "Remove Mode" : moveMode ? "Move Buildings" : buildMode ? "Build Mode" : gameOver ? "Camp Lost" : failureLock ? "Emergency" : attackActive ? `Night ${state.wave.number}` : pendingVisitor ? "Visitor Approaching" : state.wave.active ? "Night Watch" : "Daylight Prep";
+  updateCanvasToolCursor();
   updateNotifications();
 }
 
@@ -2880,12 +3321,6 @@ function updateNotifications() {
       active: buildings.cabin.hunger < buildings.cabin.maxHunger && buildings.cabin.hunger >= buildings.cabin.maxHunger * 0.92,
       title: "Cabin Hunger Critical",
       copy: "Hunger is nearly full. Gather berries, lettuce, or meat, process food at Food Prep, then deliver meals to the Dining Hall."
-    },
-    {
-      id: "fort",
-      active: fort.health > 0 && fort.health <= fort.maxHealth * 0.08,
-      title: "Fort Wall Critical",
-      copy: "The gate network is close to collapse. Tap Fort Health and repair all fences and gates with wood."
     }
   ];
   dangerChecks.forEach((warning) => {
@@ -2907,7 +3342,7 @@ function updateNotifications() {
   residentDeathNotices.forEach((notice) => {
     notices.push(`
       <article class="notice-card warning">
-        <strong>Resident Lost</strong>
+        <strong>Person Lost</strong>
         <p>${notice.text}</p>
       </article>
     `);
@@ -2946,8 +3381,6 @@ function checkFailureStates() {
     beginFailureChallenge("furnace");
   } else if (buildings.cabin.hunger >= buildings.cabin.maxHunger) {
     beginFailureChallenge("hunger");
-  } else if (fort.health <= 0) {
-    beginFailureChallenge("fort");
   }
 }
 
@@ -2957,8 +3390,7 @@ function beginFailureChallenge(type) {
   activeTaskContext = { kind: "failure", failureType: type };
   const labels = {
     furnace: "The furnace has gone dark.",
-    hunger: "The cabin is starving.",
-    fort: "The entrance wall has fallen."
+    hunger: "The cabin is starving."
   };
   setMessage(`${labels[type]} Solve the emergency challenge to keep the camp alive.`, 6);
   playSound("alarm");
@@ -2974,9 +3406,6 @@ function resolveFailureChallenge(type) {
     buildings.cabin.hunger = clamp(buildings.cabin.hunger - buildings.cabin.maxHunger * (config.hungerReliefPercent / 100), 0, buildings.cabin.maxHunger);
     buildings.cabin.meals = Math.max(buildings.cabin.meals, 1);
     setMessage("Emergency answer accepted. The cabin gets enough food to hold on.", 6);
-  } else if (type === "fort") {
-    setGateHealthPercent(Math.max(gateHealthPercent(), config.fortRepairPercent / 100));
-    setMessage("Emergency answer accepted. The entrance wall is braced.", 6);
   }
   failureLock = null;
   activeTask = null;
@@ -2992,8 +3421,7 @@ function showGameOver(type) {
   activeTaskContext = null;
   const copy = {
     furnace: "The furnace died and the cold took the camp.",
-    hunger: "The cabin ran out of food and morale collapsed.",
-    fort: "The fort wall broke and the camp was overrun."
+    hunger: "The cabin ran out of food and morale collapsed."
   };
   hud.modalEyebrow.textContent = "Game Over";
   hud.modalTitle.textContent = "The Frontier Claims The Camp";
@@ -3016,6 +3444,9 @@ function resetGame() {
   buildings = hydrateBuildings();
   snapAllBuildingsToGrid();
   state.structures = createInitialDefenseStructures();
+  state.cityResidents = [];
+  state.cityVisitors = [];
+  state.city = { ...defaultState.city };
   state.wave = normalizeNightCycleState({ ...defaultState.wave, timer: dayDuration(), active: false });
   state.playerLevel = 1;
   state.towerInstructionShown = false;
@@ -3036,12 +3467,15 @@ function resetGame() {
   gameOver = false;
   dismissedUpgradeNoticeAt = -1;
   notificationMarkup = "";
-  warningState = { furnace: false, hunger: false, fort: false };
+  warningState = { furnace: false, hunger: false };
   pendingCarry = 0;
   residentDeathNotices = [];
   buildMode = false;
   moveMode = false;
   removeMode = false;
+  repairMode = false;
+  buildTrayCollapsed = true;
+  buildTrayRenderKey = "";
   selectedBuildType = null;
   buildPreview = null;
   selectedMoveTarget = null;
@@ -3049,6 +3483,10 @@ function resetGame() {
   attackActive = false;
   wolfCheckTimer = 0;
   survivorCheckTimer = 0;
+  cityVisitorTimer = 0;
+  paused = false;
+  modalPauseActive = false;
+  modalOpen = false;
   arrowCooldown = 0;
   starterTowerCooldown = 0;
   saveTimer = 0;
@@ -3084,7 +3522,9 @@ function update(dt) {
   updateFoodPrep(dt);
   updateUpgradeJobs(dt);
   updateResidents(dt);
+  updateCityResidents(dt);
   updateTrees(dt);
+  updateGroundResources(dt);
   updateResourcePickup();
   updateDropoffs();
   updateOutposts(dt);
@@ -3094,6 +3534,7 @@ function update(dt) {
   updateFlies(dt);
   updateParticles(dt);
   checkFailureStates();
+  maybeShowCityUnlockTip();
   updateHud(dt);
   if (saveTimer >= gameConfig.timers.autosaveInterval) {
     saveTimer = 0;
@@ -3125,6 +3566,7 @@ function drawWorld() {
   drawTrees();
   drawResources();
   drawResidents();
+  drawCityResidents();
   drawVisitor();
   drawWolves();
   drawPlayer();
@@ -3134,6 +3576,7 @@ function drawWorld() {
   drawBuildPreview();
   drawMovePreview();
   drawDayNightOverlay();
+  drawLighting();
   drawSnow();
 }
 
@@ -3149,7 +3592,7 @@ function drawGround() {
 function drawGrid() {
   const size = gridSize();
   ctx.save();
-  ctx.globalAlpha = buildMode || moveMode || removeMode ? 0.34 : gameConfig.grid.alpha;
+  ctx.globalAlpha = buildMode || moveMode || removeMode || repairMode ? 0.34 : gameConfig.grid.alpha;
   ctx.strokeStyle = "#dff7ff";
   ctx.lineWidth = 1;
   for (let x = 0; x <= world.width; x += size) {
@@ -3167,11 +3610,32 @@ function drawGrid() {
   ctx.restore();
 }
 
+function structureDrawY(structure) {
+  const rect = structureRect(structure);
+  return rect.y + rect.h;
+}
+
+function structureDrawPriority(structure) {
+  if (structure.type === "path") return 0;
+  if (isBarrierType(structure.type)) return 1;
+  if (structure.type === "shrub" || structure.type === "bench") return 2;
+  if (structure.type === "torch") return 3;
+  if (isDecorationType(structure.type)) return 4;
+  return 5;
+}
+
+function structureDrawCompare(a, b) {
+  const yDiff = structureDrawY(a) - structureDrawY(b);
+  if (Math.abs(yDiff) > 0.1) return yDiff;
+  return structureDrawPriority(a) - structureDrawPriority(b);
+}
+
 function drawStructures() {
-  state.structures.forEach((structure) => {
+  [...state.structures].sort(structureDrawCompare).forEach((structure) => {
     if (isBarrierType(structure.type)) drawFenceSegment(structure);
     else if (structure.type === "cabin") drawPlacedCabin(structure);
     else if (structure.type === "farm") drawPlacedFarm(structure);
+    else if (isCityBuildingType(structure.type) || isDecorationType(structure.type)) drawCityStructure(structure);
     else drawOutpostStructure(structure);
   });
 }
@@ -3220,6 +3684,12 @@ function drawFenceSegment(segment) {
   }
   ctx.fillStyle = postColor;
   roundRect(segment.x - 9, segment.y - 24, 18, 48, 5);
+  ctx.fillStyle = "#5b3b2e";
+  roundRect(segment.x + 10, segment.y - 32, 6, 26, 3);
+  ctx.fillStyle = `rgba(255, ${154 + Math.sin(performance.now() / 120 + segment.x) * 28}, 70, 0.92)`;
+  ctx.beginPath();
+  ctx.ellipse(segment.x + 13, segment.y - 39, 8, 12, 0, 0, Math.PI * 2);
+  ctx.fill();
   if (level > 1) {
     ctx.fillStyle = theme.accent;
     roundRect(segment.x - 13, segment.y - 30, 26, 8, 4);
@@ -3262,7 +3732,12 @@ function barrierConnections(segment) {
 
 function isGateOpen(gate) {
   if (gate.type !== "gate") return false;
-  const friendlyActors = [state.player, ...state.survivors.filter((survivor) => survivor.health > 0)];
+  const friendlyActors = [
+    state.player,
+    ...state.survivors.filter((survivor) => survivor.health > 0),
+    ...(state.cityResidents || []).filter((resident) => resident.health > 0),
+    ...(state.cityVisitors || []).filter((visitor) => visitor.health > 0)
+  ];
   return friendlyActors.some((actor) => dist(actor, gate) < gridSize() * 0.82);
 }
 
@@ -3276,6 +3751,157 @@ function drawPlacedFarm(structure) {
   const rect = structureRect(structure);
   drawSprite("farm", rect.x - 20, rect.y - 20, rect.w + 40, rect.h + 40, { row: levelSpriteRow(structure.level) });
   drawStructureLabel(structure, "Farm");
+}
+
+function drawCityStructure(structure) {
+  if (structure.type === "house") return drawCityHouse(structure);
+  if (structure.type === "welcomeCenter") return drawWelcomeCenter(structure);
+  return drawDecoration(structure);
+}
+
+function drawCityHouse(structure) {
+  const rect = structureRect(structure);
+  const theme = levelTheme(structure.level || 1);
+  ctx.save();
+  ctx.fillStyle = "rgba(0,0,0,0.2)";
+  ctx.beginPath();
+  ctx.ellipse(structure.x, structure.y + 50, 92, 22, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = theme.wall;
+  roundRect(rect.x + 16, rect.y + 46, rect.w - 32, rect.h - 52, 8);
+  ctx.fill();
+  ctx.fillStyle = theme.roof;
+  ctx.beginPath();
+  ctx.moveTo(rect.x + 4, rect.y + 56);
+  ctx.lineTo(structure.x, rect.y + 10);
+  ctx.lineTo(rect.x + rect.w - 4, rect.y + 56);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = "rgba(255, 190, 96, 0.82)";
+  roundRect(rect.x + 36, rect.y + 72, 26, 24, 4);
+  ctx.fill();
+  roundRect(rect.x + rect.w - 62, rect.y + 72, 26, 24, 4);
+  ctx.fill();
+  ctx.fillStyle = "#172231";
+  roundRect(structure.x - 15, rect.y + 86, 30, 32, 4);
+  ctx.fill();
+  ctx.restore();
+  drawStructureLabel(structure, `House ${cityHouseOccupants(structure.id)}/${gameConfig.city.houseCapacity || 5}`);
+}
+
+function drawWelcomeCenter(structure) {
+  const rect = structureRect(structure);
+  ctx.save();
+  ctx.fillStyle = "rgba(0,0,0,0.22)";
+  ctx.beginPath();
+  ctx.ellipse(structure.x, structure.y + 54, 116, 24, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "#405a68";
+  roundRect(rect.x + 20, rect.y + 42, rect.w - 40, rect.h - 48, 8);
+  ctx.fill();
+  ctx.fillStyle = "#173047";
+  ctx.beginPath();
+  ctx.moveTo(rect.x + 8, rect.y + 52);
+  ctx.lineTo(structure.x, rect.y + 8);
+  ctx.lineTo(rect.x + rect.w - 8, rect.y + 52);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = "#ffb35c";
+  roundRect(structure.x - 46, rect.y + 76, 92, 24, 5);
+  ctx.fill();
+  ctx.fillStyle = "#06111f";
+  ctx.font = "900 13px Inter, system-ui, sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText("WELCOME", structure.x, rect.y + 93);
+  ctx.fillStyle = "#73df9b";
+  ctx.beginPath();
+  ctx.arc(rect.x + rect.w - 34, rect.y + 32, 10, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+  drawStructureLabel(structure, "Welcome");
+}
+
+function drawDecoration(structure) {
+  const t = performance.now() / 1000;
+  ctx.save();
+  ctx.fillStyle = "rgba(0,0,0,0.18)";
+  ctx.beginPath();
+  ctx.ellipse(structure.x, structure.y + 24, isLargeDecorationType(structure.type) ? 76 : 34, isLargeDecorationType(structure.type) ? 18 : 10, 0, 0, Math.PI * 2);
+  ctx.fill();
+  if (structure.type === "path") {
+    ctx.fillStyle = "#6e8290";
+    roundRect(structure.x - 38, structure.y - 38, 76, 76, 8);
+    ctx.fill();
+    ctx.strokeStyle = "rgba(223,247,255,0.18)";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  } else if (structure.type === "torch") {
+    ctx.fillStyle = "#5b3b2e";
+    roundRect(structure.x - 5, structure.y - 28, 10, 54, 4);
+    ctx.fill();
+    ctx.fillStyle = `rgba(255, ${150 + Math.sin(t * 9) * 35}, 70, 0.9)`;
+    ctx.beginPath();
+    ctx.ellipse(structure.x, structure.y - 38, 14, 22, 0, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (structure.type === "shrub") {
+    ctx.fillStyle = "#2f6d45";
+    for (let i = 0; i < 5; i += 1) {
+      ctx.beginPath();
+      ctx.ellipse(structure.x - 22 + i * 11, structure.y + (i % 2) * 6, 20, 18, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  } else if (structure.type === "bench") {
+    ctx.fillStyle = "#7f5838";
+    roundRect(structure.x - 36, structure.y - 6, 72, 12, 4);
+    ctx.fill();
+    roundRect(structure.x - 32, structure.y + 12, 64, 10, 4);
+    ctx.fill();
+    ctx.fillStyle = "#26384a";
+    roundRect(structure.x - 28, structure.y + 22, 8, 18, 3);
+    ctx.fill();
+    roundRect(structure.x + 20, structure.y + 22, 8, 18, 3);
+    ctx.fill();
+  } else if (structure.type === "fountain" || structure.type === "largeFountain") {
+    const scale = structure.type === "largeFountain" ? 1.45 : 1;
+    ctx.fillStyle = "#466b80";
+    ctx.beginPath();
+    ctx.ellipse(structure.x, structure.y + 10, 42 * scale, 22 * scale, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#88d9ff";
+    ctx.beginPath();
+    ctx.ellipse(structure.x, structure.y + 5, 30 * scale, 13 * scale, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = "#b9e8ff";
+    ctx.lineWidth = 3;
+    for (let i = -1; i <= 1; i += 1) {
+      ctx.beginPath();
+      ctx.moveTo(structure.x, structure.y - 8);
+      ctx.quadraticCurveTo(structure.x + i * 20 * scale, structure.y - 36 * scale, structure.x + i * 26 * scale, structure.y + 2);
+      ctx.stroke();
+    }
+  } else if (structure.type === "statue") {
+    ctx.fillStyle = "#8fa9b8";
+    roundRect(structure.x - 34, structure.y + 26, 68, 18, 4);
+    ctx.fill();
+    roundRect(structure.x - 20, structure.y - 36, 40, 64, 6);
+    ctx.fill();
+    ctx.fillStyle = "#dff7ff";
+    ctx.beginPath();
+    ctx.arc(structure.x, structure.y - 50, 15, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (structure.type === "garden") {
+    ctx.fillStyle = "#315f42";
+    roundRect(structure.x - 74, structure.y - 44, 148, 88, 18);
+    ctx.fill();
+    ["#ffb35c", "#73df9b", "#d94c7c", "#b48cff", "#ffd166"].forEach((color, index) => {
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(structure.x - 48 + index * 24, structure.y - 4 + Math.sin(index) * 16, 8, 0, Math.PI * 2);
+      ctx.fill();
+    });
+  }
+  ctx.restore();
+  drawStructureLabel(structure, structureDisplayName(structure.type));
 }
 
 function drawOutpostStructure(structure) {
@@ -3334,9 +3960,9 @@ function drawMovePlacementCells(rect, placement) {
   const size = gridSize();
   const cells = [];
   const startX = Math.floor(rect.x / size) * size + size / 2;
-  const endX = Math.floor((rect.x + rect.w) / size) * size + size / 2;
+  const endX = Math.floor((rect.x + rect.w - 1) / size) * size + size / 2;
   const startY = Math.floor(rect.y / size) * size + size / 2;
-  const endY = Math.floor((rect.y + rect.h) / size) * size + size / 2;
+  const endY = Math.floor((rect.y + rect.h - 1) / size) * size + size / 2;
   for (let x = startX; x <= endX; x += size) {
     for (let y = startY; y <= endY; y += size) cells.push({ x, y });
   }
@@ -3374,12 +4000,13 @@ function placementCells(type, point, placement) {
       .map((structure) => ({ x: structure.x, y: structure.y }));
   }
   if (isBarrierType(type)) return [point];
+  if (isDecorationType(type) && !isLargeDecorationType(type)) return [point];
   const rect = structureRect({ type, x: point.x, y: point.y });
   const cells = [];
   const startX = Math.floor(rect.x / size) * size + size / 2;
-  const endX = Math.floor((rect.x + rect.w) / size) * size + size / 2;
+  const endX = Math.floor((rect.x + rect.w - 1) / size) * size + size / 2;
   const startY = Math.floor(rect.y / size) * size + size / 2;
-  const endY = Math.floor((rect.y + rect.h) / size) * size + size / 2;
+  const endY = Math.floor((rect.y + rect.h - 1) / size) * size + size / 2;
   for (let x = startX; x <= endX; x += size) {
     for (let y = startY; y <= endY; y += size) cells.push({ x, y });
   }
@@ -3390,6 +4017,7 @@ function drawStructuresForPreview(structure) {
   if (isBarrierType(structure.type)) drawFenceSegment(structure);
   else if (structure.type === "cabin") drawPlacedCabin(structure);
   else if (structure.type === "farm") drawPlacedFarm(structure);
+  else if (isCityBuildingType(structure.type) || isDecorationType(structure.type)) drawCityStructure(structure);
   else drawOutpostStructure(structure);
 }
 
@@ -3398,14 +4026,6 @@ function drawFort() {
 }
 
 function drawFortDamage() {
-  if (fort.health >= fort.maxHealth) return;
-  ctx.save();
-  ctx.globalAlpha = 0.28;
-  ctx.fillStyle = "#ff5d66";
-  ctx.beginPath();
-  ctx.ellipse(fort.entrance.x, fort.entrance.y - 12, 74, 18, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.restore();
 }
 
 function drawFarmPlots() {
@@ -3864,11 +4484,17 @@ function drawResources() {
   resources.forEach((resource) => {
     const meta = resourceMeta[resource.type];
     const bob = Math.sin(performance.now() / 280 + resource.bob) * 5;
-    drawResourceSprite(resource.type, resource.x, resource.y + bob, 34);
+    const popSeconds = (gameConfig.resources || defaultGameConfig.resources).popSeconds || 0.35;
+    const popProgress = resource.expiring ? clamp(1 - (resource.pop || 0) / popSeconds, 0, 1) : 0;
+    const size = 34 * (1 + popProgress * 0.65);
+    ctx.save();
+    ctx.globalAlpha = resource.expiring ? 1 - popProgress : 1;
+    drawResourceSprite(resource.type, resource.x, resource.y + bob, size);
     ctx.fillStyle = "#06111f";
     ctx.font = "900 12px Inter, system-ui, sans-serif";
     ctx.textAlign = "center";
     ctx.fillText(meta.short, resource.x, resource.y + bob + 5);
+    ctx.restore();
   });
 }
 
@@ -3883,6 +4509,17 @@ function drawResidents() {
     const badge = survivor.carrying ? `${resourceMeta[survivor.carrying].short}${survivor.carryAmount || ""}` : "";
     drawPerson(survivor, badge);
     drawActorHealth(survivor, 58);
+  });
+}
+
+function drawCityResidents() {
+  (state.cityVisitors || []).forEach((visitor) => {
+    drawCityPerson(visitor, "V");
+    drawActorHealth(visitor, 58);
+  });
+  (state.cityResidents || []).forEach((resident) => {
+    drawCityPerson(resident, resident.chatTimer > 0 ? "..." : "");
+    drawActorHealth(resident, 58);
   });
 }
 
@@ -4043,6 +4680,146 @@ function drawPerson(actor, badge = "", targetCtx = ctx, scale = 1) {
   targetCtx.restore();
 }
 
+function drawCityPattern(style, x, y, w, h) {
+  if (!style || style.pattern === "solid") return;
+  ctx.save();
+  ctx.strokeStyle = style.pattern === "pinstripe" ? "rgba(244,249,255,0.42)" : "rgba(3,12,22,0.2)";
+  ctx.fillStyle = "rgba(244,249,255,0.45)";
+  if (style.pattern === "dots") {
+    for (let px = x + 6; px < x + w - 4; px += 10) {
+      for (let py = y + 7; py < y + h - 4; py += 10) {
+        ctx.beginPath();
+        ctx.arc(px, py, 1.8, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  } else if (style.pattern === "check") {
+    ctx.lineWidth = 1.5;
+    for (let px = x + 5; px < x + w; px += 12) {
+      ctx.beginPath();
+      ctx.moveTo(px, y);
+      ctx.lineTo(px, y + h);
+      ctx.stroke();
+    }
+    for (let py = y + 5; py < y + h; py += 12) {
+      ctx.beginPath();
+      ctx.moveTo(x, py);
+      ctx.lineTo(x + w, py);
+      ctx.stroke();
+    }
+  } else {
+    ctx.lineWidth = 1.5;
+    for (let px = x + 5; px < x + w; px += 8) {
+      ctx.beginPath();
+      ctx.moveTo(px, y);
+      ctx.lineTo(px, y + h);
+      ctx.stroke();
+    }
+  }
+  ctx.restore();
+}
+
+function drawFlowerPattern(style, x, y, w, h) {
+  ctx.save();
+  const colors = [style.accent || "#ffd166", "#f4f9ff", "#ff5d66"];
+  for (let i = 0; i < 8; i += 1) {
+    const px = x + 8 + (i % 4) * (w / 4);
+    const py = y + 12 + Math.floor(i / 4) * (h / 2.4);
+    ctx.fillStyle = colors[i % colors.length];
+    for (let petal = 0; petal < 5; petal += 1) {
+      const angle = (petal / 5) * Math.PI * 2;
+      ctx.beginPath();
+      ctx.ellipse(px + Math.cos(angle) * 3, py + Math.sin(angle) * 3, 2.6, 1.8, angle, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.fillStyle = "#ffd166";
+    ctx.beginPath();
+    ctx.arc(px, py, 1.8, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawCityPerson(actor, badge = "") {
+  const style = actor.cityStyle || randomCityStyle(actor.gender || "man");
+  const x = actor.x;
+  const y = actor.y + Math.sin((actor.walkTime || 0) * 2.6) * 4;
+  const side = actor.direction === "left" || actor.direction === "right" || actor.direction === "side";
+  const back = actor.direction === "up";
+  const stride = Math.sin((actor.walkTime || 0) * 5.5);
+  const bodyW = side ? 28 : 42;
+  ctx.save();
+  ctx.fillStyle = "rgba(0,0,0,0.18)";
+  ctx.beginPath();
+  ctx.ellipse(x, y + 42, 34, 13, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = "#1c2530";
+  ctx.lineWidth = 7;
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(x - 10, y + 8);
+  ctx.lineTo(x - 12 - stride * 5, y + 42);
+  ctx.moveTo(x + 10, y + 8);
+  ctx.lineTo(x + 12 + stride * 5, y + 42);
+  ctx.stroke();
+  ctx.strokeStyle = style.main;
+  ctx.lineWidth = 7;
+  ctx.beginPath();
+  ctx.moveTo(x - bodyW / 2, y - 42);
+  ctx.lineTo(x - bodyW / 2 - stride * 3, y - 4);
+  ctx.moveTo(x + bodyW / 2, y - 42);
+  ctx.lineTo(x + bodyW / 2 + stride * 3, y - 4);
+  ctx.stroke();
+  if (actor.gender === "woman") {
+    ctx.fillStyle = style.main;
+    ctx.beginPath();
+    ctx.moveTo(x, y - 48);
+    ctx.lineTo(x - bodyW / 2 - 10, y + 22);
+    ctx.lineTo(x + bodyW / 2 + 10, y + 22);
+    ctx.closePath();
+    ctx.fill();
+    drawFlowerPattern(style, x - bodyW / 2 - 8, y - 35, bodyW + 16, 52);
+  } else {
+    ctx.fillStyle = style.main;
+    roundRect(x - bodyW / 2, y - 50, bodyW, 58, 6);
+    ctx.fill();
+    drawCityPattern(style, x - bodyW / 2 + 2, y - 48, bodyW - 4, 54);
+    if (!back) {
+      ctx.fillStyle = "#f4f9ff";
+      roundRect(x - 7, y - 48, 14, 34, 3);
+      ctx.fill();
+      ctx.fillStyle = style.accent;
+      ctx.beginPath();
+      ctx.moveTo(x, y - 42);
+      ctx.lineTo(x - 5, y - 16);
+      ctx.lineTo(x + 5, y - 16);
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+  ctx.fillStyle = style.skin;
+  ctx.beginPath();
+  ctx.arc(x, y - 70, 18, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = style.hair;
+  if (back) {
+    ctx.beginPath();
+    ctx.arc(x, y - 72, 20, Math.PI, Math.PI * 2);
+    ctx.fill();
+  } else {
+    ctx.beginPath();
+    ctx.ellipse(x, y - 82, 19, 10, 0, Math.PI, Math.PI * 2);
+    ctx.fill();
+  }
+  if (badge) {
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "900 18px Inter, system-ui, sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText(badge, x, y - 96);
+  }
+  ctx.restore();
+}
+
 function actorIconDataUrl(actor, size = 56) {
   const key = `${size}:${JSON.stringify(normalizeOutfit(actor.outfit, actor.clothes))}`;
   if (actorIconCache.has(key)) return actorIconCache.get(key);
@@ -4151,13 +4928,37 @@ function drawDayNightOverlay() {
   ctx.restore();
 }
 
+function drawLightGlow(x, y, radius, alpha = 0.36) {
+  const gradient = ctx.createRadialGradient(x, y, 0, x, y, radius);
+  gradient.addColorStop(0, `rgba(255, 186, 96, ${alpha})`);
+  gradient.addColorStop(0.38, `rgba(255, 150, 70, ${alpha * 0.34})`);
+  gradient.addColorStop(1, "rgba(255, 150, 70, 0)");
+  ctx.fillStyle = gradient;
+  ctx.beginPath();
+  ctx.arc(x, y, radius, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawLighting() {
+  const size = gridSize();
+  ctx.save();
+  ctx.globalCompositeOperation = "screen";
+  state.structures.forEach((structure) => {
+    if (structure.type === "torch") {
+      drawLightGlow(structure.x, structure.y - 20, size * 4, state.wave.active ? 0.58 : 0.34);
+    } else if (isBarrierType(structure.type)) {
+      drawLightGlow(structure.x + 13, structure.y - 39, size * 2, state.wave.active ? 0.32 : 0.18);
+    }
+  });
+  ctx.restore();
+}
+
 function dangerAuraLevel() {
   const furnace = buildings.furnace;
   const cabin = buildings.cabin;
   const fuelLevel = furnace.maxFuel ? 1 - furnace.fuel / (furnace.maxFuel * 0.12) : 0;
   const hungerLevel = cabin.maxHunger ? (cabin.hunger / cabin.maxHunger - 0.88) / 0.12 : 0;
-  const fortLevel = fort.maxHealth ? 1 - fort.health / (fort.maxHealth * 0.12) : 0;
-  return clamp(Math.max(fuelLevel, hungerLevel, fortLevel), 0, 1);
+  return clamp(Math.max(fuelLevel, hungerLevel), 0, 1);
 }
 
 function drawDangerAura() {
@@ -4243,7 +5044,7 @@ function openBuildingMenu(building) {
       <button id="upgradeBuilding" class="primary" type="button">${job ? "Upgrading" : "Upgrade Options"}</button>
     </div>
   `;
-  openModal("main-menu");
+  openModal();
   const loadButton = document.querySelector("#loadFurnace");
   if (loadButton) {
     loadButton.addEventListener("click", () => {
@@ -4271,7 +5072,7 @@ function openBuildingMenu(building) {
   document.querySelectorAll("[data-starter-station]").forEach((button) => {
     button.addEventListener("click", () => {
       const value = button.dataset.starterStation;
-      state.towerStationedResidentId = value === "none" ? null : value;
+      stationExpertAtStarter(value);
       saveState();
       openBuildingMenu(building);
     });
@@ -4282,8 +5083,8 @@ function renderCabinResidents() {
   if (!state.survivors.length) {
     return `
       <div class="resident-list">
-        <h3>Current Residents</h3>
-        <p>No recruited survivors yet. New survivors can appear at the fort entrance.</p>
+        <h3>Current Experts</h3>
+        <p>No recruited Experts yet. Expert candidates can appear at the fort entrance.</p>
       </div>
     `;
   }
@@ -4300,7 +5101,7 @@ function renderCabinResidents() {
   `).join("");
   return `
     <div class="resident-list">
-      <h3>Current Residents</h3>
+      <h3>Current Experts</h3>
       ${rows}
     </div>
   `;
@@ -4308,17 +5109,18 @@ function renderCabinResidents() {
 
 function renderStarterTowerStations() {
   const rows = [
-    `<button data-starter-station="none" type="button">No Resident${!state.towerStationedResidentId ? " Selected" : ""}</button>`,
+    `<button data-starter-station="none" type="button">No Expert${!state.towerStationedResidentId ? " Selected" : ""}</button>`,
     ...state.survivors.map((survivor) => `
       <button data-starter-station="${survivor.id}" type="button">
         ${survivor.name} - Lv ${residentLevel(survivor)} ${survivor.title}${state.towerStationedResidentId === survivor.id ? " Selected" : ""}
+        <span>${stationAssignmentLabel(survivor.id, null, true)}</span>
       </button>
     `)
   ].join("");
   return `
     <div class="resident-list">
-      <h3>Station Resident</h3>
-      <p>Outposts fire on their own. A stationed resident boosts damage, and Hunters boost it most.</p>
+      <h3>Station Expert</h3>
+      <p>Outposts fire on their own. A stationed Expert boosts damage, and Hunters boost it most.</p>
       <div class="option-list">${rows}</div>
     </div>
   `;
@@ -4383,6 +5185,20 @@ function adjustedUpgradeTime(level) {
   return Math.max(gameConfig.upgrades.minSeconds, base - specialtyCount("engineer") * gameConfig.upgrades.engineerReductionSeconds);
 }
 
+function upgradeTargetId(kind, target) {
+  return kind === "fort" ? "fort" : target.id;
+}
+
+function upgradeCooldownKey(kind, targetId) {
+  if (kind === "fort") return "fort";
+  if (kind === "structure") return `structure:${targetId}`;
+  return `building:${targetId}`;
+}
+
+function structureUpgradeCost(structure) {
+  return Math.ceil(structureCost(structure.type) * 0.8 + (structure.level || 1) * 8);
+}
+
 function getUpgradeStats(kind, target) {
   if (kind === "fort") {
     const nextLevel = state.fortLevel + 1;
@@ -4393,6 +5209,26 @@ function getUpgradeStats(kind, target) {
       time: adjustedUpgradeTime(state.fortLevel),
       current: [`Gate-linked health max ${fort.maxHealth}`, `Barrier level ${state.fortLevel}`],
       next: [`Every fence and gate HP doubles`, `Barrier level ${nextLevel}`]
+    };
+  }
+  if (kind === "structure") {
+    const structure = target;
+    const level = structure.level || 1;
+    const nextStructure = { ...structure, level: level + 1 };
+    const currentTower = isTowerType(structure.type) ? towerStats(structure) : null;
+    const nextTower = isTowerType(structure.type) ? towerStats(nextStructure) : null;
+    const nextHealth = structure.maxHealth + (isBarrierType(structure.type) ? 25 : 35);
+    return {
+      name: structureDisplayName(structure.type),
+      level,
+      cost: structureUpgradeCost(structure),
+      time: adjustedUpgradeTime(level),
+      current: currentTower
+        ? [`Health ${Math.round(structure.health)}/${structure.maxHealth}`, `Damage ${Math.round(currentTower.damage)}`, `Range ${currentTower.range}`]
+        : [`Health ${Math.round(structure.health)}/${structure.maxHealth}`, `Level ${level}`],
+      next: nextTower
+        ? [`Health max ${nextHealth}`, `Damage ${Math.round(nextTower.damage)}`, `Faster shots`]
+        : [`Health max ${nextHealth}`, `Level ${level + 1}`]
     };
   }
   const building = target;
@@ -4408,8 +5244,8 @@ function getUpgradeStats(kind, target) {
     stats.current = [`Fuel capacity ${building.maxFuel}`, `Fuel drain level ${building.level}`];
     stats.next = [`Fuel capacity ${building.maxFuel + gameConfig.upgrades.furnaceFuelCapacityBonus}`, "Slower fuel drain"];
   } else if (building.id === "cabin") {
-    stats.current = [`Survivor capacity ${survivorCapacity()}`, `Hunger max ${building.maxHunger}`];
-    stats.next = [`Survivor capacity ${survivorCapacity() + 1}`, `Hunger max ${building.maxHunger + gameConfig.upgrades.cabinHungerMaxBonus}`];
+    stats.current = [`Expert capacity ${survivorCapacity()}`, `Hunger max ${building.maxHunger}`];
+    stats.next = [`Expert capacity ${survivorCapacity() + 1}`, `Hunger max ${building.maxHunger + gameConfig.upgrades.cabinHungerMaxBonus}`];
   } else if (building.id === "foodPrep") {
     stats.current = [`Cooking speed level ${building.level}`, `Raw food ${building.raw}`];
     stats.next = ["Faster meal processing", "More efficient prep station"];
@@ -4429,10 +5265,11 @@ function getUpgradeStats(kind, target) {
 function openUpgradePreview(config) {
   const { kind, target } = config;
   const stats = getUpgradeStats(kind, target);
-  const key = kind === "fort" ? "fort" : `building:${target.id}`;
+  const targetId = upgradeTargetId(kind, target);
+  const key = upgradeCooldownKey(kind, targetId);
   const cooldown = getCooldown(key);
   const hasWood = state.stored.wood >= stats.cost;
-  const job = getUpgradeJob(kind, kind === "fort" ? "fort" : target.id);
+  const job = getUpgradeJob(kind, targetId);
   hud.modalEyebrow.textContent = "Upgrade";
   hud.modalTitle.textContent = stats.name;
   hud.modalBody.innerHTML = `
@@ -4469,13 +5306,14 @@ function openUpgradePreview(config) {
   });
   document.querySelector("#backToMenu").addEventListener("click", () => {
     if (kind === "fort") openFortMenu();
+    else if (kind === "structure") openStructureMenu(target);
     else openBuildingMenu(target);
   });
 }
 
 function beginUpgradeChallenge(kind, target, stats) {
   activeTask = selectLearningTask(Math.min(5, stats.level));
-  activeTaskContext = { kind: "upgrade", upgradeKind: kind, targetId: kind === "fort" ? "fort" : target.id, stats };
+  activeTaskContext = { kind: "upgrade", upgradeKind: kind, targetId: upgradeTargetId(kind, target), stats };
   renderLearningTask(activeTask, activeTaskContext);
 }
 
@@ -4506,7 +5344,7 @@ function failUpgradeMission(context) {
   const stats = context.stats;
   const penalty = Math.ceil(stats.cost * gameConfig.upgrades.failureCostPercent);
   state.stored.wood = Math.max(0, state.stored.wood - penalty);
-  const key = context.upgradeKind === "fort" ? "fort" : `building:${context.targetId}`;
+  const key = upgradeCooldownKey(context.upgradeKind, context.targetId);
   setCooldown(key, gameConfig.timers.upgradeFailCooldown);
   setMessage(`Upgrade mission failed. Lost ${penalty} wood and retry is locked for ${gameConfig.timers.upgradeFailCooldown} seconds.`, 6);
   playSound("fail");
@@ -4535,8 +5373,15 @@ function completeUpgradeJob(job) {
       structure.health = structure.maxHealth;
     });
     state.fortUpgradeCost = barrierUpgradeCost(state.fortLevel + 1);
-    syncFortHealthFromGates();
     setMessage("All fences and gates upgraded. Their HP doubled.", 5);
+    playSound("upgrade");
+    return;
+  }
+  if (job.kind === "structure") {
+    const structure = state.structures.find((candidate) => candidate.id === job.id);
+    if (!structure) return;
+    applyStructureUpgrade(structure);
+    setMessage(`${structureDisplayName(structure.type)} upgrade complete.`, 5);
     playSound("upgrade");
     return;
   }
@@ -4571,6 +5416,12 @@ function upgradeBuilding(building) {
   }
 }
 
+function applyStructureUpgrade(structure) {
+  structure.level = (structure.level || 1) + 1;
+  structure.maxHealth += isBarrierType(structure.type) ? 25 : 35;
+  structure.health = structure.maxHealth;
+}
+
 function structureRepairCost(structure) {
   const missing = Math.max(0, structure.maxHealth - structure.health);
   if (!missing) return 0;
@@ -4598,7 +5449,6 @@ function repairAllBarriers() {
   state.structures.filter((structure) => isBarrierType(structure.type)).forEach((structure) => {
     structure.health = structure.maxHealth;
   });
-  syncFortHealthFromGates();
   setMessage(`Repaired every fence and gate for ${cost} wood.`, 5);
   playSound("upgrade");
   saveState();
@@ -4606,38 +5456,7 @@ function repairAllBarriers() {
 }
 
 function openFortMenu() {
-  syncFortHealthFromGates();
-  const repairCost = totalBarrierRepairCost();
-  const fullHealth = repairCost <= 0 && fort.health >= fort.maxHealth;
-  const job = getUpgradeJob("fort", "fort");
-  const cooldown = getCooldown("fort");
-  const upgradeCost = barrierUpgradeCost(state.fortLevel + 1);
-  hud.modalEyebrow.textContent = "Fort";
-  hud.modalTitle.textContent = "Fence And Gate Network";
-  hud.modalBody.innerHTML = `
-    <p>The fort health is tied to the gate network. Repairing here fixes every damaged fence and gate at once.</p>
-    <div class="stat-line">
-      <span>Health</span>
-      <div class="mini-meter"><i style="width:${(fort.health / fort.maxHealth) * 100}%"></i></div>
-    </div>
-    <p>Level ${state.fortLevel}. Health ${Math.round(fort.health)}/${fort.maxHealth}. Next all-wall upgrade: ${upgradeCost} wood.</p>
-    ${job ? `<p>Upgrade in progress: ${Math.ceil(job.remaining)}s remaining.</p>` : ""}
-    ${cooldown ? `<p class="small-note">Upgrade retry cooldown: ${Math.ceil(cooldown)}s.</p>` : ""}
-    <div class="modal-actions">
-      ${fullHealth ? `<button id="fortUpgrade" class="primary" type="button">Upgrade All for ${upgradeCost} wood</button>` : `<button id="repairFort" class="primary" type="button">Repair All for ${repairCost} wood</button>`}
-      <button id="fortBack" type="button">Main Menu</button>
-    </div>
-  `;
-  openModal();
-  const repairButton = document.querySelector("#repairFort");
-  if (repairButton) {
-    repairButton.addEventListener("click", repairAllBarriers);
-  }
-  const upgradeButton = document.querySelector("#fortUpgrade");
-  if (upgradeButton) {
-    upgradeButton.addEventListener("click", () => openUpgradePreview({ kind: "fort", target: null }));
-  }
-  document.querySelector("#fortBack").addEventListener("click", openMainMenu);
+  setMessage("Use the Repair tool in Build to fix damaged fences and gates.", 5);
 }
 
 function openPlayerMenu() {
@@ -4779,6 +5598,19 @@ function openUpgradeMenu() {
       </div>
     `;
   }).join("");
+  const structureCards = state.structures
+    .filter((structure) => !isBarrierType(structure.type) && !isDecorationType(structure.type))
+    .map((structure) => {
+      const stats = getUpgradeStats("structure", structure);
+      const job = getUpgradeJob("structure", structure.id);
+      return `
+        <div class="menu-card">
+          <h3>${structureDisplayName(structure.type)} Lv ${structure.level || 1}</h3>
+          <p>${job ? `Upgrading: ${Math.ceil(job.remaining)}s left.` : `Cost ${stats.cost} wood. ${stats.next.join(", ")}.`}</p>
+          <button data-upgrade-structure="${structure.id}" type="button">Upgrade</button>
+        </div>
+      `;
+    }).join("");
   hud.modalBody.innerHTML = `
     <div class="menu-grid">
       <div class="menu-card">
@@ -4786,23 +5618,35 @@ function openUpgradeMenu() {
         <p>${state.learningPoints} learning points available.</p>
         <button id="upgradePlayerMenu" type="button">Player Upgrades</button>
       </div>
-      <div class="menu-card">
-        <h3>Fort Wall Lv ${state.fortLevel}</h3>
-        <p>Gate-linked health ${Math.round(fort.health)}/${fort.maxHealth}.</p>
-        <button id="upgradeFortMenu" type="button">Fort Options</button>
-      </div>
       ${buildingCards}
+      ${structureCards}
     </div>
   `;
   openModal();
   document.querySelector("#upgradePlayerMenu").addEventListener("click", openPlayerMenu);
-  document.querySelector("#upgradeFortMenu").addEventListener("click", openFortMenu);
   document.querySelectorAll("[data-upgrade-building]").forEach((button) => {
     button.addEventListener("click", () => openUpgradePreview({ kind: "building", target: buildings[button.dataset.upgradeBuilding] }));
+  });
+  document.querySelectorAll("[data-upgrade-structure]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const structure = state.structures.find((candidate) => candidate.id === button.dataset.upgradeStructure);
+      if (structure) openUpgradePreview({ kind: "structure", target: structure });
+    });
   });
 }
 
 function selectBuildTypeForPlacement(type) {
+  const entry = buildCatalog().find((item) => item.type === type);
+  const cost = structureCost(type);
+  if (!entry || !entry.unlocked) {
+    showCenterMessage(`${structureDisplayName(type)} is locked.`);
+    setMessage(entry ? entry.note : "That build option is locked.", 4);
+    return;
+  }
+  if (state.stored.wood < cost) {
+    showInsufficientBuildResources(type, cost);
+    return;
+  }
   if (buildMode && selectedBuildType === type) {
     stopBuildMode(`Stopped placing ${structureDisplayName(type)}.`);
     return;
@@ -4811,6 +5655,7 @@ function selectBuildTypeForPlacement(type) {
   buildMode = true;
   moveMode = false;
   removeMode = false;
+  repairMode = false;
   selectedMoveTarget = null;
   movePreview = null;
   buildPreview = null;
@@ -4825,6 +5670,7 @@ function enterMoveBuildingMode() {
   buildPreview = null;
   moveMode = true;
   removeMode = false;
+  repairMode = false;
   selectedMoveTarget = null;
   movePreview = null;
   buildTrayCollapsed = false;
@@ -4838,24 +5684,49 @@ function enterRemoveMode() {
   buildPreview = null;
   moveMode = false;
   removeMode = true;
+  repairMode = false;
   selectedMoveTarget = null;
   movePreview = null;
   buildTrayCollapsed = false;
   renderBuildTray();
-  setMessage("Remove mode: tap a fence, gate, outpost, placed cabin, or farm to remove it.", 6);
+  setMessage("Remove mode: tap a fence, gate, tower, city building, decoration, cabin, or farm to remove it.", 6);
+}
+
+function enterRepairMode() {
+  buildMode = false;
+  selectedBuildType = null;
+  buildPreview = null;
+  moveMode = false;
+  removeMode = false;
+  repairMode = true;
+  selectedMoveTarget = null;
+  movePreview = null;
+  buildTrayCollapsed = false;
+  renderBuildTray();
+  setMessage("Repair mode: tap a damaged fence, gate, tower, house, cabin, farm, or decoration to repair it with wood.", 6);
 }
 
 function renderBuildTray() {
   if (!hud.buildTrayBody) return;
-  const stopButton = (buildMode || moveMode || removeMode) ? '<button class="build-token stop-building" data-stop-building type="button">Stop Building</button>' : "";
-  const moveButton = `<button class="build-token ${moveMode ? "active" : ""}" data-move-buildings type="button"><strong>Move</strong><br>Buildings</button>`;
-  const removeButton = `<button class="build-token ${removeMode ? "active" : ""}" data-remove-buildings type="button"><strong>Remove</strong><br>Objects</button>`;
-  hud.buildTrayBody.innerHTML = stopButton + moveButton + removeButton + buildCatalog().map((item) => {
+  buildTrayRenderKey = buildTrayStateKey();
+  const stopButton = (buildMode || moveMode || removeMode || repairMode) ? '<button class="build-token stop-building" data-stop-building type="button">Stop Building</button>' : "";
+  const moveButton = `<button class="build-token tool-token ${moveMode ? "active" : ""}" data-move-buildings type="button"><span class="tool-icon move-tool-icon"></span><strong>Move</strong><br>Buildings</button>`;
+  const removeButton = `<button class="build-token tool-token ${removeMode ? "active" : ""}" data-remove-buildings type="button"><span class="tool-icon remove-tool-icon"></span><strong>Remove</strong><br>Objects</button>`;
+  const repairButton = `<button class="build-token tool-token ${repairMode ? "active" : ""}" data-repair-buildings type="button"><span class="tool-icon repair-tool-icon"></span><strong>Repair</strong><br>Objects</button>`;
+  hud.buildTrayBody.innerHTML = stopButton + moveButton + removeButton + repairButton + buildCatalog().map((item) => {
     const cost = structureCost(item.type);
+    const affordable = state.stored.wood >= cost;
+    const locked = !item.unlocked;
+    const active = buildMode && selectedBuildType === item.type;
+    const classes = ["build-token", active ? "active" : "", locked ? "locked" : "", !locked && !affordable ? "not-affordable" : ""].filter(Boolean).join(" ");
+    const draggable = item.unlocked && affordable;
+    const need = Math.max(0, cost - state.stored.wood);
     return `
-      <button class="build-token ${buildMode && selectedBuildType === item.type ? "active" : ""}" data-tray-build="${item.type}" draggable="${item.unlocked}" type="button" ${item.unlocked ? "" : "disabled"}>
-        <strong>${structureDisplayName(item.type)}</strong><br>
-        ${cost} wood
+      <button class="${classes}" data-tray-build="${item.type}" draggable="${draggable}" type="button" ${locked ? "disabled" : ""} ${!locked && !affordable ? 'aria-disabled="true"' : ""}>
+        ${locked ? '<span class="lock-icon" aria-hidden="true"></span>' : ""}
+        <strong>${structureDisplayName(item.type)}</strong>
+        <span>${cost} wood</span>
+        <small>${locked ? item.note : affordable ? item.note : `Need ${need} more wood`}</small>
       </button>
     `;
   }).join("");
@@ -4871,13 +5742,27 @@ function renderBuildTray() {
     if (removeMode) stopBuildMode("Stopped removing objects.");
     else enterRemoveMode();
   });
+  const repair = hud.buildTrayBody.querySelector("[data-repair-buildings]");
+  if (repair) repair.addEventListener("click", () => {
+    if (repairMode) stopBuildMode("Stopped repairing objects.");
+    else enterRepairMode();
+  });
   hud.buildTrayBody.querySelectorAll("[data-tray-build]").forEach((button) => {
     button.addEventListener("click", () => selectBuildTypeForPlacement(button.dataset.trayBuild));
     button.addEventListener("dragstart", (event) => {
-      selectedBuildType = button.dataset.trayBuild;
+      const type = button.dataset.trayBuild;
+      const cost = structureCost(type);
+      const entry = buildCatalog().find((item) => item.type === type);
+      if (!entry || !entry.unlocked || state.stored.wood < cost) {
+        event.preventDefault();
+        if (entry && entry.unlocked) showInsufficientBuildResources(type, cost);
+        return;
+      }
+      selectedBuildType = type;
       buildMode = true;
       moveMode = false;
       removeMode = false;
+      repairMode = false;
       selectedMoveTarget = null;
       movePreview = null;
       buildPreview = null;
@@ -4887,56 +5772,49 @@ function renderBuildTray() {
   });
 }
 
+function buildTrayStateKey() {
+  return [
+    state.stored.wood,
+    playerLevel(),
+    buildings.foodPrep.level,
+    state.structures.length,
+    buildMode ? selectedBuildType : "",
+    moveMode ? "move" : "",
+    removeMode ? "remove" : "",
+    repairMode ? "repair" : "",
+    buildTrayCollapsed ? "closed" : "open"
+  ].join(":");
+}
+
+function refreshBuildTrayIfNeeded() {
+  if (!hud.buildTrayBody) return;
+  const key = buildTrayStateKey();
+  if (key !== buildTrayRenderKey) renderBuildTray();
+}
+
+function showInsufficientBuildResources(type, cost = structureCost(type)) {
+  const missing = Math.max(1, cost - state.stored.wood);
+  const message = `Need ${missing} more wood to build ${structureDisplayName(type)}.`;
+  showCenterMessage(message, 2.2);
+  setMessage(message, 4);
+}
+
 function openBuildMenu() {
   renderBuildTray();
-  hud.modalEyebrow.textContent = "Build";
-  hud.modalTitle.textContent = "Grid Construction";
-  const cards = buildCatalog().map((item) => {
-    const cost = structureCost(item.type);
-    return `
-      <button data-build-type="${item.type}" type="button" ${item.unlocked ? "" : "disabled"}>
-        <strong>${structureDisplayName(item.type)} - ${cost} wood</strong><br>
-        ${item.unlocked ? item.note : `Locked. ${item.note}`}
-      </button>
-    `;
-  }).join("");
-  hud.modalBody.innerHTML = `
-    <p>Pick a structure, then tap a grid cell. New defenses snap to the transparent grid.</p>
-    <div class="option-list">${cards}</div>
-    <div class="modal-actions">
-      <button id="moveBuildings" class="${moveMode ? "primary" : ""}" type="button">${moveMode ? "Stop Moving" : "Move Buildings"}</button>
-      <button id="removeBuildings" class="${removeMode ? "primary" : ""}" type="button">${removeMode ? "Stop Removing" : "Remove Objects"}</button>
-      ${buildMode || moveMode || removeMode ? '<button id="stopBuildMode" class="primary" type="button">Stop Building</button>' : ""}
-      <button id="cancelBuildMode" type="button">Close</button>
-    </div>
-  `;
-  openModal();
-  document.querySelectorAll("[data-build-type]").forEach((button) => {
-    button.addEventListener("click", () => {
-      selectBuildTypeForPlacement(button.dataset.buildType);
-      closeModal(true);
-    });
-  });
-  document.querySelector("#moveBuildings").addEventListener("click", () => {
-    if (moveMode) stopBuildMode("Stopped moving buildings.");
-    else enterMoveBuildingMode();
-    closeModal(true);
-  });
-  document.querySelector("#removeBuildings").addEventListener("click", () => {
-    if (removeMode) stopBuildMode("Stopped removing objects.");
-    else enterRemoveMode();
-    closeModal(true);
-  });
-  const stopBuildButton = document.querySelector("#stopBuildMode");
-  if (stopBuildButton) {
-    stopBuildButton.addEventListener("click", () => {
-      stopBuildMode();
-      closeModal(true);
-    });
+  buildTrayCollapsed = false;
+  if (modalOpen) closeModal(true);
+  setMessage("Build menu opened. Scroll left or right, then choose a structure to place.", 4);
+  updateHud(0);
+}
+
+function scrollBuildTray(direction) {
+  if (!hud.buildTrayBody) return;
+  const amount = Math.max(180, hud.buildTrayBody.clientWidth * 0.75) * direction;
+  if (typeof hud.buildTrayBody.scrollBy === "function") {
+    hud.buildTrayBody.scrollBy({ left: amount, behavior: "smooth" });
+  } else {
+    hud.buildTrayBody.scrollLeft += amount;
   }
-  document.querySelector("#cancelBuildMode").addEventListener("click", () => {
-    closeModal(true);
-  });
 }
 
 function confirmBuildAt(point) {
@@ -4948,7 +5826,7 @@ function confirmBuildAt(point) {
     setMessage(placement.reason, 4);
     return;
   }
-  if (["hunterPost", "signalTower", "iceTrap", "cabin", "farm"].includes(selectedBuildType)) {
+  if (["hunterPost", "signalTower", "iceTrap", "cabin", "farm", "welcomeCenter", "house", "largeFountain", "statue", "garden"].includes(selectedBuildType)) {
     activeTask = selectLearningTask(Math.min(5, Math.max(2, Math.floor(playerLevel() / 4))));
     activeTaskContext = { kind: "build", buildType: selectedBuildType, point: snapped, cost: placement.cost, replaceIds: placement.replaceIds || null };
     renderLearningTask(activeTask, activeTaskContext);
@@ -4961,7 +5839,7 @@ function placeStructure(type, point, cost, replaceIds = null) {
   activeTask = null;
   activeTaskContext = null;
   if (state.stored.wood < cost) {
-    setMessage(`Need ${cost} wood.`);
+    showInsufficientBuildResources(type, cost);
     return;
   }
   state.stored.wood -= cost;
@@ -5038,7 +5916,7 @@ function selectMoveTarget(point) {
     setMessage(`Move mode: tap a new grid cell for ${structureDisplayName(structure.type)}.`, 5);
     return true;
   }
-  setMessage("Tap a building, tower, cabin, or farm to move it. Fences and gates stay in the wall network.", 5);
+  setMessage("Tap a building, tower, cabin, farm, house, attraction, or decoration to move it. Fences and gates stay in the wall network.", 5);
   return false;
 }
 
@@ -5082,8 +5960,15 @@ function removeObjectAt(point) {
       const resident = state.survivors.find((survivor) => survivor.id === structure.stationedResidentId);
       if (resident) resident.stationedAt = null;
     }
+    if (structure.type === "house") {
+      state.cityResidents.forEach((resident) => {
+        if (resident.homeId === structure.id) resident.homeId = null;
+      });
+    }
+    if (structure.type === "welcomeCenter") {
+      state.cityVisitors = [];
+    }
     state.structures = state.structures.filter((item) => item.id !== structure.id);
-    if (isBarrierType(structure.type)) syncFortHealthFromGates();
     saveState();
     setMessage(`${structureDisplayName(structure.type)} removed. Tap another object or Stop Building to exit.`, 5);
     playSound("pickup");
@@ -5095,52 +5980,22 @@ function removeObjectAt(point) {
     setMessage("Move core buildings from the Build menu. Survival systems stay in camp.", 5);
     return false;
   }
-  setMessage("Remove mode: tap a fence, gate, tower, placed cabin, or farm.", 4);
+  setMessage("Remove mode: tap a fence, gate, tower, city building, decoration, cabin, or farm.", 4);
   return false;
 }
 
 function openMainMenu() {
   hud.modalEyebrow.textContent = "Camp";
   hud.modalTitle.textContent = "Main Menu";
-  const buildingCards = Object.values(buildings).map((building) => {
-    const job = getUpgradeJob("building", building.id);
-    return `
-      <div class="menu-card">
-        <h3>${building.name} Lv ${building.level}</h3>
-        <p>${job ? `Upgrading: ${Math.ceil(job.remaining)}s left.` : building.task}</p>
-        <button data-open-building="${building.id}" type="button">Open Options</button>
-      </div>
-    `;
-  }).join("");
   hud.modalBody.innerHTML = `
-    <div class="menu-grid">
-      ${buildingCards}
-      <div class="menu-card">
-        <h3>Fort Wall Lv ${state.fortLevel}</h3>
-        <p>Health ${Math.round(fort.health)}/${fort.maxHealth}. ${fort.health < fort.maxHealth ? "Repair with wood." : "Full health wall can be upgraded."}</p>
-        <button id="openFortMenu" type="button">Fort Options</button>
-      </div>
-      <div class="menu-card">
-        <h3>Player</h3>
-        <p>Level ${playerLevel()}. ${state.learningPoints} learning points. Carry ${carryCapacity()} items. Attack +${playerStatBonus("attack") * gameConfig.combat.playerAttackDamage}.</p>
-        <button id="openPlayerMenu" type="button">Player Upgrades</button>
-        <button id="openCustomizeMenu" type="button">Character Creation</button>
-      </div>
-      <div class="menu-card">
-        <h3>Tower Defense</h3>
-        <p>Night ${Math.max(1, state.wave.number || 1)}. ${state.wave.active ? `Night ends in ${Math.ceil(state.wave.timer || 0)}s.` : `Next night in ${Math.ceil(state.wave.timer || 0)}s.`}</p>
-        <button id="openBuildMenu" type="button">Build Mode</button>
-      </div>
+    <div class="modal-actions main-menu-actions">
+      <button id="openHelpMenu" class="primary" type="button">Help</button>
+      <button id="openUpgradeCenter" type="button">Upgrades</button>
     </div>
   `;
-  openModal();
-  document.querySelectorAll("[data-open-building]").forEach((button) => {
-    button.addEventListener("click", () => openBuildingMenu(buildings[button.dataset.openBuilding]));
-  });
-  document.querySelector("#openFortMenu").addEventListener("click", openFortMenu);
-  document.querySelector("#openPlayerMenu").addEventListener("click", openPlayerMenu);
-  document.querySelector("#openCustomizeMenu").addEventListener("click", openCustomizationMenu);
-  document.querySelector("#openBuildMenu").addEventListener("click", openBuildMenu);
+  openModal("main-menu");
+  document.querySelector("#openUpgradeCenter").addEventListener("click", openUpgradeMenu);
+  document.querySelector("#openHelpMenu").addEventListener("click", openHelpMenu);
 }
 
 function openHelpMenu() {
@@ -5203,12 +6058,12 @@ function showTutorialTip(flag, title, copy, actions = []) {
 }
 
 function openVisitorModal(visitor) {
-  hud.modalEyebrow.textContent = "Survivor At The Gate";
+  hud.modalEyebrow.textContent = "Expert At The Gate";
   hud.modalTitle.textContent = visitor.name;
   hud.modalBody.innerHTML = `
     <p><strong>Level ${visitor.level} ${visitor.title}</strong></p>
     <p>${visitor.bonus}</p>
-    <p>Recruiting them requires one learning task. Camp capacity is ${state.survivors.length}/${survivorCapacity()}.</p>
+    <p>Recruiting them as an Expert requires one learning task. Expert capacity is ${state.survivors.length}/${survivorCapacity()}.</p>
     <div class="modal-actions">
       <button id="startRecruitment" class="primary" type="button">Recruitment mission</button>
       <button id="turnAway" type="button">Send Away</button>
@@ -5273,7 +6128,7 @@ function renderLearningTask(task, context) {
             closeModal();
           }, 950);
         } else {
-          setMessage("The survivor needs a clearer answer and leaves for now.", 5);
+          setMessage("The Expert candidate needs a clearer answer and leaves for now.", 5);
           window.setTimeout(() => finishVisitor(`${pendingRecruit.name} leaves the gate.`), 950);
         }
       }
@@ -5283,7 +6138,7 @@ function renderLearningTask(task, context) {
 
 function renderReplacementMenu(recruit) {
   hud.modalEyebrow.textContent = "Camp Full";
-  hud.modalTitle.textContent = "Choose A Survivor";
+  hud.modalTitle.textContent = "Choose An Expert";
   const rows = state.survivors.map((survivor, index) => `
     <article class="resident-list resident-row">
       <img class="resident-icon" src="${actorIconDataUrl(survivor, 56)}" alt="">
@@ -5295,14 +6150,14 @@ function renderReplacementMenu(recruit) {
     </article>
   `).join("");
   hud.modalBody.innerHTML = `
-    <p>The camp can only hold ${survivorCapacity()} survivors right now. Choose someone to send away or keep your current crew.</p>
+    <p>The camp can only hold ${survivorCapacity()} Experts right now. Choose someone to send away or keep your current crew.</p>
     <div class="replacement-layout">
       <div class="replacement-column">
-        <h3>Current Residents</h3>
+        <h3>Current Experts</h3>
         ${rows}
       </div>
       <div class="replacement-column">
-        <h3>New Survivor</h3>
+        <h3>New Expert</h3>
         <div class="resident-row">
           <img class="resident-icon" src="${actorIconDataUrl(recruit, 56)}" alt="">
           <div>
@@ -5327,15 +6182,23 @@ function renderReplacementMenu(recruit) {
 
 function openModal(mode = "") {
   modalOpen = true;
+  modalPauseActive = true;
+  paused = true;
   hud.modalLayer.classList.toggle("main-menu-open", mode === "main-menu");
   hud.modalLayer.classList.remove("hidden");
+  updateHud(0);
 }
 
 function closeModal(force = false) {
   if (!force && (gameOver || (activeTaskContext && activeTaskContext.kind === "failure"))) return;
   modalOpen = false;
+  if (modalPauseActive) {
+    paused = false;
+    modalPauseActive = false;
+  }
   hud.modalLayer.classList.add("hidden");
   hud.modalLayer.classList.remove("main-menu-open");
+  updateHud(0);
 }
 
 function forceCloseModal() {
@@ -5344,34 +6207,45 @@ function forceCloseModal() {
 
 function openStructureMenu(structure) {
   if (isBarrierType(structure.type)) {
-    openFortMenu();
+    setMessage("Use the Repair tool in Build to fix damaged fences and gates.", 4);
     return;
   }
-  const cost = Math.ceil(structureCost(structure.type) * 0.8 + structure.level * 8);
+  const upgradeStats = getUpgradeStats("structure", structure);
+  const job = getUpgradeJob("structure", structure.id);
+  const cooldown = getCooldown(upgradeCooldownKey("structure", structure.id));
   const tower = isTowerType(structure.type);
   const stats = tower ? towerStats(structure) : null;
   const stationRows = tower ? renderStationButtons(structure) : "";
-  hud.modalEyebrow.textContent = tower ? "Outpost" : "Structure";
+  const cityCopy = structure.type === "house"
+    ? `<p>Residents housed here: ${cityHouseOccupants(structure.id)}/${gameConfig.city.houseCapacity || 5}. Total city housing ${state.cityResidents.length}/${cityResidentCapacity()}.</p>`
+    : structure.type === "welcomeCenter"
+      ? `<p>Visitors enter through this building. Visitors become Residents when they like the city and housing is available.</p>`
+      : isDecorationType(structure.type)
+        ? `<p>Decoration and attraction piece. Future city appeal metrics can use this placement.</p>`
+        : "";
+  hud.modalEyebrow.textContent = tower ? "Outpost" : isCityBuildingType(structure.type) ? "City Building" : isDecorationType(structure.type) ? "City Decor" : "Structure";
   hud.modalTitle.textContent = `${structureDisplayName(structure.type)} Lv ${structure.level}`;
   hud.modalBody.innerHTML = `
     <p>Health ${Math.round(structure.health)}/${structure.maxHealth}.</p>
+    ${cityCopy}
     ${tower ? `<p>Range ${stats.range}. Damage ${Math.round(stats.damage)}. ${stats.slow < 1 ? "Slows enemies in range." : "Automatic arrows."}</p>` : ""}
+    ${job ? `<p class="small-note">Upgrade in progress: ${Math.ceil(job.remaining)}s remaining.</p>` : ""}
+    ${cooldown ? `<p class="small-note">Upgrade retry cooldown: ${Math.ceil(cooldown)}s.</p>` : ""}
     ${tower ? stationRows : ""}
     <div class="modal-actions">
-      <button id="upgradeStructure" class="primary" type="button">Upgrade for ${cost} wood</button>
+      <button id="upgradeStructure" class="primary" type="button">${job ? "Upgrade Running" : `Upgrade Mission for ${upgradeStats.cost} wood`}</button>
       ${isBarrierType(structure.type) && structure.health < structure.maxHealth ? `<button id="repairStructure" type="button">Repair for ${structureRepairCost(structure)} wood</button>` : ""}
       <button id="structureBack" type="button">Close</button>
     </div>
   `;
   openModal();
-  document.querySelector("#upgradeStructure").addEventListener("click", () => upgradeStructure(structure, cost));
+  document.querySelector("#upgradeStructure").addEventListener("click", () => openUpgradePreview({ kind: "structure", target: structure }));
   const repairButton = document.querySelector("#repairStructure");
   if (repairButton) repairButton.addEventListener("click", () => repairStructure(structure));
   document.querySelectorAll("[data-station]").forEach((button) => {
     button.addEventListener("click", () => {
       const value = button.dataset.station;
-      if (value === "none") structure.stationedResidentId = null;
-      else structure.stationedResidentId = value;
+      stationExpertAtStructure(structure, value);
       saveState();
       openStructureMenu(structure);
     });
@@ -5381,49 +6255,51 @@ function openStructureMenu(structure) {
 
 function renderStationButtons(structure) {
   const rows = [
-    `<button data-station="none" type="button">No Resident${!structure.stationedResidentId ? " Selected" : ""}</button>`,
+    `<button data-station="none" type="button">No Expert${!structure.stationedResidentId ? " Selected" : ""}</button>`,
     ...state.survivors.map((survivor) => `
       <button data-station="${survivor.id}" type="button">
         ${survivor.name} - Lv ${residentLevel(survivor)} ${survivor.title}${structure.stationedResidentId === survivor.id ? " Selected" : ""}
+        <span>${stationAssignmentLabel(survivor.id, structure)}</span>
       </button>
     `)
   ].join("");
   return `
-    <h3>Station Resident</h3>
-    <p class="small-note">Stationed residents boost arrows. Hunters give the largest damage boost.</p>
+    <h3>Station Expert</h3>
+    <p class="small-note">Stationed Experts boost arrows. Hunters give the largest damage boost.</p>
     <div class="option-list">${rows}</div>
   `;
 }
 
-function upgradeStructure(structure, cost) {
-  if (state.stored.wood < cost) {
-    showCenterMessage(`Not enough wood. Need ${cost}.`);
-    setMessage("Not enough wood for that defense upgrade.");
-    return;
-  }
-  state.stored.wood -= cost;
-  structure.level += 1;
-  structure.maxHealth += isBarrierType(structure.type) ? 25 : 35;
-  structure.health = structure.maxHealth;
-  setMessage(`${structureDisplayName(structure.type)} upgraded.`);
-  playSound("upgrade");
-  saveState();
-  openStructureMenu(structure);
-}
-
-function repairStructure(structure) {
+function repairStructure(structure, reopenMenu = true) {
   const cost = structureRepairCost(structure);
+  if (cost <= 0) {
+    setMessage(`${structureDisplayName(structure.type)} is already fully repaired.`, 4);
+    return false;
+  }
   if (state.stored.wood < cost) {
     showCenterMessage(`Not enough wood. Need ${cost}.`);
     setMessage(`Not enough wood to repair that ${structureDisplayName(structure.type).toLowerCase()}.`);
-    return;
+    return false;
   }
   state.stored.wood -= cost;
   structure.health = structure.maxHealth;
-  if (structure.type === "gate") syncFortHealthFromGates();
   setMessage(`${structureDisplayName(structure.type)} repaired.`);
   saveState();
-  openStructureMenu(structure);
+  if (reopenMenu) openStructureMenu(structure);
+  return true;
+}
+
+function repairObjectAt(point) {
+  const structure = clickedStructure(point);
+  if (!structure) {
+    setMessage("Tap a damaged fence, gate, tower, house, cabin, farm, or decoration to repair it.", 5);
+    return;
+  }
+  if (repairStructure(structure, false)) {
+    playSound("upgrade");
+    setMessage(`${structureDisplayName(structure.type)} repaired. Tap another damaged object or Stop Building to exit.`, 5);
+    renderBuildTray();
+  }
 }
 
 function clickedBuilding(point) {
@@ -5449,6 +6325,10 @@ function handleCanvasClick(event) {
     removeObjectAt(point);
     return;
   }
+  if (repairMode) {
+    repairObjectAt(point);
+    return;
+  }
   if (buildMode) {
     confirmBuildAt(point);
     return;
@@ -5456,7 +6336,7 @@ function handleCanvasClick(event) {
   const structure = clickedStructure(point);
   if (structure) {
     if (isBarrierType(structure.type)) {
-      openFortMenu();
+      setMessage("Use the Repair tool in Build to fix damaged fences and gates.", 4);
       return;
     }
     openStructureMenu(structure);
@@ -5471,7 +6351,7 @@ function handleCanvasClick(event) {
 }
 
 function canStartTouchMove(point) {
-  if (paused || modalOpen || buildMode || moveMode || removeMode || gameOver || failureLock) return false;
+  if (paused || modalOpen || buildMode || moveMode || removeMode || repairMode || gameOver || failureLock) return false;
   return !clickedBuilding(point) && !clickedStructure(point);
 }
 
@@ -5620,6 +6500,7 @@ canvas.addEventListener("drop", (event) => {
   if (type) selectedBuildType = type;
   removeMode = false;
   moveMode = false;
+  repairMode = false;
   buildMode = true;
   confirmBuildAt(screenToWorld(event));
 });
@@ -5628,7 +6509,7 @@ canvas.addEventListener("pointerup", (event) => handleCanvasPointerEnd(event, tr
 canvas.addEventListener("pointercancel", (event) => handleCanvasPointerEnd(event, false));
 canvas.addEventListener("lostpointercapture", (event) => handleCanvasPointerEnd(event, false));
 hud.closeModal?.addEventListener("click", () => closeModal());
-hud.actionsToggle?.addEventListener("click", () => setActionsCollapsed(!actionsCollapsed));
+hud.actionsToggle?.addEventListener("click", () => runHudAction(openMainMenu));
 hud.playerIconButton?.addEventListener("click", () => runHudAction(openPlayerHubMenu));
 hud.mainMenuButton?.addEventListener("click", () => runHudAction(openMainMenu));
 hud.buildButton?.addEventListener("click", () => runHudAction(openBuildMenu));
@@ -5644,11 +6525,14 @@ hud.zoomInButton?.addEventListener("click", () => adjustCameraZoom(1.22));
 hud.buildTrayToggle?.addEventListener("click", () => {
   if (paused) return;
   buildTrayCollapsed = !buildTrayCollapsed;
+  if (buildTrayCollapsed && (buildMode || moveMode || removeMode || repairMode)) {
+    stopBuildMode("Build tools disabled.");
+  }
   renderBuildTray();
   updateHud(0);
 });
-hud.fortHealthCard?.addEventListener("click", openFortMenu);
-
+hud.buildScrollLeft?.addEventListener("click", () => scrollBuildTray(-1));
+hud.buildScrollRight?.addEventListener("click", () => scrollBuildTray(1));
 window.addEventListener("keydown", (event) => {
   const key = event.key.toLowerCase();
   if (["arrowup", "arrowdown", "arrowleft", "arrowright", "w", "a", "s", "d"].includes(key)) {
