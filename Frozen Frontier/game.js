@@ -258,12 +258,12 @@ const defaultGameConfig = {
     residentHealth: 70,
     visitorHealth: 60,
     clothes: [
-      { id: "blue", label: "Glacier Blue", color: "#67c7ff" },
-      { id: "orange", label: "Signal Orange", color: "#ff9f43" },
-      { id: "green", label: "Pine Green", color: "#72d572" },
-      { id: "red", label: "Rescue Red", color: "#ff5d66" },
-      { id: "purple", label: "Aurora Violet", color: "#b48cff" },
-      { id: "yellow", label: "Lantern Gold", color: "#ffd166" }
+      { id: "blue", label: "Boiler Teal", color: "#315b67" },
+      { id: "orange", label: "Copper Orange", color: "#b7643e" },
+      { id: "green", label: "Pine Canvas", color: "#4d6b45" },
+      { id: "red", label: "Oxblood Red", color: "#7b3f34" },
+      { id: "purple", label: "Workshop Violet", color: "#4a3a58" },
+      { id: "yellow", label: "Brass Gold", color: "#d89b34" }
     ]
   },
   transfers: {
@@ -612,11 +612,13 @@ let clothingReady = false;
 
 const outfitCategories = [
   { id: "head", label: "Head", folder: "heads", colors: ["#f2a65e", "#c98252", "#8f5a3a", "#f7c99a"], count: 10 },
-  { id: "hat", label: "Hat", folder: "hats", colors: ["#173047", "#ff9f43", "#f4f9ff", "#b48cff"] },
-  { id: "shirt", label: "Shirt", folder: "shirts", colors: ["#67c7ff", "#ff5d66", "#73df9b", "#ffd166"] },
-  { id: "pants", label: "Pants", folder: "pants", colors: ["#25384d", "#5e6f80", "#3b5d47", "#6a4a78"] },
-  { id: "shoes", label: "Shoes", folder: "shoes", colors: ["#1c2530", "#704d2e", "#dff7ff", "#3a4654"] }
+  { id: "hat", label: "Hat", folder: "hats", colors: ["#2f261f", "#8f5a2f", "#1d3b45", "#7b3f34"] },
+  { id: "shirt", label: "Shirt", folder: "shirts", colors: ["#315b67", "#7b3f34", "#4d6b45", "#d89b34"] },
+  { id: "pants", label: "Pants", folder: "pants", colors: ["#3d3229", "#314652", "#5a4936", "#4a3a58"] },
+  { id: "shoes", label: "Shoes", folder: "shoes", colors: ["#2b211b", "#704d2e", "#1f2e36", "#5b3b2e"] }
 ];
+
+const clothingAssetVersion = "steam-2";
 
 const storageKey = "frozen-frontier-base-v28";
 const keys = new Set();
@@ -1282,7 +1284,7 @@ function outfitCatalog() {
       return {
         id: `${category.id}-${number}`,
         label: `${category.label} ${index + 1}`,
-        source: `assets/clothing/${category.folder}/${category.id}-${number}.gif`
+        source: `assets/clothing/${category.folder}/${category.id}-${number}.gif?v=${clothingAssetVersion}`
       };
     });
     return catalog;
@@ -6211,6 +6213,22 @@ function drawActorHealth(actor, yOffset) {
   ctx.restore();
 }
 
+function colorToRgb(color) {
+  const value = String(color || "#ffffff").replace("#", "").trim();
+  const normalized = value.length === 3
+    ? value.split("").map((digit) => digit + digit).join("")
+    : value.padEnd(6, "f").slice(0, 6);
+  return {
+    r: parseInt(normalized.slice(0, 2), 16),
+    g: parseInt(normalized.slice(2, 4), 16),
+    b: parseInt(normalized.slice(4, 6), 16)
+  };
+}
+
+function isPrimaryClothingPixel(data, index) {
+  return data[index + 3] > 0 && data[index] > 248 && data[index + 1] > 248 && data[index + 2] > 248;
+}
+
 function tintedClothingImage(id, color) {
   const image = clothingImages[id];
   if (!clothingReady || !image || !image.complete || !image.naturalWidth) return null;
@@ -6223,9 +6241,16 @@ function tintedClothingImage(id, color) {
   layer.height = height;
   const layerCtx = layer.getContext("2d");
   layerCtx.drawImage(image, 0, 0, width, height);
-  layerCtx.globalCompositeOperation = "source-in";
-  layerCtx.fillStyle = color;
-  layerCtx.fillRect(0, 0, width, height);
+  const tint = colorToRgb(color);
+  const imageData = layerCtx.getImageData(0, 0, width, height);
+  const pixels = imageData.data;
+  for (let index = 0; index < pixels.length; index += 4) {
+    if (!isPrimaryClothingPixel(pixels, index)) continue;
+    pixels[index] = tint.r;
+    pixels[index + 1] = tint.g;
+    pixels[index + 2] = tint.b;
+  }
+  layerCtx.putImageData(imageData, 0, 0);
   tintedClothingCache.set(key, layer);
   return layer;
 }

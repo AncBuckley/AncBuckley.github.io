@@ -47,12 +47,12 @@
     "residentHealth": 70,
     "visitorHealth": 60,
     "clothes": [
-      { "id": "blue", "label": "Glacier Blue", "color": "#67c7ff" },
-      { "id": "orange", "label": "Signal Orange", "color": "#ff9f43" },
-      { "id": "green", "label": "Pine Green", "color": "#72d572" },
-      { "id": "red", "label": "Rescue Red", "color": "#ff5d66" },
-      { "id": "purple", "label": "Aurora Violet", "color": "#b48cff" },
-      { "id": "yellow", "label": "Lantern Gold", "color": "#ffd166" }
+      { "id": "blue", "label": "Boiler Teal", "color": "#315b67" },
+      { "id": "orange", "label": "Copper Orange", "color": "#b7643e" },
+      { "id": "green", "label": "Pine Canvas", "color": "#4d6b45" },
+      { "id": "red", "label": "Oxblood Red", "color": "#7b3f34" },
+      { "id": "purple", "label": "Workshop Violet", "color": "#4a3a58" },
+      { "id": "yellow", "label": "Brass Gold", "color": "#d89b34" }
     ]
   },
   "transfers": {
