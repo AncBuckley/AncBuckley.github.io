@@ -17,8 +17,10 @@ const hud = {
   zoomOutButton: document.querySelector("#zoomOutButton"),
   zoomResetButton: document.querySelector("#zoomResetButton"),
   zoomInButton: document.querySelector("#zoomInButton"),
+  furnaceMeterCard: document.querySelector("#furnaceMeterCard"),
   furnaceFuelText: document.querySelector("#furnaceFuelText"),
   furnaceFuelMeter: document.querySelector("#furnaceFuelMeter"),
+  cabinHungerCard: document.querySelector("#cabinHungerCard"),
   cabinHungerText: document.querySelector("#cabinHungerText"),
   cabinHungerMeter: document.querySelector("#cabinHungerMeter"),
   woodCount: document.querySelector("#woodCount"),
@@ -85,13 +87,27 @@ const buildingData = {
     y: 3480,
     w: 150,
     h: 130,
-    color: "#554255",
+    color: "#4f4a55",
     roof: "#2c2032",
     level: 1,
     upgradeCost: 18,
     fuel: 50,
     maxFuel: 100,
-    task: "Burning stored wood to keep the fort warm."
+    hatchPulse: 0,
+    task: "Burns logs from Storage Sheds to keep the camp warm."
+  },
+  storageShed: {
+    id: "storageShed",
+    name: "Storage Shed",
+    x: 4100,
+    y: 3480,
+    w: 150,
+    h: 130,
+    color: "#5b4b3c",
+    roof: "#345246",
+    level: 1,
+    upgradeCost: 14,
+    task: "Shared wood storage. Any Storage Shed adds to and draws from the same wood inventory."
   },
   foodPrep: {
     id: "foodPrep",
@@ -140,12 +156,12 @@ const buildingData = {
     maxHunger: 100,
     meals: 0,
     mealUseProgress: 0,
-    task: "Tracks how hungry the current Experts are."
+    task: "Houses recruited Experts and increases Expert capacity when upgraded."
   },
 };
 
 const dropoffs = {
-  wood: { x: 4375, y: 3635, label: "Wood Pile" },
+  wood: { x: 4375, y: 3635, label: "Storage Shed" },
   food: { x: 4545, y: 3715, label: "Food Prep" },
   mealPickup: { x: 4650, y: 3715, label: "Meal Stack" },
   dining: { x: 4785, y: 3752, label: "Dining Hall" },
@@ -162,7 +178,7 @@ const specialtyCatalog = [
   {
     id: "cook",
     title: "Cook",
-    bonus: "Meals fill the cabin hunger meter faster and food prep is quicker.",
+    bonus: "Cooks raw food into meals.",
     names: ["Eli Brooks", "Talia Reed", "Nora Lake"]
   },
   {
@@ -220,7 +236,7 @@ const defaultGameConfig = {
     upgradeFailCooldown: 60,
     waveInterval: 300,
     daySeconds: 300,
-    nightSeconds: 60,
+    nightSeconds: 120,
     nightSpawnMinSeconds: 6,
     nightSpawnMaxSeconds: 16,
     nightFirstSpawnSeconds: 5
@@ -260,7 +276,7 @@ const defaultGameConfig = {
     diningDropDistance: 70
   },
   resources: {
-    groundTtlSeconds: 120,
+    groundTtlSeconds: 60,
     popSeconds: 0.35
   },
   carry: {
@@ -277,20 +293,22 @@ const defaultGameConfig = {
   foodPrep: {
     baseProcessSeconds: 3.2,
     levelReductionSeconds: 0.45,
-    cookReductionSeconds: 0.45,
+    cookReductionSeconds: 0,
     playerCookingReductionSeconds: 0.45,
     minProcessSeconds: 0.75
   },
   cabin: {
-    baseHungerGainPerSecond: 0.08,
-    survivorHungerGainPerSecond: 0.012,
+    baseHungerGainPerSecond: 0.11,
+    survivorHungerGainPerSecond: 0.018,
+    residentHungerGainPerSecond: 0.006,
     levelHungerReductionPerSecond: 0.01,
     minHungerGainPerSecond: 0.04,
     mealUseSeconds: 26,
-    diningServeSeconds: 12,
+    diningServeSeconds: 10,
     mealHungerRelief: 12,
-    cookMealReliefBonus: 5,
-    emptyDiningHungerMultiplier: 4
+    cookMealReliefBonus: 0,
+    emptyDiningHungerMultiplier: 7,
+    mealPopulationSpeedBonus: 0.18
   },
   furnace: {
     baseFuelDrainPerSecond: 0.42,
@@ -301,36 +319,50 @@ const defaultGameConfig = {
     fuelPerWood: 7
   },
   trees: {
-    chopSeconds: 5,
+    chopSeconds: 7.5,
     lumberjackReductionSeconds: 1.1,
     playerLumberReductionSeconds: 0.55,
     minChopSeconds: 1.4,
     progressDecayPerSecond: 0.45,
-    respawnSeconds: 75,
+    respawnSeconds: 225,
     woodDrops: 5,
-    clumps: 7,
+    clumps: 35,
     treesPerClump: 6,
     clumpRadius: 170,
     fenceClearGridSpaces: 5,
     berryBushRatio: 0.1,
     berryGatherSeconds: 3,
-    berryRespawnSeconds: 55,
-    berryDrops: 3
+    berryRespawnSeconds: 165,
+    berryDrops: 3,
+    chopMiniGame: {
+      segmentCount: 4,
+      correctBonusFraction: 0.25,
+      wrongPenaltyFraction: 0.1,
+      startDelaySeconds: 1,
+      endDelaySeconds: 1,
+      zoom: 1
+    }
+  },
+  worldGeneration: {
+    groundPatchCount: 130,
+    lakeMinCount: 3,
+    lakeMaxCount: 5,
+    lakeMinCoverage: 0.2,
+    lakeMaxCoverage: 0.3
   },
   combat: {
     baseArrowCooldown: 0.56,
     towerArrowCooldown: 0.32,
     baseArrowDamage: 22,
-    towerLevelDamage: 6,
-    playerAttackDamage: 5,
+    damageGrowthMultiplier: 1.61803398875,
     towerDamageMultiplier: 2.15,
     guardDamageMultiplier: 0.25,
     baseRange: 270,
     towerRange: 380,
     wolfMinSpeed: 58,
     wolfMaxSpeed: 76,
-    wolfBaseHp: 80,
-    wolfBonusHp: 25,
+    wolfBaseHp: 144,
+    wolfBonusHp: 45,
     wolfDamage: 5,
     wolfAttackSeconds: 1.1,
     wolfAttackRandomDelay: 0.4,
@@ -339,17 +371,26 @@ const defaultGameConfig = {
     arrowSeconds: 0.18,
     waveBaseCount: 3,
     waveCountPerTier: 1,
-    waveHpPerTier: 22,
+    waveHpPerTier: 40,
     waveDamagePerTier: 1,
     waveSpeedPerTier: 3,
     eagleStartWave: 2,
-    eagleBaseHp: 52,
+    eagleBaseHp: 94,
     eagleSpeed: 104,
     eagleDamage: 4,
     eagleAttackSeconds: 1.35,
     eagleEveryWaves: 2,
     eagleBonusPerTier: 1,
     groundDamageMultiplier: 4
+  },
+  deer: {
+    count: 10,
+    hp: 132,
+    speed: 42,
+    fleeSpeed: 148,
+    fleeSeconds: 7,
+    roamRadius: 520,
+    meatDrops: 2
   },
   build: {
     fenceCost: 4,
@@ -358,7 +399,9 @@ const defaultGameConfig = {
     gateHealth: 95,
     outpostCost: 28,
     outpostHealth: 90,
-    cabinCost: 90,
+    cabinCost: 2000,
+    storageShedCost: 50,
+    foodPrepCost: 50,
     farmCost: 55,
     welcomeCenterCost: 120,
     houseCost: 70,
@@ -375,8 +418,11 @@ const defaultGameConfig = {
     iceTrapCost: 60,
     welcomeCenterPlayerLevel: 10,
     advancedTowerPlayerLevel: 5,
+    storageShedPlayerLevel: 12,
+    foodPrepPlayerLevel: 14,
     signalTowerPlayerLevel: 8,
-    iceTrapPlayerLevel: 12
+    iceTrapPlayerLevel: 12,
+    cabinPlayerLevel: 30
   },
   city: {
     houseCapacity: 5,
@@ -389,10 +435,11 @@ const defaultGameConfig = {
     roamRadius: 260
   },
   towers: {
-    outpost: { range: 250, damage: 6, cooldown: 1.45 },
-    hunterPost: { range: 310, damage: 10, cooldown: 1.25 },
-    signalTower: { range: 280, damage: 4, cooldown: 1.7, slow: 0.68 },
-    iceTrap: { range: 170, damage: 2, cooldown: 2.2, slow: 0.45 },
+    outpost: { range: 250, damage: 12, cooldown: 1.45 },
+    hunterPost: { range: 310, damage: 20, cooldown: 1.25 },
+    signalTower: { range: 280, damage: 8, cooldown: 1.7, netSeconds: 3 },
+    iceTrap: { range: 170, damage: 4, cooldown: 2.2, slow: 0.45 },
+    rangeGrowthMultiplier: 1.12,
     stationedMultiplier: 1.8,
     playerMultiplier: 2.3,
     hunterMultiplier: 2.7
@@ -411,12 +458,14 @@ const defaultGameConfig = {
     lumberjackHighLevelThreshold: 6,
     farmerWorkSeconds: 11,
     farmerFoodAmount: 1,
-    cookWorkSecondsMultiplier: 1.15,
+    cookWorkSecondsMultiplier: 1,
     engineerBuildReductionPerSecond: 0.35,
     hunterArrowCooldown: 1.25,
     hunterArrowDamage: 14,
     guardArrowCooldown: 1.55,
-    guardArrowDamage: 10
+    guardArrowDamage: 10,
+    retrainLearningCost: 10,
+    retrainWoodCost: 200
   },
   failure: {
     furnaceRestorePercent: 20,
@@ -434,7 +483,7 @@ const defaultGameConfig = {
     minWoodCost: 5,
     failureCostPercent: 0.2,
     fortCostMultiplier: 1.6,
-    buildingCostMultiplier: 1.55,
+    buildingCostMultiplier: 1.61803398875,
     furnaceFuelCapacityBonus: 25,
     cabinHungerMaxBonus: 20,
     cabinUpgradeHungerRelief: 12,
@@ -458,7 +507,14 @@ const defaultGameConfig = {
     cabin: "assets/sprites/cabin-sheet.png",
     diningHall: "assets/sprites/dining-hall-sheet.png",
     foodPrep: "assets/sprites/food-prep-sheet.png",
+    storageShed: "assets/sprites/storage-shed-sheet.png",
+    house: "assets/sprites/house-sheet.png",
+    welcomeCenter: "assets/sprites/welcome-center-sheet.png",
     tower: "assets/sprites/tower-sheet.png",
+    outpost: "assets/sprites/outpost-sheet.png",
+    hunterPost: "assets/sprites/hunter-post-sheet.png",
+    signalTower: "assets/sprites/net-tower-sheet.png",
+    iceTrap: "assets/sprites/ice-trap-sheet.png",
     farm: "assets/sprites/farm-sheet.png",
     tree: "assets/sprites/tree-sheet.png",
     "player-blue": "assets/sprites/player-blue-sheet.png",
@@ -475,6 +531,7 @@ const defaultGameConfig = {
     "visitor-yellow": "assets/sprites/visitor-yellow-sheet.png",
     wolf: "assets/sprites/wolf-sheet.png",
     eagle: "assets/sprites/eagle-sheet.png",
+    deer: "assets/sprites/deer-sheet.png",
     wood: "assets/sprites/wood-sheet.png",
     lettuce: "assets/sprites/lettuce-sheet.png",
     meat: "assets/sprites/meat-sheet.png",
@@ -486,11 +543,19 @@ const defaultGameConfig = {
     cabin: 4,
     diningHall: 4,
     foodPrep: 4,
+    storageShed: 4,
+    house: 4,
+    welcomeCenter: 4,
     tower: 4,
+    outpost: 4,
+    hunterPost: 4,
+    signalTower: 4,
+    iceTrap: 4,
     farm: 4,
-    tree: 4,
-    wolf: 4,
-    eagle: 4,
+    tree: 7,
+    wolf: 7,
+    eagle: 8,
+    deer: 7,
     wood: 4,
     lettuce: 4,
     meat: 4,
@@ -498,12 +563,20 @@ const defaultGameConfig = {
     fortWall: 4
   },
   spriteRows: {
-    furnace: 3,
-    cabin: 3,
-    diningHall: 3,
-    foodPrep: 3,
+    furnace: 10,
+    cabin: 10,
+    diningHall: 10,
+    foodPrep: 10,
+    storageShed: 10,
+    house: 10,
+    welcomeCenter: 10,
     tower: 3,
-    farm: 3,
+    outpost: 10,
+    hunterPost: 10,
+    signalTower: 10,
+    iceTrap: 10,
+    farm: 10,
+    tree: 4,
     fortWall: 3,
     "player-blue": 3,
     "player-orange": 3,
@@ -516,7 +589,10 @@ const defaultGameConfig = {
     "visitor-green": 3,
     "visitor-red": 3,
     "visitor-purple": 3,
-    "visitor-yellow": 3
+    "visitor-yellow": 3,
+    wolf: 2,
+    eagle: 2,
+    deer: 3
   },
   animation: {
     spriteFps: 7,
@@ -527,6 +603,7 @@ const defaultGameConfig = {
 
 let gameConfig = clone(defaultGameConfig);
 const spriteImages = {};
+const spriteFrameBoundsCache = new Map();
 const clothingImages = {};
 const tintedClothingCache = new Map();
 const actorIconCache = new Map();
@@ -547,6 +624,7 @@ let heldMove = { x: 0, y: 0 };
 let touchMove = null;
 const activeTouchPointers = new Map();
 let pinchZoom = null;
+let cursorScreen = { x: 0, y: 0, active: false };
 let dpr = 1;
 let camera = { x: 0, y: 0, zoom: defaultGameConfig.camera.defaultZoom };
 let lastTime = performance.now();
@@ -587,8 +665,11 @@ let warningState = { furnace: false, hunger: false };
 let centerToastTimer = 0;
 let recentLearningTaskIds = [];
 let pendingCarry = 0;
+let notifications = [];
 let residentDeathNotices = [];
 let cityVisitorTimer = 0;
+let woodChopMiniGame = null;
+let woodChopReturnZoom = null;
 
 const defaultState = {
   player: {
@@ -612,6 +693,7 @@ const defaultState = {
   stored: { wood: 18, lettuce: 0, meat: 0, meal: 0 },
   carry: { wood: 0, lettuce: 0, berries: 0, meat: 0, meal: 0 },
   survivors: [],
+  expertSpecialtyBag: [],
   cityResidents: [],
   cityVisitors: [],
   city: { visitorTimer: 0 },
@@ -628,17 +710,23 @@ const defaultState = {
   towerInstructionShown: false,
   tutorialFlags: { furnaceUpgrade: false, foodUpgrade: false, cabinUpgrade: false, cityUnlock: false },
   cooldowns: {},
-  upgradeJobs: []
+  upgradeJobs: [],
+  worldSeed: "",
+  seedChosen: false
 };
 
 let state = loadState();
 let buildings = hydrateBuildings();
+syncDropoffsToBuildings();
 let resources = [];
 let trees = [];
 let wolves = [];
+let deer = [];
 let arrows = [];
 let flies = [];
 let particles = [];
+let groundPatches = [];
+let lakes = [];
 let snow = createSnow();
 state.player = normalizePlayer(state.player);
 state.survivors = state.survivors.map((survivor, index) => normalizeSurvivor(survivor, index));
@@ -672,10 +760,13 @@ function loadState() {
       cooldowns: parsed.cooldowns || {},
       upgradeJobs: Array.isArray(parsed.upgradeJobs) ? parsed.upgradeJobs : [],
       survivors: Array.isArray(parsed.survivors) ? parsed.survivors : [],
+      expertSpecialtyBag: Array.isArray(parsed.expertSpecialtyBag) ? parsed.expertSpecialtyBag : [],
       cityResidents: Array.isArray(parsed.cityResidents) ? parsed.cityResidents : [],
       cityVisitors: Array.isArray(parsed.cityVisitors) ? parsed.cityVisitors : [],
       city: { ...defaultState.city, ...(parsed.city || {}) },
-      buildings: parsed.buildings || {}
+      buildings: parsed.buildings || {},
+      worldSeed: parsed.worldSeed || "",
+      seedChosen: Boolean(parsed.seedChosen)
     };
   } catch (error) {
     return clone(defaultState);
@@ -686,6 +777,10 @@ function saveState() {
   state.buildings = {};
   Object.values(buildings).forEach((building) => {
     state.buildings[building.id] = {
+      x: building.x,
+      y: building.y,
+      w: building.w,
+      h: building.h,
       level: building.level,
       upgradeCost: building.upgradeCost,
       fuel: building.fuel,
@@ -716,7 +811,147 @@ function hydrateBuildings() {
   return result;
 }
 
-function createTrees() {
+function hashSeed(seed) {
+  const text = String(seed || "frozen-frontier");
+  let hash = 2166136261;
+  for (let i = 0; i < text.length; i += 1) {
+    hash ^= text.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
+function createSeededRandom(seed) {
+  let value = hashSeed(seed);
+  return () => {
+    value += 0x6D2B79F5;
+    let t = value;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function randomBetween(rng, min, max) {
+  return min + rng() * (max - min);
+}
+
+function currentWorldSeed() {
+  if (!state.worldSeed) state.worldSeed = String(Math.floor(Math.random() * 1000000000));
+  return state.worldSeed;
+}
+
+function generateWorldLayout() {
+  const rng = createSeededRandom(currentWorldSeed());
+  groundPatches = createGroundPatches(rng);
+  lakes = createLakes(rng);
+  trees = createTrees(rng);
+  deer = createDeer(rng);
+}
+
+function createGroundPatches(rng) {
+  const config = gameConfig.worldGeneration || defaultGameConfig.worldGeneration;
+  const colors = [
+    { type: "grass", color: "rgba(64, 116, 83, 0.18)" },
+    { type: "gravel", color: "rgba(188, 197, 197, 0.12)" },
+    { type: "moss", color: "rgba(83, 137, 95, 0.11)" }
+  ];
+  return Array.from({ length: config.groundPatchCount || 120 }, (_, index) => {
+    const choice = colors[Math.floor(rng() * colors.length)];
+    return {
+      id: `ground-${index}`,
+      type: choice.type,
+      color: choice.color,
+      x: randomBetween(rng, 80, world.width - 80),
+      y: randomBetween(rng, 80, world.height - 80),
+      rx: randomBetween(rng, 80, 260),
+      ry: randomBetween(rng, 32, 116),
+      rot: randomBetween(rng, -0.8, 0.8),
+      flecks: Math.floor(randomBetween(rng, 3, 9))
+    };
+  });
+}
+
+function createLakes(rng) {
+  const config = gameConfig.worldGeneration || defaultGameConfig.worldGeneration;
+  const minCount = config.lakeMinCount || 3;
+  const maxCount = Math.max(minCount, config.lakeMaxCount || 5);
+  const count = minCount + Math.floor(rng() * (maxCount - minCount + 1));
+  const coverage = randomBetween(rng, config.lakeMinCoverage || 0.2, config.lakeMaxCoverage || 0.3);
+  const targetArea = world.width * world.height * coverage;
+  const lakeArea = targetArea / count;
+  const result = [];
+  for (let i = 0; i < count; i += 1) {
+    let center = null;
+    for (let attempt = 0; attempt < 80; attempt += 1) {
+      const candidate = {
+        x: randomBetween(rng, 450, world.width - 450),
+        y: randomBetween(rng, 380, world.height - 380)
+      };
+      if (pointInRect(candidate, fort, 1600)) continue;
+      center = candidate;
+      break;
+    }
+    if (!center) center = { x: 700 + i * 900, y: 700 + i * 520 };
+    const aspect = randomBetween(rng, 0.72, 1.45);
+    const rx = Math.sqrt(lakeArea / Math.PI * aspect);
+    const ry = Math.sqrt(lakeArea / Math.PI / aspect);
+    const blobCount = 5 + Math.floor(rng() * 4);
+    const blobs = Array.from({ length: blobCount }, (_, index) => {
+      const angle = (Math.PI * 2 * index) / blobCount + randomBetween(rng, -0.35, 0.35);
+      const radius = index === 0 ? 0 : randomBetween(rng, 0.18, 0.52);
+      return {
+        x: clamp(center.x + Math.cos(angle) * rx * radius, 180, world.width - 180),
+        y: clamp(center.y + Math.sin(angle) * ry * radius, 180, world.height - 180),
+        rx: rx * randomBetween(rng, 0.42, 0.76),
+        ry: ry * randomBetween(rng, 0.42, 0.78),
+        rot: randomBetween(rng, -0.55, 0.55)
+      };
+    });
+    const speckles = Array.from({ length: 26 + Math.floor(rng() * 18) }, () => {
+      const blob = blobs[Math.floor(rng() * blobs.length)];
+      const angle = rng() * Math.PI * 2;
+      const radius = Math.sqrt(rng()) * 0.78;
+      return {
+        x: blob.x + Math.cos(angle) * blob.rx * radius,
+        y: blob.y + Math.sin(angle) * blob.ry * radius,
+        rx: randomBetween(rng, 10, 34),
+        ry: randomBetween(rng, 4, 13),
+        rot: randomBetween(rng, -0.8, 0.8),
+        alpha: randomBetween(rng, 0.12, 0.24)
+      };
+    });
+    result.push({ id: `lake-${i}`, x: center.x, y: center.y, blobs, speckles });
+  }
+  return result;
+}
+
+function pointInLake(point, padding = 0) {
+  return lakes.some((lake) => lake.blobs.some((blob) => {
+    const cos = Math.cos(-(blob.rot || 0));
+    const sin = Math.sin(-(blob.rot || 0));
+    const dx = point.x - blob.x;
+    const dy = point.y - blob.y;
+    const x = dx * cos - dy * sin;
+    const y = dx * sin + dy * cos;
+    const rx = blob.rx + padding;
+    const ry = blob.ry + padding;
+    return (x * x) / (rx * rx) + (y * y) / (ry * ry) <= 1;
+  }));
+}
+
+function rectTouchesWater(rect) {
+  const samples = [
+    { x: rect.x, y: rect.y },
+    { x: rect.x + rect.w, y: rect.y },
+    { x: rect.x, y: rect.y + rect.h },
+    { x: rect.x + rect.w, y: rect.y + rect.h },
+    { x: rect.x + rect.w / 2, y: rect.y + rect.h / 2 }
+  ];
+  return samples.some((point) => pointInLake(point, 18));
+}
+
+function createTrees(rng = Math.random) {
   const config = gameConfig.trees || defaultGameConfig.trees;
   const size = gridSize();
   const clearance = (config.fenceClearGridSpaces || 5) * size;
@@ -724,16 +959,17 @@ function createTrees() {
   const clumps = config.clumps || 7;
   const treesPerClump = config.treesPerClump || 6;
   let attempts = 0;
-  while (points.length < clumps * treesPerClump && attempts < 900) {
+  const maxAttempts = Math.max(900, clumps * treesPerClump * 70);
+  while (points.length < clumps * treesPerClump && attempts < maxAttempts) {
     attempts += 1;
     const center = {
-      x: 160 + Math.random() * (world.width - 320),
-      y: 160 + Math.random() * (world.height - 320)
+      x: 160 + rng() * (world.width - 320),
+      y: 160 + rng() * (world.height - 320)
     };
     if (!treePointAllowed(center, clearance)) continue;
     for (let i = 0; i < treesPerClump; i += 1) {
-      const angle = Math.random() * Math.PI * 2;
-      const radius = 24 + Math.random() * (config.clumpRadius || 170);
+      const angle = rng() * Math.PI * 2;
+      const radius = 24 + rng() * (config.clumpRadius || 170);
       const point = {
         x: clamp(center.x + Math.cos(angle) * radius, 90, world.width - 90),
         y: clamp(center.y + Math.sin(angle) * radius, 110, world.height - 90)
@@ -750,14 +986,15 @@ function createTrees() {
     progress: 0,
     alive: true,
     respawn: 0,
-    shake: 0
+    shake: 0,
+    spriteRow: Math.floor(rng() * spriteRowCount("tree"))
   }));
   const bushCount = Math.max(1, Math.round(treesList.length * (config.berryBushRatio || 0.1)));
   for (let i = 0; i < bushCount; i += 1) {
     for (let attempt = 0; attempt < 80; attempt += 1) {
       const point = {
-        x: 140 + Math.random() * (world.width - 280),
-        y: 130 + Math.random() * (world.height - 260)
+        x: 140 + rng() * (world.width - 280),
+        y: 130 + rng() * (world.height - 260)
       };
       const tooClose = treesList.some((tree) => dist(point, tree) < 80);
       if (tooClose || !treePointAllowed(point, clearance)) continue;
@@ -780,18 +1017,63 @@ function createTrees() {
 
 function treePointAllowed(point, clearance) {
   if (pointInRect(point, fort, 70)) return false;
+  if (pointInLake(point, 90)) return false;
+  if (groundSpawnBlocked(point, 44)) return false;
   return !state.structures.some((structure) => isBarrierType(structure.type) && dist(point, structure) < clearance);
+}
+
+function createDeer(rng = Math.random) {
+  const config = gameConfig.deer || defaultGameConfig.deer;
+  const herd = [];
+  for (let i = 0; i < (config.count || 10); i += 1) {
+    const point = randomFreeWorldPoint(rng, 180);
+    herd.push({
+      id: `deer-${i}`,
+      type: "deer",
+      x: point.x,
+      y: point.y,
+      hp: config.hp,
+      maxHp: config.hp,
+      target: randomFreeWorldPoint(rng, 180),
+      walkTime: rng() * 4,
+      facing: rng() > 0.5 ? 1 : -1,
+      direction: "down",
+      grazeTimer: randomBetween(rng, 1, 5),
+      fleeTimer: 0,
+      hitFlash: 0
+    });
+  }
+  return herd;
+}
+
+function randomFreeWorldPoint(rng = Math.random, edge = 120) {
+  for (let attempt = 0; attempt < 160; attempt += 1) {
+    const point = {
+      x: randomBetween(rng, edge, world.width - edge),
+      y: randomBetween(rng, edge, world.height - edge)
+    };
+    if (pointInRect(point, fort, 190)) continue;
+    if (pointInLake(point, 46)) continue;
+    if (groundSpawnBlocked(point, 26)) continue;
+    return point;
+  }
+  return { x: fort.x - 420, y: fort.y - 420 };
 }
 
 function createSnow() {
   const config = gameConfig.snow;
-  return Array.from({ length: config.count }, () => ({
+  return Array.from({ length: config.count * 5 }, () => ({
     x: Math.random() * world.width,
     y: Math.random() * world.height,
     r: 1 + Math.random() * 2.6,
     drift: config.minDrift + Math.random() * (config.maxDrift - config.minDrift),
     speed: config.minSpeed + Math.random() * (config.maxSpeed - config.minSpeed)
   }));
+}
+
+function snowDensityMultiplier() {
+  if (!state.wave.active) return 1;
+  return 1 + Math.sin(cyclePhaseProgress() * Math.PI) * 4;
 }
 
 function gridSize() {
@@ -818,9 +1100,10 @@ function snapAllBuildingsToGrid() {
 }
 
 function syncDropoffsToBuildings() {
-  if (!buildings || !buildings.furnace || !buildings.foodPrep || !buildings.diningHall || !buildings.cabin) return;
-  dropoffs.wood.x = buildings.furnace.x + buildings.furnace.w / 2;
-  dropoffs.wood.y = buildings.furnace.y + buildings.furnace.h + 25;
+  if (!buildings || !buildings.furnace || !buildings.storageShed || !buildings.foodPrep || !buildings.diningHall || !buildings.cabin) return;
+  const storage = storageShedDropoff(buildings.storageShed);
+  dropoffs.wood.x = storage.x;
+  dropoffs.wood.y = storage.y;
   dropoffs.food.x = buildings.foodPrep.x + buildings.foodPrep.w * 0.3;
   dropoffs.food.y = buildings.foodPrep.y + buildings.foodPrep.h * 0.25;
   dropoffs.mealPickup.x = buildings.foodPrep.x + buildings.foodPrep.w * 0.84;
@@ -835,6 +1118,8 @@ function structureRect(structure) {
   const size = gridSize();
   if (isBarrierType(structure.type)) return { x: structure.x - size / 2, y: structure.y - size / 2, w: size, h: size };
   if (structure.type === "cabin") return { x: structure.x - 90, y: structure.y - 70, w: 180, h: 130 };
+  if (structure.type === "foodPrep") return { x: structure.x - 95, y: structure.y - 65, w: 190, h: 130 };
+  if (structure.type === "storageShed") return { x: structure.x - 75, y: structure.y - 65, w: 150, h: 130 };
   if (structure.type === "house") return { x: structure.x - 82, y: structure.y - 64, w: 164, h: 124 };
   if (structure.type === "welcomeCenter") return { x: structure.x - 104, y: structure.y - 68, w: 208, h: 136 };
   if (structure.type === "farm") return { x: structure.x - 80, y: structure.y - 50, w: 160, h: 110 };
@@ -848,9 +1133,9 @@ function createStructure(type, x, y, extras = {}) {
   const level = isBarrierType(type) ? state.fortLevel || 1 : 1;
   const health = type === "fence" || type === "gate"
     ? barrierMaxHealth(type, level)
-    : type === "cabin" || type === "house" || type === "welcomeCenter"
+    : type === "cabin" || type === "house" || type === "welcomeCenter" || type === "storageShed"
       ? 120
-      : type === "farm"
+      : type === "farm" || type === "foodPrep"
         ? 85
         : isDecorationType(type)
           ? 40
@@ -864,6 +1149,9 @@ function createStructure(type, x, y, extras = {}) {
     health,
     maxHealth: health,
     cooldown: Math.random(),
+    raw: 0,
+    meals: 0,
+    processProgress: 0,
     produceProgress: 0,
     stationedResidentId: null,
     ...extras
@@ -963,6 +1251,18 @@ function playerStatBonus(stat) {
   return state.playerUpgrades[stat] || 0;
 }
 
+function damageGrowthMultiplier() {
+  return gameConfig.combat.damageGrowthMultiplier || gameConfig.upgrades.buildingCostMultiplier || 1.61803398875;
+}
+
+function damageLevelScale(level) {
+  return damageGrowthMultiplier() ** Math.max(0, (level || 1) - 1);
+}
+
+function damageUpgradeScale(upgrades) {
+  return damageGrowthMultiplier() ** Math.max(0, upgrades || 0);
+}
+
 function clothingOptions() {
   return gameConfig.characters.clothes || defaultGameConfig.characters.clothes;
 }
@@ -1043,8 +1343,9 @@ function directionRow(actor) {
   return 0;
 }
 
-function levelSpriteRow(level) {
-  return clamp(Math.max(0, (level || 1) - 1), 0, 2);
+function levelSpriteRow(level, spriteName = "") {
+  const maxRow = spriteName ? Math.max(0, spriteRowCount(spriteName) - 1) : 2;
+  return clamp(Math.max(0, (level || 1) - 1), 0, maxRow);
 }
 
 function normalizePlayer(player = {}) {
@@ -1062,8 +1363,11 @@ function normalizePlayer(player = {}) {
 function normalizeSurvivor(survivor, index = 0) {
   const start = survivorPosition(index);
   const maxHealth = Number.isFinite(survivor.maxHealth) ? survivor.maxHealth : gameConfig.characters.residentHealth;
+  const specialty = specialtyCatalog.find((entry) => entry.id === survivor.specialty);
   return {
     ...survivor,
+    title: specialty ? specialty.title : survivor.title,
+    bonus: specialty ? specialty.bonus : survivor.bonus,
     level: residentLevel(survivor),
     clothes: survivor.clothes || randomClothingId(),
     outfit: normalizeOutfit(survivor.outfit, survivor.clothes),
@@ -1169,7 +1473,7 @@ function normalizeCityPerson(person = {}, index = 0, kind = "resident") {
 }
 
 function playerUpgradeCost(stat) {
-  return 8 + playerStatBonus(stat) * 6;
+  return Math.ceil(8 * (gameConfig.upgrades.buildingCostMultiplier ** playerStatBonus(stat)));
 }
 
 function playerUpgradeOptions() {
@@ -1204,9 +1508,9 @@ function worldDayNumber() {
 }
 
 function cycleTimeText() {
-  const seconds = Math.max(0, Math.ceil(state.wave.timer || 0));
-  const clock = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
-  return `D${worldDayNumber()} ${clock}`;
+  return state.wave.active
+    ? `Night ${Math.max(1, state.wave.number || 1)}`
+    : `Day ${worldDayNumber()}`;
 }
 
 function normalizeNightCycleState(wave = {}) {
@@ -1313,8 +1617,102 @@ function buildingCenter(building) {
   return { x: building.x + building.w / 2, y: building.y + building.h / 2 };
 }
 
+function rectCenter(rect) {
+  return { x: rect.x + rect.w / 2, y: rect.y + rect.h / 2 };
+}
+
+function storageSheds() {
+  return [
+    buildings.storageShed,
+    ...state.structures.filter((structure) => structure.type === "storageShed")
+  ].filter(Boolean);
+}
+
+function storageShedRect(shed) {
+  return shed.id === "storageShed" ? shed : structureRect(shed);
+}
+
+function storageShedDropoff(shed) {
+  const rect = storageShedRect(shed);
+  return {
+    x: rect.x + rect.w / 2,
+    y: rect.y + rect.h + 28
+  };
+}
+
+function closestStorageShedDropoff(point) {
+  const shed = storageSheds().sort((a, b) => dist(point, storageShedDropoff(a)) - dist(point, storageShedDropoff(b)))[0];
+  return shed ? storageShedDropoff(shed) : dropoffs.wood;
+}
+
+function foodPreps() {
+  return [
+    buildings.foodPrep,
+    ...state.structures.filter((structure) => structure.type === "foodPrep")
+  ].filter(Boolean).map(ensureFoodPrepState);
+}
+
+function ensureFoodPrepState(prep) {
+  prep.raw = Number.isFinite(prep.raw) ? prep.raw : 0;
+  prep.meals = Number.isFinite(prep.meals) ? prep.meals : 0;
+  prep.processProgress = Number.isFinite(prep.processProgress) ? prep.processProgress : 0;
+  prep.level = prep.level || 1;
+  return prep;
+}
+
+function foodPrepId(prep) {
+  return prep.id || prep.type || "foodPrep";
+}
+
+function foodPrepRect(prep) {
+  return prep.id === "foodPrep" ? prep : structureRect(prep);
+}
+
+function foodPrepCenter(prep) {
+  return rectCenter(foodPrepRect(prep));
+}
+
+function foodPrepRawDropoff(prep) {
+  const rect = foodPrepRect(prep);
+  return { x: rect.x + rect.w * 0.3, y: rect.y + rect.h * 0.25 };
+}
+
+function foodPrepMealDropoff(prep) {
+  const rect = foodPrepRect(prep);
+  return { x: rect.x + rect.w * 0.84, y: rect.y + rect.h * 0.25 };
+}
+
+function closestFoodPrep(point, requireMeals = false) {
+  return foodPreps()
+    .filter((prep) => !requireMeals || prep.meals > 0)
+    .sort((a, b) => dist(point, foodPrepCenter(a)) - dist(point, foodPrepCenter(b)))[0] || buildings.foodPrep;
+}
+
+function totalRawFood() {
+  return foodPreps().reduce((sum, prep) => sum + (prep.raw || 0), 0);
+}
+
+function totalPreparedMeals() {
+  return foodPreps().reduce((sum, prep) => sum + (prep.meals || 0), 0);
+}
+
 function randomChoice(list) {
   return list[Math.floor(Math.random() * list.length)];
+}
+
+function specialtyById(id) {
+  return specialtyCatalog.find((specialty) => specialty.id === id) || null;
+}
+
+function refreshExpertSpecialtyBag() {
+  state.expertSpecialtyBag = shuffled(specialtyCatalog.map((specialty) => specialty.id));
+}
+
+function nextVisitorSpecialty() {
+  const validIds = new Set(specialtyCatalog.map((specialty) => specialty.id));
+  state.expertSpecialtyBag = (state.expertSpecialtyBag || []).filter((id) => validIds.has(id));
+  if (!state.expertSpecialtyBag.length) refreshExpertSpecialtyBag();
+  return specialtyById(state.expertSpecialtyBag.shift()) || specialtyCatalog[0];
 }
 
 function allExpertNames() {
@@ -1380,6 +1778,7 @@ function applyGameConfig() {
   fort.health = fort.maxHealth;
   state.wave = normalizeNightCycleState(state.wave);
   snapAllBuildingsToGrid();
+  generateWorldLayout();
   snow = createSnow();
 }
 
@@ -1398,7 +1797,7 @@ function fibonacciNumber(n) {
 }
 
 function barrierUpgradeCost(targetLevel = state.fortLevel + 1) {
-  return fibonacciNumber(Math.max(1, targetLevel)) * 100;
+  return Math.ceil(100 * (gameConfig.upgrades.buildingCostMultiplier ** Math.max(0, targetLevel - 2)));
 }
 
 function barrierMaxHealth(type, level = state.fortLevel || 1) {
@@ -1418,14 +1817,26 @@ function farmProduceSeconds(level = buildings.farm ? buildings.farm.level : 1) {
   );
 }
 
-function foodProcessSeconds() {
+function foodProcessSeconds(prep = buildings.foodPrep) {
+  prep = ensureFoodPrepState(prep);
   const config = gameConfig.foodPrep;
   return Math.max(
     config.minProcessSeconds,
     config.baseProcessSeconds
-      - buildings.foodPrep.level * config.levelReductionSeconds
-      - specialtyCount("cook") * config.cookReductionSeconds
+      - prep.level * config.levelReductionSeconds
       - playerStatBonus("cooking") * config.playerCookingReductionSeconds
+  );
+}
+
+function cookExpertProcessSeconds(survivor, prep = buildings.foodPrep) {
+  prep = ensureFoodPrepState(prep);
+  const config = gameConfig.foodPrep;
+  const playerUpgradeEquivalent = Math.max(0, (residentLevel(survivor) - 1) / 4);
+  return Math.max(
+    config.minProcessSeconds,
+    config.baseProcessSeconds
+      - prep.level * config.levelReductionSeconds
+      - playerUpgradeEquivalent * config.playerCookingReductionSeconds
   );
 }
 
@@ -1435,16 +1846,33 @@ function cabinHungerGainPerSecond() {
     config.minHungerGainPerSecond,
     config.baseHungerGainPerSecond
       + state.survivors.length * config.survivorHungerGainPerSecond
+      + (state.cityResidents || []).length * (config.residentHungerGainPerSecond || 0)
       - buildings.cabin.level * config.levelHungerReductionPerSecond
   );
 }
 
 function furnaceFuelDrainPerSecond() {
+  return furnaceFuelDrainForLevel(buildings.furnace.level);
+}
+
+function furnaceDrainUpgradeCount(level) {
+  return 1 + Math.floor(Math.max(1, level) / 2);
+}
+
+function furnaceCapacityUpgradeCount(level) {
+  return Math.max(0, Math.floor((Math.max(1, level) - 1) / 2));
+}
+
+function furnaceFuelDrainForLevel(level) {
   const config = gameConfig.furnace;
   return Math.max(
     config.minFuelDrainPerSecond,
-    config.baseFuelDrainPerSecond - buildings.furnace.level * config.levelDrainReductionPerSecond
+    config.baseFuelDrainPerSecond - furnaceDrainUpgradeCount(level) * config.levelDrainReductionPerSecond
   );
+}
+
+function furnaceUpgradeTypeForLevel(nextLevel) {
+  return nextLevel % 2 === 0 ? "drain" : "capacity";
 }
 
 function treeChopSeconds() {
@@ -1455,6 +1883,183 @@ function treeChopSeconds() {
       - specialtyCount("lumberjack") * config.lumberjackReductionSeconds
       - playerStatBonus("lumber") * config.playerLumberReductionSeconds
   );
+}
+
+function chopMiniGameConfig() {
+  return gameConfig.trees.chopMiniGame || defaultGameConfig.trees.chopMiniGame;
+}
+
+function woodChopTargetPoint() {
+  return { x: state.player.x, y: state.player.y - 158 };
+}
+
+function randomWoodChopFactor() {
+  return Math.floor(Math.random() * 11);
+}
+
+function createWoodChopProblem() {
+  const factorA = randomWoodChopFactor();
+  const factorB = randomWoodChopFactor();
+  return { factorA, factorB, answer: factorA * factorB };
+}
+
+function setWoodChopProblem() {
+  if (!woodChopMiniGame) return;
+  Object.assign(woodChopMiniGame, createWoodChopProblem());
+}
+
+function woodChopProblemText() {
+  if (!woodChopMiniGame) return "";
+  return `${woodChopMiniGame.factorA} x ${woodChopMiniGame.factorB}`;
+}
+
+function woodChopLogLayout() {
+  const config = chopMiniGameConfig();
+  const count = config.segmentCount || 4;
+  const segmentW = 64;
+  const segmentH = 50;
+  const gap = 4;
+  const totalW = count * segmentW + (count - 1) * gap;
+  return {
+    count,
+    segmentW,
+    segmentH,
+    gap,
+    x: state.player.x - totalW / 2,
+    y: state.player.y - 250
+  };
+}
+
+function woodChopSegmentRect(index) {
+  const layout = woodChopLogLayout();
+  return {
+    x: layout.x + index * (layout.segmentW + layout.gap),
+    y: layout.y,
+    w: layout.segmentW,
+    h: layout.segmentH
+  };
+}
+
+function startWoodChopMiniGame(tree, chopTime) {
+  const config = chopMiniGameConfig();
+  woodChopMiniGame = {
+    treeId: tree.id,
+    ...createWoodChopProblem(),
+    totalTime: chopTime,
+    choices: [],
+    active: false,
+    startDelay: config.startDelaySeconds || 1,
+    previousZoom: null
+  };
+}
+
+function activateWoodChopMiniGame() {
+  if (!woodChopMiniGame || woodChopMiniGame.active) return;
+  const config = chopMiniGameConfig();
+  woodChopMiniGame.active = true;
+  woodChopMiniGame.previousZoom = woodChopReturnZoom?.zoom || camera.zoom;
+  woodChopReturnZoom = null;
+  setCameraZoom(Number.isFinite(config.zoom) ? config.zoom : 1);
+  refreshWoodChopLogChoices();
+  setMessage(`Chop challenge: split the log with the answer to ${woodChopProblemText()}.`, 4);
+}
+
+function stopWoodChopMiniGame() {
+  if (woodChopMiniGame?.active && Number.isFinite(woodChopMiniGame.previousZoom)) {
+    woodChopReturnZoom = {
+      zoom: woodChopMiniGame.previousZoom,
+      timer: chopMiniGameConfig().endDelaySeconds || 1
+    };
+  }
+  woodChopMiniGame = null;
+}
+
+function updateWoodChopMiniGame(tree, chopTime, dt) {
+  if (!woodChopMiniGame || woodChopMiniGame.treeId !== tree.id) {
+    if (woodChopMiniGame) stopWoodChopMiniGame();
+    startWoodChopMiniGame(tree, chopTime);
+  }
+  woodChopMiniGame.totalTime = chopTime;
+  if (!woodChopMiniGame.active) {
+    woodChopMiniGame.startDelay = Math.max(0, woodChopMiniGame.startDelay - dt);
+    if (woodChopMiniGame.startDelay <= 0) activateWoodChopMiniGame();
+    return;
+  }
+  woodChopMiniGame.choices.forEach((choice) => {
+    choice.flash = Math.max(0, (choice.flash || 0) - dt);
+  });
+}
+
+function updateWoodChopZoomRestore(dt) {
+  if (!woodChopReturnZoom) return;
+  woodChopReturnZoom.timer -= dt;
+  if (woodChopReturnZoom.timer > 0) return;
+  setCameraZoom(woodChopReturnZoom.zoom);
+  woodChopReturnZoom = null;
+}
+
+function refreshWoodChopLogChoices() {
+  if (!woodChopMiniGame) return;
+  const config = chopMiniGameConfig();
+  const count = config.segmentCount || 4;
+  const correctValue = woodChopMiniGame.answer;
+  const wrongValues = shuffled(Array.from({ length: 101 }, (_, value) => value).filter((value) => value !== correctValue)).slice(0, count - 1);
+  woodChopMiniGame.choices = shuffled([
+    { value: correctValue, correct: true, flash: 0 },
+    ...wrongValues.map((value) => ({ value, correct: false, flash: 0 }))
+  ]);
+}
+
+function handleWoodChopBubbleClick(point) {
+  if (!woodChopMiniGame || buildMode || moveMode || removeMode || repairMode) return false;
+  if (!woodChopMiniGame.active) return false;
+  const segment = woodChopSegmentAt(point);
+  if (!segment) return false;
+  const tree = trees.find((candidate) => candidate.id === woodChopMiniGame.treeId && candidate.alive);
+  if (!tree) {
+    stopWoodChopMiniGame();
+    return false;
+  }
+  const config = chopMiniGameConfig();
+  const total = woodChopMiniGame.totalTime || treeChopSeconds();
+  const choice = segment.choice;
+  const problem = woodChopProblemText();
+  if (choice.correct) {
+    tree.progress = clamp(tree.progress + total * (config.correctBonusFraction || 0.25), 0, total);
+    addBurst(segment.x, segment.y, "#73df9b", 8);
+    setMessage(`${problem} = ${choice.value}. The log splits faster.`, 3);
+    playSound("success");
+    setWoodChopProblem();
+    refreshWoodChopLogChoices();
+  } else {
+    tree.progress = clamp(tree.progress - total * (config.wrongPenaltyFraction || 0.1), 0, total);
+    choice.flash = 0.45;
+    addBurst(segment.x, segment.y, "#ff5d66", 8);
+    setMessage(`${problem} is not ${choice.value}. The cut slips back.`, 3);
+    playSound("fail");
+  }
+  return true;
+}
+
+function woodChopBubbleAt(point) {
+  return woodChopSegmentAt(point);
+}
+
+function woodChopSegmentAt(point) {
+  if (!woodChopMiniGame?.active) return null;
+  for (let index = woodChopMiniGame.choices.length - 1; index >= 0; index -= 1) {
+    const rect = woodChopSegmentRect(index);
+    if (pointInRect(point, rect, 8)) {
+      return {
+        ...rect,
+        x: rect.x + rect.w / 2,
+        y: rect.y + rect.h / 2,
+        choice: woodChopMiniGame.choices[index],
+        index
+      };
+    }
+  }
+  return null;
 }
 
 function playerLevel() {
@@ -1471,9 +2076,11 @@ function structureDisplayName(type) {
     gate: "Gate",
     outpost: "Outpost",
     hunterPost: "Hunter Post",
-    signalTower: "Signal Tower",
+    signalTower: "Net Tower",
     iceTrap: "Ice Trap",
     cabin: "Cabin",
+    storageShed: "Storage Shed",
+    foodPrep: "Food Prep",
     farm: "Farm",
     welcomeCenter: "Welcome Center",
     house: "House",
@@ -1499,6 +2106,8 @@ function structureCost(type) {
     signalTower: build.signalTowerCost,
     iceTrap: build.iceTrapCost,
     cabin: build.cabinCost,
+    storageShed: build.storageShedCost,
+    foodPrep: build.foodPrepCost,
     farm: build.farmCost,
     welcomeCenter: build.welcomeCenterCost,
     house: build.houseCost,
@@ -1516,26 +2125,27 @@ function structureCost(type) {
 
 function buildCatalog() {
   const build = gameConfig.build;
-  const extraCabins = state.structures.filter((structure) => structure.type === "cabin").length;
   return [
-    { type: "fence", unlocked: true, note: "Blocks attackers and absorbs damage." },
-    { type: "gate", unlocked: true, note: "Friendly units pass through. Enemies still have to break it." },
-    { type: "outpost", unlocked: true, note: "Basic arrow tower. Can station Experts." },
-    { type: "hunterPost", unlocked: playerLevel() >= build.advancedTowerPlayerLevel, note: `Unlocks at player level ${build.advancedTowerPlayerLevel}. Stronger arrows.` },
-    { type: "signalTower", unlocked: playerLevel() >= build.signalTowerPlayerLevel, note: `Unlocks at player level ${build.signalTowerPlayerLevel}. Slows enemies in range.` },
-    { type: "iceTrap", unlocked: playerLevel() >= build.iceTrapPlayerLevel, note: `Unlocks at player level ${build.iceTrapPlayerLevel}. Heavy slow, low damage.` },
-    { type: "cabin", unlocked: extraCabins < extraCabinLimit(), note: `One additional cabin unlocks every 10 player levels. Available ${extraCabinLimit() - extraCabins}.` },
-    { type: "farm", unlocked: buildings.foodPrep.level >= 3, note: "Unlocks when Food Prep reaches level 3." },
-    { type: "welcomeCenter", unlocked: playerLevel() >= build.welcomeCenterPlayerLevel, note: `Unlocks at player level ${build.welcomeCenterPlayerLevel}. Lets visitors enter and become Residents.` },
-    { type: "house", unlocked: true, note: `Adds ${gameConfig.city.houseCapacity || 5} Resident housing spaces.` },
     { type: "path", unlocked: true, note: "A walkable town path for city layout." },
     { type: "torch", unlocked: true, note: "Warm light that makes paths feel safer." },
     { type: "shrub", unlocked: true, note: "Small decoration for cozy streets." },
     { type: "bench", unlocked: true, note: "Residents pause here and chat." },
+    { type: "fence", unlocked: true, note: "Blocks attackers and absorbs damage." },
+    { type: "gate", unlocked: true, note: "Friendly units pass through. Enemies still have to break it." },
+    { type: "outpost", unlocked: true, note: "Basic arrow tower. Can station Experts." },
+    { type: "house", unlocked: true, note: `Adds ${gameConfig.city.houseCapacity || 5} Resident housing spaces.` },
     { type: "fountain", unlocked: true, note: "A small attraction for the center of town." },
+    { type: "hunterPost", unlocked: playerLevel() >= build.advancedTowerPlayerLevel, note: `Unlocks at player level ${build.advancedTowerPlayerLevel}. Stronger arrows.` },
+    { type: "signalTower", unlocked: playerLevel() >= build.signalTowerPlayerLevel, note: `Unlocks at player level ${build.signalTowerPlayerLevel}. Nets animals in place.` },
+    { type: "storageShed", unlocked: playerLevel() >= build.storageShedPlayerLevel, note: `Unlocks at player level ${build.storageShedPlayerLevel}. Shared wood storage.` },
+    { type: "iceTrap", unlocked: playerLevel() >= build.iceTrapPlayerLevel, note: `Unlocks at player level ${build.iceTrapPlayerLevel}. Heavy slow, low damage.` },
+    { type: "foodPrep", unlocked: playerLevel() >= build.foodPrepPlayerLevel, note: `Unlocks at player level ${build.foodPrepPlayerLevel}. Cooks can work here.` },
     { type: "garden", unlocked: true, note: "A larger attraction and gathering spot." },
     { type: "statue", unlocked: true, note: "A landmark attraction for the settlement." },
-    { type: "largeFountain", unlocked: true, note: "A large attraction for future city appeal systems." }
+    { type: "largeFountain", unlocked: true, note: "A large attraction for future city appeal systems." },
+    { type: "farm", unlocked: maxFoodPrepLevel() >= 3, note: "Unlocks when Food Prep reaches level 3." },
+    { type: "welcomeCenter", unlocked: playerLevel() >= build.welcomeCenterPlayerLevel, note: `Unlocks at player level ${build.welcomeCenterPlayerLevel}. Lets visitors enter and become Residents.` },
+    { type: "cabin", unlocked: playerLevel() >= build.cabinPlayerLevel, note: `Unlocks at player level ${build.cabinPlayerLevel}. Adds Expert capacity.` }
   ];
 }
 
@@ -1561,12 +2171,19 @@ function isCityBuildingType(type) {
 
 function towerStats(structure) {
   const base = gameConfig.towers[structure.type] || gameConfig.towers.outpost;
+  const rangeGrowth = gameConfig.towers.rangeGrowthMultiplier || 1.12;
+  const rangeScale = rangeGrowth ** Math.max(0, (structure.level || 1) - 1);
   return {
-    range: base.range,
-    damage: base.damage + Math.max(0, structure.level - 1) * 3,
+    range: Math.round(base.range * rangeScale),
+    damage: base.damage * damageLevelScale(structure.level),
     cooldown: Math.max(0.55, base.cooldown - Math.max(0, structure.level - 1) * 0.08),
-    slow: base.slow || 1
+    slow: base.slow || 1,
+    netSeconds: base.netSeconds ? base.netSeconds * damageLevelScale(structure.level) : 0
   };
+}
+
+function maxFoodPrepLevel() {
+  return Math.max(...foodPreps().map((prep) => prep.level || 1));
 }
 
 function canPlaceStructure(type, point) {
@@ -1585,6 +2202,7 @@ function canPlaceStructure(type, point) {
   if (rect.x < 60 || rect.y < 80 || rect.x + rect.w > world.width - 60 || rect.y + rect.h > world.height - 60) {
     return { ok: false, reason: "Too close to the wilderness edge." };
   }
+  if (rectTouchesWater(rect)) return { ok: false, reason: "Water covers that grid space." };
   const blockingBuilding = Object.values(buildings).some((building) => rectanglesOverlap(rect, building));
   if (blockingBuilding) return { ok: false, reason: "A starting building is already there." };
   const blockingStructure = state.structures.some((structure) => rectanglesOverlap(rect, structureRect(structure)));
@@ -1623,8 +2241,76 @@ function loadSprites() {
     image.src = source;
     spriteImages[name] = image;
   }))).then(() => {
+    const deerImage = spriteImages.deer;
+    const deerReady = deerImage && (deerImage.naturalWidth || deerImage.width);
+    if (!deerReady) createGeneratedDeerSpriteSheet();
     spritesReady = true;
   });
+}
+
+function createGeneratedDeerSpriteSheet() {
+  const frames = gameConfig.spriteFrames?.deer || 4;
+  const rows = gameConfig.spriteRows?.deer || 3;
+  const frameW = 128;
+  const frameH = 96;
+  const sheet = document.createElement("canvas");
+  sheet.width = frameW * frames;
+  sheet.height = frameH * rows;
+  const sheetCtx = sheet.getContext("2d");
+  for (let row = 0; row < rows; row += 1) {
+  for (let frame = 0; frame < frames; frame += 1) {
+    const x = frame * frameW + frameW / 2;
+    const y = row * frameH + frameH / 2 + 12;
+    const stride = Math.sin((frame / frames) * Math.PI * 2);
+    sheetCtx.save();
+    sheetCtx.translate(x, y);
+    sheetCtx.fillStyle = "rgba(0,0,0,0.16)";
+    sheetCtx.beginPath();
+    sheetCtx.ellipse(0, 28, 42, 12, 0, 0, Math.PI * 2);
+    sheetCtx.fill();
+    sheetCtx.fillStyle = "#8a5a36";
+    sheetCtx.beginPath();
+    sheetCtx.ellipse(-4, -6, 42, 20, 0, 0, Math.PI * 2);
+    sheetCtx.fill();
+    sheetCtx.fillStyle = "#a87549";
+    if (row === 2) {
+      sheetCtx.beginPath();
+      sheetCtx.ellipse(42, 16, 21, 14, 0.28, 0, Math.PI * 2);
+      sheetCtx.fill();
+    } else {
+      sheetCtx.beginPath();
+      sheetCtx.ellipse(36, -23, 21, 14, -0.18, 0, Math.PI * 2);
+      sheetCtx.fill();
+    }
+    sheetCtx.fillStyle = "#f4e0bd";
+    sheetCtx.beginPath();
+    sheetCtx.ellipse(-32, -4, 12, 9, 0, 0, Math.PI * 2);
+    sheetCtx.fill();
+    sheetCtx.strokeStyle = "#5d3923";
+    sheetCtx.lineWidth = 5;
+    for (let i = -1; i <= 1; i += 2) {
+      sheetCtx.beginPath();
+      sheetCtx.moveTo(-22 + i * 12, 10);
+      sheetCtx.lineTo(-24 + i * 14, 44 + stride * i * 7);
+      sheetCtx.stroke();
+      sheetCtx.beginPath();
+      sheetCtx.moveTo(14 + i * 11, 9);
+      sheetCtx.lineTo(20 + i * 12, 43 - stride * i * 7);
+      sheetCtx.stroke();
+    }
+    sheetCtx.strokeStyle = "#d9c08e";
+    sheetCtx.lineWidth = 3;
+    sheetCtx.beginPath();
+    const antlerY = row === 2 ? 2 : -35;
+    sheetCtx.moveTo(42, antlerY);
+    sheetCtx.lineTo(52, antlerY - 23);
+    sheetCtx.moveTo(44, antlerY);
+    sheetCtx.lineTo(35, antlerY - 21);
+    sheetCtx.stroke();
+    sheetCtx.restore();
+  }
+  }
+  spriteImages.deer = sheet;
 }
 
 function loadClothingAssets() {
@@ -1653,17 +2339,100 @@ function spriteRowCount(name) {
 }
 
 function spriteDefaultFps(name) {
-  if (["furnace", "cabin", "diningHall", "foodPrep", "tower", "farm", "tree", "fortWall"].includes(name)) return gameConfig.animation.buildingFps || 2.6;
+  if (["furnace", "cabin", "diningHall", "foodPrep", "storageShed", "house", "welcomeCenter", "tower", "outpost", "hunterPost", "signalTower", "iceTrap", "farm", "tree", "fortWall"].includes(name)) return gameConfig.animation.buildingFps || 2.6;
   return gameConfig.animation.spriteFps || 7;
+}
+
+function trimmedSpriteSource(name, image, sourceX, sourceY, sourceW, sourceH, padding = 4) {
+  const sx = Math.floor(sourceX);
+  const sy = Math.floor(sourceY);
+  const sw = Math.max(1, Math.ceil(sourceX + sourceW) - sx);
+  const sh = Math.max(1, Math.ceil(sourceY + sourceH) - sy);
+  const key = `${name}:${sx}:${sy}:${sw}:${sh}:${padding}`;
+  if (spriteFrameBoundsCache.has(key)) return spriteFrameBoundsCache.get(key);
+  const scratch = document.createElement("canvas");
+  scratch.width = sw;
+  scratch.height = sh;
+  const scratchCtx = scratch.getContext("2d");
+  scratchCtx.drawImage(image, sx, sy, sw, sh, 0, 0, sw, sh);
+  const pixels = scratchCtx.getImageData(0, 0, sw, sh).data;
+  const visited = new Uint8Array(sw * sh);
+  const components = [];
+  for (let y = 0; y < sh; y += 1) {
+    for (let x = 0; x < sw; x += 1) {
+      const startIndex = y * sw + x;
+      if (visited[startIndex] || pixels[startIndex * 4 + 3] <= 8) continue;
+      const stack = [startIndex];
+      visited[startIndex] = 1;
+      let minX = x;
+      let minY = y;
+      let maxX = x;
+      let maxY = y;
+      let area = 0;
+      while (stack.length) {
+        const index = stack.pop();
+        const cx = index % sw;
+        const cy = Math.floor(index / sw);
+        area += 1;
+        minX = Math.min(minX, cx);
+        minY = Math.min(minY, cy);
+        maxX = Math.max(maxX, cx);
+        maxY = Math.max(maxY, cy);
+        for (let oy = -1; oy <= 1; oy += 1) {
+          for (let ox = -1; ox <= 1; ox += 1) {
+            if (!ox && !oy) continue;
+            const nx = cx + ox;
+            const ny = cy + oy;
+            if (nx < 0 || ny < 0 || nx >= sw || ny >= sh) continue;
+            const neighborIndex = ny * sw + nx;
+            if (visited[neighborIndex] || pixels[neighborIndex * 4 + 3] <= 8) continue;
+            visited[neighborIndex] = 1;
+            stack.push(neighborIndex);
+          }
+        }
+      }
+      components.push({ minX, minY, maxX, maxY, area });
+    }
+  }
+  const largest = components.sort((a, b) => b.area - a.area)[0];
+  const kept = largest
+    ? components.filter((component) => {
+      if (component === largest) return true;
+      const touchesSide = component.minX <= 2 || component.maxX >= sw - 3;
+      return component.area >= Math.max(48, largest.area * 0.02) && !touchesSide;
+    })
+    : [];
+  const bounds = kept.reduce((acc, component) => ({
+    minX: Math.min(acc.minX, component.minX),
+    minY: Math.min(acc.minY, component.minY),
+    maxX: Math.max(acc.maxX, component.maxX),
+    maxY: Math.max(acc.maxY, component.maxY)
+  }), { minX: sw, minY: sh, maxX: -1, maxY: -1 });
+  const left = Math.max(0, bounds.minX - padding);
+  const top = Math.max(0, bounds.minY - padding);
+  const right = Math.min(sw, bounds.maxX + 1 + padding);
+  const bottom = Math.min(sh, bounds.maxY + 1 + padding);
+  const result = bounds.maxX < 0
+    ? { sourceX, sourceY, sourceW, sourceH }
+    : {
+      sourceX: sx + left,
+      sourceY: sy + top,
+      sourceW: Math.max(1, right - left),
+      sourceH: Math.max(1, bottom - top)
+    };
+  spriteFrameBoundsCache.set(key, result);
+  return result;
 }
 
 function drawSprite(name, x, y, w, h, options = {}) {
   const image = spriteImages[name];
-  if (!spritesReady || !image || !image.complete || !image.naturalWidth) return false;
+  const imageW = image?.naturalWidth || image?.width || 0;
+  const imageH = image?.naturalHeight || image?.height || 0;
+  if (!spritesReady || !image || image.complete === false || !imageW || !imageH) return false;
   const frames = spriteFrameCount(name);
   const rows = spriteRowCount(name);
-  const sourceW = image.naturalWidth / frames;
-  const sourceH = image.naturalHeight / rows;
+  const sourceW = imageW / frames;
+  const sourceH = imageH / rows;
   const fps = options.fps || spriteDefaultFps(name);
   const frame = Number.isFinite(options.frame)
     ? Math.floor(options.frame) % frames
@@ -1671,13 +2440,16 @@ function drawSprite(name, x, y, w, h, options = {}) {
   const row = clamp(Number.isFinite(options.row) ? Math.floor(options.row) : 0, 0, rows - 1);
   const sourceX = sourceW * frame;
   const sourceY = sourceH * row;
+  const source = options.trim
+    ? trimmedSpriteSource(name, image, sourceX, sourceY, sourceW, sourceH, options.trimPadding || 4)
+    : { sourceX, sourceY, sourceW, sourceH };
   ctx.save();
   if (options.flip) {
     ctx.translate(x + w, y);
     ctx.scale(-1, 1);
-    ctx.drawImage(image, sourceX, sourceY, sourceW, sourceH, 0, 0, w, h);
+    ctx.drawImage(image, source.sourceX, source.sourceY, source.sourceW, source.sourceH, 0, 0, w, h);
   } else {
-    ctx.drawImage(image, sourceX, sourceY, sourceW, sourceH, x, y, w, h);
+    ctx.drawImage(image, source.sourceX, source.sourceY, source.sourceW, source.sourceH, x, y, w, h);
   }
   ctx.restore();
   return true;
@@ -1774,12 +2546,53 @@ function awardLearningPoints(task) {
   playSound("success");
 }
 
+function groundSpawnBlocked(point, padding = 24) {
+  if (pointInLake(point, padding)) return true;
+  const rect = { x: point.x - padding, y: point.y - padding, w: padding * 2, h: padding * 2 };
+  if (Object.values(buildings || {}).some((building) => rectanglesOverlap(rect, building))) return true;
+  return state.structures.some((structure) => rectanglesOverlap(rect, structureRect(structure)));
+}
+
+function clearTreesInRect(rect) {
+  let removed = 0;
+  trees.forEach((tree) => {
+    if (!tree.alive) return;
+    const treeRect = { x: tree.x - 38, y: tree.y - 58, w: 76, h: 116 };
+    if (!rectanglesOverlap(rect, treeRect)) return;
+    tree.alive = false;
+    tree.progress = 0;
+    tree.respawn = tree.type === "berryBush"
+      ? gameConfig.trees.berryRespawnSeconds
+      : gameConfig.trees.respawnSeconds;
+    removed += 1;
+  });
+  if (removed) addBurst(rect.x + rect.w / 2, rect.y + rect.h / 2, resourceMeta.wood.color, Math.min(18, removed * 2));
+  return removed;
+}
+
+function freeGroundPointNear(x, y) {
+  const origin = { x: clamp(x, 80, world.width - 80), y: clamp(y, 80, world.height - 80) };
+  if (!groundSpawnBlocked(origin)) return origin;
+  for (let attempt = 0; attempt < 36; attempt += 1) {
+    const ring = 38 + attempt * 12;
+    const angle = attempt * 2.399963229728653;
+    const point = {
+      x: clamp(origin.x + Math.cos(angle) * ring, 80, world.width - 80),
+      y: clamp(origin.y + Math.sin(angle) * ring, 80, world.height - 80)
+    };
+    if (!groundSpawnBlocked(point)) return point;
+  }
+  return null;
+}
+
 function spawnResource(type, x, y, amount = 1) {
+  const point = freeGroundPointNear(x, y);
+  if (!point) return;
   resources.push({
     id: `${type}-${Date.now()}-${Math.random()}`,
     type,
-    x,
-    y,
+    x: point.x,
+    y: point.y,
     amount,
     bob: Math.random() * Math.PI * 2,
     age: 0,
@@ -1860,11 +2673,12 @@ function transferCarry(type, amount, destination, onDone) {
 }
 
 function transferStoredMealToCarry() {
-  if (buildings.foodPrep.meals <= 0 || availableCarrySpace() <= 0) return;
+  const prep = closestFoodPrep(state.player, true);
+  if (!prep || prep.meals <= 0 || availableCarrySpace() <= 0) return;
   const amount = reserveCarrySpace(1);
   if (amount <= 0) return;
-  buildings.foodPrep.meals -= 1;
-  addFly("meal", dropoffs.mealPickup, playerHeadPoint(), () => {
+  prep.meals -= 1;
+  addFly("meal", foodPrepMealDropoff(prep), playerHeadPoint(), () => {
     completeCarryReservation(amount);
     state.carry.meal += amount;
     setMessage("Meal picked up. Bring it to the dining hall window.");
@@ -1875,33 +2689,37 @@ function transferStoredMealToCarry() {
 function updateDropoffs() {
   const p = state.player;
   const transferConfig = gameConfig.transfers;
-  if (dist(p, dropoffs.wood) < transferConfig.woodDropDistance && state.carry.wood > 0) {
-    transferCarry("wood", 1, dropoffs.wood, (amount) => {
+  const woodDropoff = closestStorageShedDropoff(p);
+  if (dist(p, woodDropoff) < transferConfig.woodDropDistance && state.carry.wood > 0) {
+    transferCarry("wood", 1, woodDropoff, (amount) => {
       state.stored.wood += amount;
-      setMessage("Wood added to the fort wood pile.");
+      setMessage("Wood added to Storage Shed inventory.");
     });
   }
 
-  if (dist(p, dropoffs.food) < transferConfig.foodDropDistance) {
+  const foodPrep = closestFoodPrep(p);
+  const foodDropoff = foodPrepRawDropoff(foodPrep);
+  if (dist(p, foodDropoff) < transferConfig.foodDropDistance) {
     if (state.carry.lettuce > 0) {
-      transferCarry("lettuce", 1, dropoffs.food, (amount) => {
-        buildings.foodPrep.raw += amount;
+      transferCarry("lettuce", 1, foodDropoff, (amount) => {
+        foodPrep.raw += amount;
         setMessage("Lettuce delivered to food prep.");
       });
     } else if (state.carry.berries > 0) {
-      transferCarry("berries", 1, dropoffs.food, (amount) => {
-        buildings.foodPrep.raw += amount;
+      transferCarry("berries", 1, foodDropoff, (amount) => {
+        foodPrep.raw += amount;
         setMessage("Berries delivered to food prep.");
       });
     } else if (state.carry.meat > 0) {
-      transferCarry("meat", 1, dropoffs.food, (amount) => {
-        buildings.foodPrep.raw += amount;
+      transferCarry("meat", 1, foodDropoff, (amount) => {
+        foodPrep.raw += amount;
         setMessage("Meat delivered to food prep.");
       });
     }
   }
 
-  if (dist(p, dropoffs.mealPickup) < transferConfig.mealPickupDistance && state.carry.meal === 0) {
+  const mealPrep = closestFoodPrep(p, true);
+  if (mealPrep && dist(p, foodPrepMealDropoff(mealPrep)) < transferConfig.mealPickupDistance && state.carry.meal === 0) {
     transferStoredMealToCarry();
   }
 
@@ -1914,22 +2732,25 @@ function updateDropoffs() {
 }
 
 function updateFoodPrep(dt) {
-  const prep = buildings.foodPrep;
-  if (prep.raw <= 0) {
-    prep.processProgress = 0;
-    return;
-  }
-  if (!pointInRect(state.player, prep, 20)) return;
-  const timeNeeded = foodProcessSeconds();
-  prep.processProgress += dt;
-  if (prep.processProgress >= timeNeeded) {
-    prep.raw -= 1;
-    prep.meals += 1;
-    prep.processProgress = 0;
-    addBurst(dropoffs.mealPickup.x, dropoffs.mealPickup.y, resourceMeta.meal.color, 8);
-    setMessage("Food processed into a meal stack.");
-    playSound("cook");
-  }
+  foodPreps().forEach((prep) => {
+    const rect = foodPrepRect(prep);
+    if (prep.raw <= 0) {
+      prep.processProgress = 0;
+      return;
+    }
+    if (!pointInRect(state.player, rect, 20)) return;
+    const timeNeeded = foodProcessSeconds(prep);
+    prep.processProgress += dt;
+    if (prep.processProgress >= timeNeeded) {
+      prep.raw -= 1;
+      prep.meals += 1;
+      prep.processProgress = 0;
+      const mealPoint = foodPrepMealDropoff(prep);
+      addBurst(mealPoint.x, mealPoint.y, resourceMeta.meal.color, 8);
+      setMessage("Food processed into a meal stack.");
+      playSound("cook");
+    }
+  });
 }
 
 function updateDiningHall(dt) {
@@ -1937,22 +2758,29 @@ function updateDiningHall(dt) {
   if (!dining) return;
   dining.servedPulse = Math.max(0, (dining.servedPulse || 0) - dt);
   const cabin = buildings.cabin;
-  const hungerHoldLine = cabin.maxHunger * 0.05;
-  if (dining.meals <= 0 || cabin.hunger <= hungerHoldLine) {
+  if (dining.meals <= 0) {
     dining.serveProgress = 0;
     return;
   }
-  const serveSeconds = Math.max(4, gameConfig.cabin.diningServeSeconds - Math.max(0, dining.level - 1) * 1.25 - specialtyCount("cook") * 0.75);
+  const populationBonus = 1 + Math.max(0, mealServingDemand() - 1) * (gameConfig.cabin.mealPopulationSpeedBonus || 0.18);
+  const serveSeconds = Math.max(2.2, (gameConfig.cabin.diningServeSeconds - Math.max(0, dining.level - 1) * 1.25) / populationBonus);
   dining.serveProgress += dt;
   if (dining.serveProgress >= serveSeconds) {
     dining.serveProgress = 0;
-    dining.meals = Math.max(0, dining.meals - 1);
+    const servings = Math.min(dining.meals, mealServingDemand());
+    dining.meals = Math.max(0, dining.meals - servings);
     dining.servedPulse = 0.9;
-    const relief = gameConfig.cabin.mealHungerRelief + specialtyCount("cook") * gameConfig.cabin.cookMealReliefBonus;
+    const relief = servings * gameConfig.cabin.mealHungerRelief;
     buildings.cabin.hunger = clamp(buildings.cabin.hunger - relief, 0, buildings.cabin.maxHunger);
-    setMessage("The chef served a hot meal through the dining hall window.");
+    setMessage(`The chef served ${servings} meal${servings === 1 ? "" : "s"} through the dining hall window.`);
     playSound("cook");
   }
+}
+
+function mealServingDemand() {
+  const experts = state.survivors.filter((survivor) => survivor.health > 0).length;
+  const residents = (state.cityResidents || []).filter((resident) => resident.health > 0).length;
+  return Math.max(1, experts + residents + 1);
 }
 
 function updateFarm(dt) {
@@ -1985,9 +2813,7 @@ function updatePlacedFarms(dt) {
 function updateFurnace(dt) {
   const furnace = buildings.furnace;
   furnace.fuel = clamp(furnace.fuel - furnaceFuelDrainPerSecond() * dt, 0, furnace.maxFuel);
-  if (furnace.fuel <= 0 && buildings.cabin.meals <= 0) {
-    buildings.cabin.hunger = clamp(buildings.cabin.hunger + dt * gameConfig.furnace.emptyHungerGainPerSecond, 0, buildings.cabin.maxHunger);
-  }
+  furnace.hatchPulse = Math.max(0, (furnace.hatchPulse || 0) - dt * 0.72);
 }
 
 function updateCabin(dt) {
@@ -2004,6 +2830,8 @@ function updateTrees(dt) {
   const activeTree = trees
     .filter((tree) => tree.alive && dist(state.player, tree) < 58)
     .sort((a, b) => dist(state.player, a) - dist(state.player, b))[0] || null;
+  if (activeTree && activeTree.type !== "berryBush") updateWoodChopMiniGame(activeTree, treeChopSeconds(), dt);
+  else stopWoodChopMiniGame();
   trees.forEach((tree) => {
     if (!tree.alive) {
       tree.respawn -= dt;
@@ -2019,6 +2847,7 @@ function updateTrees(dt) {
     }
     const isBush = tree.type === "berryBush";
     const chopTime = isBush ? (gameConfig.trees.berryGatherSeconds || 3) : treeChopSeconds();
+    if (!isBush && !(woodChopMiniGame?.treeId === tree.id && woodChopMiniGame.active)) return;
     tree.progress += dt;
     tree.shake = 0.15;
     if (tree.progress >= chopTime) {
@@ -2031,7 +2860,8 @@ function updateTrees(dt) {
       for (let i = 0; i < dropCount; i += 1) {
         spawnResource(dropType, tree.x - 45 + Math.random() * 90, tree.y + 15 + Math.random() * 52, 1);
       }
-      setMessage(isBush ? "The berry bush drops food. Pick berries up and bring them to food prep." : "The tree bursts into wood. Pick it up and bring it to the wood pile.");
+      setMessage(isBush ? "The berry bush drops food. Pick berries up and bring them to food prep." : "The tree bursts into wood. Pick it up and bring it to a Storage Shed.");
+      if (!isBush && woodChopMiniGame?.treeId === tree.id) stopWoodChopMiniGame();
     }
   });
 }
@@ -2045,6 +2875,13 @@ function updateResourcePickup() {
 function updateVisitor(dt) {
   if (state.wave.survivorCooldown > 0) {
     state.wave.survivorCooldown = Math.max(0, state.wave.survivorCooldown - dt);
+  }
+
+  if (pendingVisitor && pendingVisitor.joining) {
+    const target = cabinRecruitmentPoint();
+    if (!moveActor(pendingVisitor, target, gameConfig.movement.visitorSpeed, dt)) return;
+    finishRecruitmentAtCabin();
+    return;
   }
 
   if ((attackActive || state.wave.active) && pendingVisitor && !pendingVisitor.arrived) {
@@ -2072,6 +2909,7 @@ function updateVisitor(dt) {
     if (Math.random() < gameConfig.timers.survivorChance) {
       pendingVisitor = createVisitor();
       state.visitor = pendingVisitor;
+      saveState();
       setMessage(`${pendingVisitor.name} is approaching the fort entrance.`);
     }
   }
@@ -2085,7 +2923,7 @@ function updateVisitor(dt) {
 }
 
 function createVisitor() {
-  const specialty = randomChoice(specialtyCatalog);
+  const specialty = nextVisitorSpecialty();
   return {
     id: `${specialty.id}-${Date.now()}`,
     name: uniqueExpertName(specialty),
@@ -2117,15 +2955,36 @@ function completeRecruitment() {
   if (!pendingRecruit) return;
   activeTask = null;
   activeTaskContext = null;
+  pendingRecruit.joining = true;
+  pendingRecruit.arrived = true;
+  pendingRecruit.willReachThree = state.survivors.length === 2 && !state.tutorialFlags.cabinUpgrade;
+  if (pendingVisitor) pendingVisitor.joining = true;
+  closeModal(true);
+  setMessage(`${pendingRecruit.name} accepted the mission and is heading to the Group Cabin.`, 5);
+}
+
+function cabinRecruitmentPoint() {
+  const center = buildingCenter(buildings.cabin);
+  return { x: center.x, y: center.y + buildings.cabin.h * 0.3 };
+}
+
+function finishRecruitmentAtCabin() {
+  const recruit = pendingRecruit || pendingVisitor;
+  if (!recruit) return;
   if (state.survivors.length < survivorCapacity()) {
-    const willReachThree = state.survivors.length === 2 && !state.tutorialFlags.cabinUpgrade;
-    state.survivors.push(normalizeSurvivor(pendingRecruit, state.survivors.length));
-    finishVisitor(`${pendingRecruit.name} joined the camp as a level ${pendingRecruit.level} ${pendingRecruit.title} Expert.`);
+    const willReachThree = recruit.willReachThree;
+    const survivor = normalizeSurvivor(recruit, state.survivors.length);
+    if (survivor.specialty === "cook") assignedCookFoodPrep(survivor);
+    state.survivors.push(survivor);
+    finishVisitor(`${recruit.name} reached the Group Cabin and joined as a level ${recruit.level} ${recruit.title} Expert.`);
     if (willReachThree) window.setTimeout(maybeShowCabinUpgradeTip, 80);
     return;
   }
-  replacementRecruit = pendingRecruit;
+  replacementRecruit = recruit;
+  pendingRecruit = recruit;
+  setMessage(`${recruit.name} reached the Group Cabin, but the Expert roster is full.`, 5);
   renderReplacementMenu(replacementRecruit);
+  openModal();
 }
 
 function survivorCapacity() {
@@ -2155,6 +3014,8 @@ function moveActor(actor, target, speed, dt) {
   if (!actor.pathNudge && gateRoute) {
     actor.pathNudge = gateRoute;
   }
+  const pathRoute = !actor.pathNudge ? pathRoutePoint(actor, target) : null;
+  if (pathRoute) actor.pathNudge = pathRoute;
   if (actor.pathNudge && (dist(actor, actor.pathNudge) <= gameConfig.residents.workDistance || pointBlockedByBarriers(actor.pathNudge, true))) {
     actor.pathNudge = null;
   }
@@ -2205,13 +3066,34 @@ function nearestPathStructure(point, maxDistance = gridSize()) {
 
 function pathBiasedNext(actor, next) {
   const size = gridSize();
+  if (!actorUsesPathRouting(actor)) return next;
   const nearbyPath = nearestPathStructure(next, size * 0.7) || nearestPathStructure(actor, size * 0.95);
   if (!nearbyPath) return next;
-  const pull = actor.role === "visitor" || actor.role === "resident" ? 0.58 : 0.36;
+  const pull = actor.role === "visitor" || actor.role === "resident" ? 0.34 : 0.24;
   return {
     x: next.x * (1 - pull) + nearbyPath.x * pull,
     y: next.y * (1 - pull) + nearbyPath.y * pull
   };
+}
+
+function actorUsesPathRouting(actor) {
+  return Boolean(actor && (actor.role === "visitor" || actor.role === "resident" || actor.specialty));
+}
+
+function pathRoutePoint(actor, target) {
+  if (!actorUsesPathRouting(actor)) return null;
+  const paths = pathStructures();
+  if (paths.length < 2) return null;
+  const size = gridSize();
+  const directBlocks = Math.max(1, dist(actor, target) / size);
+  const start = nearestPathStructure(actor, Infinity);
+  const end = nearestPathStructure(target, Infinity);
+  if (!start || !end) return null;
+  const routeBlocks = (dist(actor, start) + Math.abs(start.x - end.x) + Math.abs(start.y - end.y) + dist(end, target)) / size;
+  if (routeBlocks > directBlocks * 2) return null;
+  if (dist(actor, start) > size * 0.9) return start;
+  if (dist(actor, end) > size * 0.9 && dist(target, end) > size * 0.9) return end;
+  return null;
 }
 
 function insideFortPerimeter(point) {
@@ -2481,10 +3363,33 @@ function hunterDefaultPost() {
   return tower ? { x: tower.x, y: tower.y, w: 36, h: 36 } : { x: fort.entrance.x - 96, y: fort.entrance.y - 24, w: 36, h: 36 };
 }
 
+function assignedCookFoodPrep(cook) {
+  if (cook.specialty !== "cook") return buildings.foodPrep;
+  const preps = foodPreps();
+  const current = preps.find((prep) => foodPrepId(prep) === cook.assignedFoodPrepId);
+  const duplicate = current && state.survivors.some((survivor) => (
+    survivor.id !== cook.id
+    && survivor.specialty === "cook"
+    && survivor.assignedFoodPrepId === cook.assignedFoodPrepId
+    && survivor.health > 0
+  ));
+  if (current && !duplicate) return current;
+  const otherAssigned = new Set(state.survivors
+    .filter((survivor) => survivor.id !== cook.id && survivor.specialty === "cook" && survivor.health > 0)
+    .map((survivor) => survivor.assignedFoodPrepId)
+    .filter(Boolean));
+  const available = preps.filter((prep) => !otherAssigned.has(foodPrepId(prep)));
+  const choice = (available.length ? available : preps)
+    .sort((a, b) => dist(cook, foodPrepCenter(a)) - dist(cook, foodPrepCenter(b)))[0] || buildings.foodPrep;
+  cook.assignedFoodPrepId = foodPrepId(choice);
+  return choice;
+}
+
 function updateLumberjack(survivor, dt) {
   const speed = residentMoveSpeed(survivor);
   if (survivor.carrying === "wood") {
-    if (moveActor(survivor, dropoffs.wood, speed, dt)) {
+    const shedDropoff = closestStorageShedDropoff(survivor);
+    if (moveActor(survivor, shedDropoff, speed, dt)) {
       state.stored.wood += survivor.carryAmount || lumberjackCarryAmount(survivor);
       survivor.carrying = null;
       survivor.carryAmount = 0;
@@ -2510,8 +3415,9 @@ function updateLumberjack(survivor, dt) {
 function updateFarmer(survivor, dt) {
   const speed = residentMoveSpeed(survivor);
   if (survivor.carrying === "lettuce") {
-    if (moveActor(survivor, dropoffs.food, speed, dt)) {
-      buildings.foodPrep.raw += gameConfig.residents.farmerFoodAmount;
+    const prep = closestFoodPrep(survivor);
+    if (moveActor(survivor, foodPrepRawDropoff(prep), speed, dt)) {
+      prep.raw += gameConfig.residents.farmerFoodAmount;
       survivor.carrying = null;
       survivor.workTimer = 0;
       playSound("drop");
@@ -2531,18 +3437,21 @@ function updateFarmer(survivor, dt) {
 }
 
 function updateCook(survivor, dt) {
-  const prep = buildings.foodPrep;
+  const prep = assignedCookFoodPrep(survivor);
   const speed = residentMoveSpeed(survivor);
-  const cookSeconds = residentWorkSeconds(survivor, foodProcessSeconds() * gameConfig.residents.cookWorkSecondsMultiplier);
-  if (moveActor(survivor, buildingCenter(prep), speed, dt) || pointInRect(survivor, prep, 24)) {
+  const cookSeconds = cookExpertProcessSeconds(survivor, prep) * (gameConfig.residents.cookWorkSecondsMultiplier || 1);
+  const center = foodPrepCenter(prep);
+  const rect = foodPrepRect(prep);
+  if (moveActor(survivor, center, speed, dt) || pointInRect(survivor, rect, 24)) {
     if (prep.raw <= 0) return;
     survivor.workTimer += dt;
-    prep.processProgress = Math.max(prep.processProgress, (survivor.workTimer / cookSeconds) * foodProcessSeconds());
+    prep.processProgress = Math.max(prep.processProgress, (survivor.workTimer / cookSeconds) * foodProcessSeconds(prep));
     if (survivor.workTimer >= cookSeconds) {
       survivor.workTimer = 0;
       prep.raw -= 1;
       prep.meals += 1;
-      addBurst(dropoffs.mealPickup.x, dropoffs.mealPickup.y, resourceMeta.meal.color, 8);
+      const mealPoint = foodPrepMealDropoff(prep);
+      addBurst(mealPoint.x, mealPoint.y, resourceMeta.meal.color, 8);
       playSound("cook");
     }
   }
@@ -2601,7 +3510,11 @@ function fireTowerLike(structure, cooldownOverride = null) {
   let multiplier = 1;
   if (stationed) multiplier *= stationed.specialty === "hunter" ? gameConfig.towers.hunterMultiplier : gameConfig.towers.stationedMultiplier;
   if (playerInTower) multiplier *= gameConfig.towers.playerMultiplier;
-  fireArrowFrom({ x: structure.x, y: structure.y - 58 }, targetWolf, stats.damage * multiplier);
+  if (stats.netSeconds) {
+    fireNetFrom({ x: structure.x, y: structure.y - 58 }, targetWolf, stats.damage * multiplier, stats.netSeconds);
+  } else {
+    fireArrowFrom({ x: structure.x, y: structure.y - 58 }, targetWolf, stats.damage * multiplier);
+  }
   return cooldownOverride || stats.cooldown;
 }
 
@@ -2616,8 +3529,17 @@ function towerSlowMultiplier(wolf) {
 
 function nearestFenceTarget(wolf) {
   const liveFences = state.structures.filter((structure) => isBarrierType(structure.type) && structure.health > 0);
-  if (!liveFences.length) return fort.attackPoint;
+  if (!liveFences.length) return cabinAttackPoint();
   return liveFences.sort((a, b) => dist(wolf, a) - dist(wolf, b))[0];
+}
+
+function cabinAttackPoint() {
+  return {
+    kind: "building",
+    building: buildings.cabin,
+    x: buildings.cabin.x + buildings.cabin.w / 2,
+    y: buildings.cabin.y + buildings.cabin.h + 36
+  };
 }
 
 function livingPeople(includePlayer = true) {
@@ -2642,7 +3564,7 @@ function nearestPersonTarget(enemy, includePlayer = true, preferResidents = fals
 
 function enemyTarget(enemy) {
   if (enemy.type === "eagle") {
-    return nearestPersonTarget(enemy, true, true) || { kind: "fort", x: fort.attackPoint.x, y: fort.attackPoint.y };
+    return nearestPersonTarget(enemy, true, true) || cabinAttackPoint();
   }
   const gate = nearestGate(enemy) || nearestFenceTarget(enemy);
   const directFence = directFenceOnPath(enemy, gate);
@@ -2654,7 +3576,8 @@ function enemyTarget(enemy) {
       return { kind: "barrier", structure: directFence, x: directFence.x, y: directFence.y, distance: dist(enemy, directFence) };
     }
   }
-  const barrierTarget = isBarrierType(gate.type) ? { kind: "barrier", structure: gate, x: gate.x, y: gate.y, distance: gateDistance } : { kind: "fort", x: fort.attackPoint.x, y: fort.attackPoint.y, distance: dist(enemy, fort.attackPoint) };
+  const cabinTarget = cabinAttackPoint();
+  const barrierTarget = isBarrierType(gate.type) ? { kind: "barrier", structure: gate, x: gate.x, y: gate.y, distance: gateDistance } : { ...cabinTarget, distance: dist(enemy, cabinTarget) };
   const person = nearestPersonTarget(enemy, true);
   if (person && person.distance + 18 < barrierTarget.distance) return person;
   return barrierTarget;
@@ -2706,6 +3629,12 @@ function removeCityResident(resident) {
     text: `${resident.name} was lost. A house space is open.`,
     timer: 12
   });
+  pushNotification({
+    id: `lost-${resident.id}-${Date.now()}`,
+    title: "Person Lost",
+    copy: `${resident.name} was lost. A house space is open.`,
+    warning: true
+  });
   setMessage(`${resident.name} was lost during the attack. A house space opened.`, 7);
   showCenterMessage(`${resident.name} lost.`, 2.4);
   playSound("fail");
@@ -2727,6 +3656,12 @@ function removeResident(resident) {
     text: `${resident.name} died. An Expert slot is open.`,
     timer: 12
   });
+  pushNotification({
+    id: `lost-${resident.id}-${Date.now()}`,
+    title: "Expert Lost",
+    copy: `${resident.name} died. An Expert slot is open.`,
+    warning: true
+  });
   setMessage(`${resident.name} died defending the camp. An Expert slot opened.`, 7);
   showCenterMessage(`${resident.name} died.`, 2.4);
   playSound("fail");
@@ -2744,6 +3679,10 @@ function damageEnemyTarget(target, damage, enemy) {
     setMessage(target.structure.type === "fence" ? "Enemies are tearing through a fence segment." : "Enemies are battering the gate.", 4);
     return;
   }
+  if (target.kind === "building") {
+    setMessage("Enemies are attacking the Group Cabin.", 4);
+    return;
+  }
   damageFence(null, damage);
   setMessage("Enemies are inside the fort.", 4);
 }
@@ -2754,11 +3693,15 @@ function updateWolves(dt) {
   attackActive = wolves.length > 0;
 
   wolves.forEach((wolf) => {
+    wolf.netTimer = Math.max(0, (wolf.netTimer || 0) - dt);
+    if (wolf.netTimer > 0) return;
     const target = enemyTarget(wolf);
     const gap = dist(wolf, target);
     const attackRange = wolf.type === "eagle" ? 34 : 18;
     if (gap > attackRange) {
-      const slow = wolf.type === "eagle" ? 1 : towerSlowMultiplier(wolf);
+      wolf.attacking = false;
+      const lightSlow = wolf.type === "wolf" && pointInTorchLight(wolf) ? 0.9 : 1;
+      const slow = wolf.type === "eagle" ? 1 : towerSlowMultiplier(wolf) * lightSlow;
       const step = wolf.speed * slow * dt;
       const next = {
         x: wolf.x + ((target.x - wolf.x) / gap) * step,
@@ -2779,6 +3722,7 @@ function updateWolves(dt) {
       if (target.x !== wolf.x) wolf.facing = target.x > wolf.x ? 1 : -1;
       setActorDirection(wolf, target.x - wolf.x, target.y - wolf.y);
     } else {
+      wolf.attacking = true;
       wolf.attackTimer -= dt;
       if (wolf.attackTimer <= 0) {
         wolf.attackTimer = wolf.attackSeconds || gameConfig.combat.wolfAttackSeconds;
@@ -2795,9 +3739,13 @@ function updateWolves(dt) {
   const targetWolf = wolves
     .filter((wolf) => dist(state.player, wolf) <= range)
     .sort((a, b) => dist(state.player, a) - dist(state.player, b))[0];
-  if (targetWolf && arrowCooldown <= 0) {
+  const targetDeer = targetWolf ? null : deer
+    .filter((animal) => animal.hp > 0 && dist(state.player, animal) <= range)
+    .sort((a, b) => dist(state.player, a) - dist(state.player, b))[0];
+  const arrowTarget = targetWolf || targetDeer;
+  if (arrowTarget && arrowCooldown <= 0) {
     arrowCooldown = inTower ? gameConfig.combat.towerArrowCooldown : gameConfig.combat.baseArrowCooldown;
-    fireArrow(targetWolf);
+    fireArrow(arrowTarget);
   }
 
   wolves = wolves.filter((wolf) => {
@@ -2833,6 +3781,89 @@ function updateNightCycle(dt) {
   if (state.wave.timer <= 0) startNight();
 }
 
+function updateDeer(dt) {
+  const config = gameConfig.deer || defaultGameConfig.deer;
+  deer.forEach((animal) => {
+    animal.hitFlash = Math.max(0, (animal.hitFlash || 0) - dt);
+    animal.fleeTimer = Math.max(0, (animal.fleeTimer || 0) - dt);
+    if (pointInTorchLight(animal)) {
+      animal.fleeTimer = Math.max(animal.fleeTimer, 1.4);
+      animal.grazeTimer = 0;
+      animal.target = deerAvoidLightTarget(animal);
+    }
+    if (animal.fleeTimer > 0) animal.grazeTimer = 0;
+    if (animal.fleeTimer <= 0 && (animal.grazeTimer || 0) > 0) {
+      animal.grazeTimer = Math.max(0, animal.grazeTimer - dt);
+      animal.walkTime = (animal.walkTime || 0) + dt * 0.7;
+      return;
+    }
+    if (animal.fleeTimer <= 0 && animal.target && dist(animal, animal.target) < 28) {
+      animal.grazeTimer = randomBetween(Math.random, 2.5, 6);
+      animal.target = null;
+      return;
+    }
+    if (!animal.target || dist(animal, animal.target) < 28 || pointInLake(animal.target, 28) || pointBlockedByBarriers(animal.target, true)) {
+      animal.target = animal.fleeTimer > 0
+        ? deerFleeTarget(animal)
+        : deerRoamTarget(animal);
+    }
+    const speed = animal.fleeTimer > 0 ? config.fleeSpeed : config.speed;
+    moveActor(animal, animal.target, speed, dt);
+  });
+  deer = deer.filter((animal) => {
+    if (animal.hp > 0) return true;
+    const drops = config.meatDrops || 2;
+    for (let i = 0; i < drops; i += 1) {
+      spawnResource("meat", animal.x - 18 + Math.random() * 36, animal.y - 8 + Math.random() * 24, 1);
+    }
+    addBurst(animal.x, animal.y, resourceMeta.meat.color, 12);
+    setMessage(`A deer dropped ${drops} meat.`);
+    playSound("success");
+    return false;
+  });
+}
+
+function deerRoamTarget(animal) {
+  const rng = Math.random;
+  const config = gameConfig.deer || defaultGameConfig.deer;
+  for (let attempt = 0; attempt < 60; attempt += 1) {
+    const angle = rng() * Math.PI * 2;
+    const radius = randomBetween(rng, 160, config.roamRadius || 520);
+    const point = {
+      x: clamp(animal.x + Math.cos(angle) * radius, 120, world.width - 120),
+      y: clamp(animal.y + Math.sin(angle) * radius, 120, world.height - 120)
+    };
+    if (!pointInLake(point, 42) && !pointBlockedByBarriers(point, true) && !groundSpawnBlocked(point, 20)) return point;
+  }
+  return randomFreeWorldPoint(rng, 160);
+}
+
+function deerAvoidLightTarget(animal) {
+  const light = nearestLightSource(animal);
+  if (!light) return deerFleeTarget(animal);
+  const dx = animal.x - light.x;
+  const dy = animal.y - light.y;
+  const gap = Math.hypot(dx, dy) || 1;
+  const point = {
+    x: clamp(animal.x + (dx / gap) * 520, 120, world.width - 120),
+    y: clamp(animal.y + (dy / gap) * 520, 120, world.height - 120)
+  };
+  if (pointInLake(point, 42) || pointBlockedByBarriers(point, true)) return deerRoamTarget(animal);
+  return point;
+}
+
+function deerFleeTarget(animal) {
+  const dx = animal.x - state.player.x;
+  const dy = animal.y - state.player.y;
+  const gap = Math.hypot(dx, dy) || 1;
+  const point = {
+    x: clamp(animal.x + (dx / gap) * 620, 120, world.width - 120),
+    y: clamp(animal.y + (dy / gap) * 620, 120, world.height - 120)
+  };
+  if (pointInLake(point, 42) || pointBlockedByBarriers(point, true)) return deerRoamTarget(animal);
+  return point;
+}
+
 function startNight() {
   state.wave.number = (state.wave.number || 0) + 1;
   state.wave.active = true;
@@ -2864,7 +3895,7 @@ function maybeShowNightUpgradeTip() {
     showTutorialTip(
       "furnaceUpgrade",
       "Upgrade The Furnace",
-      "The first night is over. Upgrade the Furnace to increase fuel capacity and slow fuel drain so the camp survives longer between wood runs.",
+      "The first night is over. The next Furnace upgrade slows fuel drain; later upgrades alternate between slower drain and higher fuel capacity.",
       [{ label: "Open Furnace", action: () => openBuildingMenu(buildings.furnace) }]
     );
   } else if (state.wave.number === 2) {
@@ -2913,6 +3944,7 @@ function spawnInterWaveVisitor() {
   state.visitor = pendingVisitor;
   state.wave.interWaveVisitorPending = false;
   survivorCheckTimer = 0;
+  saveState();
   setMessage(`${pendingVisitor.name} reached the fort during daylight.`, 6);
 }
 
@@ -2961,7 +3993,7 @@ function spawnNightAttacker() {
   const count = 1 + (Math.random() < Math.min(0.45, 0.12 + tier * 0.08) ? 1 : 0);
   for (let i = 0; i < count; i += 1) {
     const elite = state.wave.number >= 4 && Math.random() < 0.22;
-    const hp = config.wolfBaseHp + tier * config.waveHpPerTier + Math.random() * config.wolfBonusHp + (elite ? 60 : 0);
+    const hp = config.wolfBaseHp + tier * config.waveHpPerTier + Math.random() * config.wolfBonusHp + (elite ? 108 : 0);
     const spawn = spawnEnemyPoint("wolf");
     wolves.push({
       type: "wolf",
@@ -2981,7 +4013,7 @@ function spawnNightAttacker() {
     ? 1 + (tier >= 2 && Math.random() < 0.25 ? 1 : 0)
     : 0;
   for (let i = 0; i < eagleCount; i += 1) {
-    const hp = config.eagleBaseHp + tier * 14 + Math.random() * 20;
+    const hp = config.eagleBaseHp + tier * 26 + Math.random() * 36;
     const spawn = spawnEnemyPoint("eagle");
     wolves.push({
       type: "eagle",
@@ -3004,10 +4036,15 @@ function spawnNightAttacker() {
 
 function fireArrow(wolf) {
   const config = gameConfig.combat;
-  const towerBonus = playerNearBuiltTower() ? config.towerDamageMultiplier : 1;
+  const towerBoostActive = playerNearBuiltTower();
+  const towerBonus = towerBoostActive ? config.towerDamageMultiplier : 1;
   const guardBonus = 1 + specialtyCount("guard") * config.guardDamageMultiplier;
-  const towerLevel = nearestBuiltTowerLevel(state.player);
-  const damage = (config.baseArrowDamage + towerLevel * config.towerLevelDamage + playerStatBonus("attack") * config.playerAttackDamage) * towerBonus * guardBonus;
+  const towerLevel = towerBoostActive ? nearestBuiltTowerLevel(state.player) : 1;
+  const damage = config.baseArrowDamage
+    * damageUpgradeScale(playerStatBonus("attack"))
+    * damageLevelScale(towerLevel)
+    * towerBonus
+    * guardBonus;
   fireArrowFrom({ x: state.player.x, y: state.player.y - 50 }, wolf, damage);
 }
 
@@ -3024,11 +4061,30 @@ function nearestBuiltTowerLevel(point) {
 
 function fireArrowFrom(from, wolf, damage) {
   wolf.hp -= damage;
+  if (wolf.type === "deer" && wolf.hp > 0) {
+    wolf.fleeTimer = gameConfig.deer.fleeSeconds || 7;
+    wolf.hitFlash = 0.28;
+    wolf.target = deerFleeTarget(wolf);
+  }
   arrows.push({
     from,
     to: { x: wolf.x, y: wolf.y - 20 },
     t: 0,
     duration: gameConfig.combat.arrowSeconds
+  });
+  playSound("arrow");
+}
+
+function fireNetFrom(from, wolf, damage, netSeconds) {
+  wolf.hp -= damage;
+  wolf.netTimer = Math.max(wolf.netTimer || 0, netSeconds || 0);
+  wolf.hitFlash = Math.max(wolf.hitFlash || 0, 0.24);
+  arrows.push({
+    kind: "net",
+    from,
+    to: { x: wolf.x, y: wolf.y - 18 },
+    t: 0,
+    duration: gameConfig.combat.arrowSeconds * 1.25
   });
   playSound("arrow");
 }
@@ -3089,6 +4145,10 @@ function movePlayer(dx, dy) {
     x: clamp(state.player.x + dx, 120, world.width - 120),
     y: clamp(state.player.y + dy, 90, world.height - 70)
   };
+  if (pointInLake(next, 18)) {
+    state.player.target = null;
+    return;
+  }
   if (pointBlockedByBarriers(next, true)) {
     const gate = state.player.target ? nearestGate(state.player, state.player.target) : null;
     if (gate && dist(state.player, gate) > gameConfig.residents.workDistance) {
@@ -3203,7 +4263,36 @@ function nearestGate(from, to = null) {
   })[0] || null;
 }
 
-function updateCamera() {
+function buildToolActive() {
+  return buildMode || moveMode || removeMode || repairMode;
+}
+
+function updateBuildCameraPan(dt) {
+  if (!cursorScreen.active) return;
+  const viewW = window.innerWidth / camera.zoom;
+  const viewH = window.innerHeight / camera.zoom;
+  const edge = 58;
+  const speed = (gameConfig.camera.edgePanSpeed || 760) / camera.zoom;
+  const xPower = cursorScreen.x < edge
+    ? -1 + cursorScreen.x / edge
+    : cursorScreen.x > window.innerWidth - edge
+      ? 1 - (window.innerWidth - cursorScreen.x) / edge
+      : 0;
+  const yPower = cursorScreen.y < edge
+    ? -1 + cursorScreen.y / edge
+    : cursorScreen.y > window.innerHeight - edge
+      ? 1 - (window.innerHeight - cursorScreen.y) / edge
+      : 0;
+  if (!xPower && !yPower) return;
+  camera.x = clamp(camera.x + xPower * speed * dt, 0, Math.max(0, world.width - viewW));
+  camera.y = clamp(camera.y + yPower * speed * dt, 0, Math.max(0, world.height - viewH));
+}
+
+function updateCamera(dt = 0) {
+  if (buildToolActive()) {
+    updateBuildCameraPan(dt);
+    return;
+  }
   const viewW = window.innerWidth / camera.zoom;
   const viewH = window.innerHeight / camera.zoom;
   camera.x = clamp(state.player.x - viewW / 2, 0, Math.max(0, world.width - viewW));
@@ -3257,13 +4346,16 @@ function updateHud(dt) {
   if (hud.quickResidentText) hud.quickResidentText.textContent = (state.cityResidents || []).length;
   if (hud.cycleText) hud.cycleText.textContent = cycleTimeText();
   if (hud.cycleFill) {
-    hud.cycleFill.style.width = `${cyclePhaseProgress() * 100}%`;
-    hud.cycleFill.closest(".cycle-hud")?.classList.toggle("night", state.wave.active);
+    const cycleProgress = cyclePhaseProgress();
+    const cycleHud = hud.cycleFill.closest(".cycle-hud");
+    cycleHud?.style.setProperty("--cycle-angle", `${cycleProgress * 360}deg`);
+    cycleHud?.classList.toggle("night", state.wave.active);
+    cycleHud?.classList.toggle("day", !state.wave.active);
   }
   if (hud.woodCount) hud.woodCount.textContent = state.stored.wood;
-  if (hud.lettuceCount) hud.lettuceCount.textContent = buildings.foodPrep.raw;
+  if (hud.lettuceCount) hud.lettuceCount.textContent = totalRawFood();
   if (hud.meatCount) hud.meatCount.textContent = carryTotal();
-  if (hud.mealCount) hud.mealCount.textContent = buildings.foodPrep.meals + (buildings.diningHall ? buildings.diningHall.meals : 0);
+  if (hud.mealCount) hud.mealCount.textContent = totalPreparedMeals() + (buildings.diningHall ? buildings.diningHall.meals : 0);
   if (hud.survivorCount) hud.survivorCount.textContent = `${state.survivors.length}/${survivorCapacity()}`;
   if (hud.learningPointCount) hud.learningPointCount.textContent = state.learningPoints;
   if (hud.playerLevelCount) hud.playerLevelCount.textContent = playerLevel();
@@ -3289,24 +4381,48 @@ function updateHud(dt) {
 
   if (hud.phaseLabel) hud.phaseLabel.textContent = paused ? "Paused" : repairMode ? "Repair Mode" : removeMode ? "Remove Mode" : moveMode ? "Move Buildings" : buildMode ? "Build Mode" : gameOver ? "Camp Lost" : failureLock ? "Emergency" : attackActive ? `Night ${state.wave.number}` : pendingVisitor ? "Visitor Approaching" : state.wave.active ? "Night Watch" : "Daylight Prep";
   updateCanvasToolCursor();
-  updateNotifications();
+  updateNotifications(dt);
 }
 
-function updateNotifications() {
+function pushNotification(notice) {
+  const id = notice.id || `${notice.title}-${Date.now()}`;
+  const existing = notifications.find((item) => item.id === id);
+  if (existing) {
+    existing.timer = 30;
+    return;
+  }
+  notifications.push({ ...notice, id, timer: 30 });
+  while (notifications.length > 3) notifications.shift();
+}
+
+function renderNoticeCard(notice) {
+  const actions = notice.actions || [];
+  return `
+    <article class="notice-card ${notice.warning ? "warning" : ""} ${notice.timer < 5 ? "fading" : ""}">
+      <strong>${notice.title}</strong>
+      <p>${notice.copy}</p>
+      ${actions.length ? `<div class="notice-actions">${actions.map((action) => `<button ${action.primary ? 'class="primary"' : ""} data-notice-action="${action.action}" data-notice-id="${notice.id}" type="button">${action.label}</button>`).join("")}</div>` : ""}
+    </article>
+  `;
+}
+
+function updateNotifications(dt = 0) {
   if (!hud.notificationStack) return;
-  const notices = [];
+  notifications = notifications
+    .map((notice) => ({ ...notice, timer: notice.timer - dt }))
+    .filter((notice) => notice.timer > 0)
+    .slice(-3);
   const upgrade = affordablePlayerUpgrade();
   if (upgrade && dismissedUpgradeNoticeAt !== state.learningPoints) {
-    notices.push(`
-      <article class="notice-card">
-        <strong>Player Upgrade Ready</strong>
-        <p>You have ${state.learningPoints} points. ${upgrade.name} costs ${upgrade.cost}.</p>
-        <div class="notice-actions">
-          <button class="primary" data-notice-action="open-player" type="button">Open Upgrades</button>
-          <button data-notice-action="dismiss-upgrade" type="button">Dismiss</button>
-        </div>
-      </article>
-    `);
+    pushNotification({
+      id: `upgrade-${state.learningPoints}-${upgrade.id}`,
+      title: "Player Upgrade Ready",
+      copy: `You have ${state.learningPoints} points. ${upgrade.name} costs ${upgrade.cost}.`,
+      actions: [
+        { action: "open-player", label: "Open Upgrades", primary: true },
+        { action: "dismiss-upgrade", label: "Dismiss" }
+      ]
+    });
   }
 
   const dangerChecks = [
@@ -3314,7 +4430,7 @@ function updateNotifications() {
       id: "furnace",
       active: buildings.furnace.fuel > 0 && buildings.furnace.fuel <= buildings.furnace.maxFuel * 0.08,
       title: "Furnace Critical",
-      copy: "Fuel is almost gone. Gather wood, drop it at the furnace, or upgrade the furnace so fuel lasts longer."
+      copy: "Fuel is almost gone. Gather wood, drop it at a Storage Shed, then load the furnace or upgrade it so fuel lasts longer."
     },
     {
       id: "hunger",
@@ -3330,25 +4446,16 @@ function updateNotifications() {
     }
     warningState[warning.id] = warning.active;
     if (warning.active) {
-      notices.push(`
-        <article class="notice-card warning">
-          <strong>${warning.title}</strong>
-          <p>${warning.copy}</p>
-        </article>
-      `);
+      pushNotification({
+        id: `warning-${warning.id}`,
+        title: warning.title,
+        copy: warning.copy,
+        warning: true
+      });
     }
   });
 
-  residentDeathNotices.forEach((notice) => {
-    notices.push(`
-      <article class="notice-card warning">
-        <strong>Person Lost</strong>
-        <p>${notice.text}</p>
-      </article>
-    `);
-  });
-
-  const markup = notices.join("");
+  const markup = notifications.map(renderNoticeCard).join("");
   if (markup === notificationMarkup) return;
   notificationMarkup = markup;
   hud.notificationStack.innerHTML = markup;
@@ -3357,7 +4464,8 @@ function updateNotifications() {
       if (button.dataset.noticeAction === "open-player") openPlayerMenu();
       if (button.dataset.noticeAction === "dismiss-upgrade") {
         dismissedUpgradeNoticeAt = state.learningPoints;
-        updateNotifications();
+        notifications = notifications.filter((notice) => notice.id !== button.dataset.noticeId);
+        updateNotifications(0);
       }
     });
   });
@@ -3444,6 +4552,8 @@ function resetGame() {
   buildings = hydrateBuildings();
   snapAllBuildingsToGrid();
   state.structures = createInitialDefenseStructures();
+  state.worldSeed = "";
+  state.seedChosen = false;
   state.cityResidents = [];
   state.cityVisitors = [];
   state.city = { ...defaultState.city };
@@ -3451,7 +4561,7 @@ function resetGame() {
   state.playerLevel = 1;
   state.towerInstructionShown = false;
   resources = [];
-  trees = createTrees();
+  generateWorldLayout();
   snow = createSnow();
   wolves = [];
   arrows = [];
@@ -3460,6 +4570,8 @@ function resetGame() {
   pendingVisitor = null;
   pendingRecruit = null;
   replacementRecruit = null;
+  woodChopMiniGame = null;
+  woodChopReturnZoom = null;
   state.visitor = null;
   activeTask = null;
   activeTaskContext = null;
@@ -3467,6 +4579,7 @@ function resetGame() {
   gameOver = false;
   dismissedUpgradeNoticeAt = -1;
   notificationMarkup = "";
+  notifications = [];
   warningState = { furnace: false, hunger: false };
   pendingCarry = 0;
   residentDeathNotices = [];
@@ -3490,16 +4603,16 @@ function resetGame() {
   arrowCooldown = 0;
   starterTowerCooldown = 0;
   saveTimer = 0;
-  for (let i = 0; i < 5; i += 1) {
-    spawnResource("wood", fort.x - 180 + Math.random() * 180, fort.entrance.y - 110 + Math.random() * 220, 1);
-  }
+  spawnStarterResources();
   forceCloseModal();
   setMessage("A fresh camp begins. Gather wood from trees and food from berry bushes.", 7);
   saveState();
+  window.setTimeout(openSeedMenu, 80);
 }
 
 function update(dt) {
   saveTimer += dt;
+  updateWoodChopZoomRestore(dt);
   if (gameOver) {
     updateHud(dt);
     return;
@@ -3513,7 +4626,7 @@ function update(dt) {
     return;
   }
   updatePlayer(dt);
-  updateCamera();
+  updateCamera(dt);
   updateFarm(dt);
   updatePlacedFarms(dt);
   updateFurnace(dt);
@@ -3528,6 +4641,7 @@ function update(dt) {
   updateResourcePickup();
   updateDropoffs();
   updateOutposts(dt);
+  updateDeer(dt);
   updateWolves(dt);
   updateVisitor(dt);
   updateArrows(dt);
@@ -3568,8 +4682,10 @@ function drawWorld() {
   drawResidents();
   drawCityResidents();
   drawVisitor();
+  drawDeer();
   drawWolves();
   drawPlayer();
+  drawWoodChopMiniGame();
   drawArrows();
   drawFlies();
   drawParticles();
@@ -3587,6 +4703,87 @@ function drawGround() {
   gradient.addColorStop(1, "#d6f2ff");
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, world.width, world.height);
+  drawGroundPatches();
+  drawLakes();
+}
+
+function drawGroundPatches() {
+  ctx.save();
+  groundPatches.forEach((patch, index) => {
+    ctx.fillStyle = patch.color;
+    ctx.beginPath();
+    ctx.ellipse(patch.x, patch.y, patch.rx, patch.ry, patch.rot, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = patch.type === "gravel" ? "rgba(231, 241, 241, 0.08)" : "rgba(221, 247, 206, 0.06)";
+    for (let i = 0; i < patch.flecks; i += 1) {
+      const angle = (i * 2.399963229728653 + index) % (Math.PI * 2);
+      const radius = (0.18 + ((i * 37) % 67) / 100) * patch.rx;
+      ctx.beginPath();
+      ctx.ellipse(
+        patch.x + Math.cos(angle) * radius,
+        patch.y + Math.sin(angle) * radius * 0.4,
+        12 + (i % 3) * 6,
+        4 + (i % 2) * 3,
+        patch.rot + angle * 0.2,
+        0,
+        Math.PI * 2
+      );
+      ctx.fill();
+    }
+  });
+  ctx.restore();
+}
+
+function drawLakes() {
+  const time = performance.now() / 1000;
+  lakes.forEach((lake, lakeIndex) => {
+    ctx.save();
+    ctx.beginPath();
+    lake.blobs.forEach((blob) => {
+      ctx.ellipse(blob.x, blob.y, blob.rx, blob.ry, blob.rot, 0, Math.PI * 2);
+    });
+    ctx.fillStyle = "#72cdb9";
+    ctx.fill();
+    ctx.save();
+    ctx.clip();
+    const bounds = lakeBounds(lake);
+    lake.speckles?.forEach((speckle) => {
+      ctx.fillStyle = `rgba(26, 73, 75, ${speckle.alpha})`;
+      ctx.beginPath();
+      ctx.ellipse(speckle.x, speckle.y, speckle.rx, speckle.ry, speckle.rot, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    const shimmer = ctx.createRadialGradient(lake.x - 120, lake.y - 90, 80, lake.x, lake.y, Math.max(bounds.w, bounds.h));
+    shimmer.addColorStop(0, "rgba(227, 255, 239, 0.22)");
+    shimmer.addColorStop(1, "rgba(27, 99, 92, 0)");
+    ctx.fillStyle = shimmer;
+    ctx.fillRect(bounds.x, bounds.y, bounds.w, bounds.h);
+    ctx.restore();
+    lake.blobs.forEach((blob, blobIndex) => {
+      const pulse = Math.sin(time * 1.4 + lakeIndex + blobIndex * 0.7) * 4;
+      ctx.strokeStyle = "rgba(220, 255, 237, 0.24)";
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      ctx.ellipse(blob.x, blob.y, blob.rx + pulse, blob.ry + pulse * 0.45, blob.rot, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.strokeStyle = "rgba(24, 76, 74, 0.18)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.ellipse(blob.x, blob.y, blob.rx - 8 - pulse * 0.4, blob.ry - 4 - pulse * 0.2, blob.rot, 0, Math.PI * 2);
+      ctx.stroke();
+    });
+    ctx.restore();
+  });
+}
+
+function lakeBounds(lake) {
+  const xs = lake.blobs.flatMap((blob) => [blob.x - blob.rx, blob.x + blob.rx]);
+  const ys = lake.blobs.flatMap((blob) => [blob.y - blob.ry, blob.y + blob.ry]);
+  const minX = Math.min(...xs);
+  const maxX = Math.max(...xs);
+  const minY = Math.min(...ys);
+  const maxY = Math.max(...ys);
+  return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
 }
 
 function drawGrid() {
@@ -3634,6 +4831,8 @@ function drawStructures() {
   [...state.structures].sort(structureDrawCompare).forEach((structure) => {
     if (isBarrierType(structure.type)) drawFenceSegment(structure);
     else if (structure.type === "cabin") drawPlacedCabin(structure);
+    else if (structure.type === "foodPrep") drawPlacedFoodPrep(structure);
+    else if (structure.type === "storageShed") drawPlacedStorageShed(structure);
     else if (structure.type === "farm") drawPlacedFarm(structure);
     else if (isCityBuildingType(structure.type) || isDecorationType(structure.type)) drawCityStructure(structure);
     else drawOutpostStructure(structure);
@@ -3686,10 +4885,12 @@ function drawFenceSegment(segment) {
   roundRect(segment.x - 9, segment.y - 24, 18, 48, 5);
   ctx.fillStyle = "#5b3b2e";
   roundRect(segment.x + 10, segment.y - 32, 6, 26, 3);
-  ctx.fillStyle = `rgba(255, ${154 + Math.sin(performance.now() / 120 + segment.x) * 28}, 70, 0.92)`;
-  ctx.beginPath();
-  ctx.ellipse(segment.x + 13, segment.y - 39, 8, 12, 0, 0, Math.PI * 2);
-  ctx.fill();
+  if (state.wave.active) {
+    ctx.fillStyle = `rgba(255, ${154 + Math.sin(performance.now() / 120 + segment.x) * 28}, 70, 0.92)`;
+    ctx.beginPath();
+    ctx.ellipse(segment.x + 13, segment.y - 39, 8, 12, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
   if (level > 1) {
     ctx.fillStyle = theme.accent;
     roundRect(segment.x - 13, segment.y - 30, 26, 8, 4);
@@ -3743,13 +4944,29 @@ function isGateOpen(gate) {
 
 function drawPlacedCabin(structure) {
   const rect = structureRect(structure);
-  drawSprite("cabin", rect.x - 20, rect.y - 50, rect.w + 40, rect.h + 60, { row: levelSpriteRow(structure.level) });
+  drawSprite("cabin", rect.x - 20, rect.y - 50, rect.w + 40, rect.h + 60, { row: levelSpriteRow(structure.level, "cabin") });
   drawStructureLabel(structure, "Cabin");
+}
+
+function drawPlacedFoodPrep(structure) {
+  const rect = structureRect(structure);
+  drawSprite("foodPrep", rect.x - 18, rect.y - 44, rect.w + 36, rect.h + 58, { row: levelSpriteRow(structure.level, "foodPrep") });
+  drawStructureLabel(structure, "Food Prep");
+}
+
+function drawPlacedStorageShed(structure) {
+  const rect = structureRect(structure);
+  if (drawSprite("storageShed", rect.x - 24, rect.y - 48, rect.w + 48, rect.h + 72, { row: levelSpriteRow(structure.level, "storageShed") })) {
+    drawStructureLabel(structure, "Storage");
+    return;
+  }
+  drawStorageShed({ ...structure, ...rect, id: structure.id, level: structure.level || 1 });
+  drawStructureLabel(structure, "Storage");
 }
 
 function drawPlacedFarm(structure) {
   const rect = structureRect(structure);
-  drawSprite("farm", rect.x - 20, rect.y - 20, rect.w + 40, rect.h + 40, { row: levelSpriteRow(structure.level) });
+  drawSprite("farm", rect.x - 20, rect.y - 20, rect.w + 40, rect.h + 40, { row: levelSpriteRow(structure.level, "farm") });
   drawStructureLabel(structure, "Farm");
 }
 
@@ -3761,6 +4978,10 @@ function drawCityStructure(structure) {
 
 function drawCityHouse(structure) {
   const rect = structureRect(structure);
+  if (drawSprite("house", rect.x - 20, rect.y - 46, rect.w + 40, rect.h + 70, { row: levelSpriteRow(structure.level, "house") })) {
+    drawStructureLabel(structure, `House ${cityHouseOccupants(structure.id)}/${gameConfig.city.houseCapacity || 5}`);
+    return;
+  }
   const theme = levelTheme(structure.level || 1);
   ctx.save();
   ctx.fillStyle = "rgba(0,0,0,0.2)";
@@ -3791,6 +5012,10 @@ function drawCityHouse(structure) {
 
 function drawWelcomeCenter(structure) {
   const rect = structureRect(structure);
+  if (drawSprite("welcomeCenter", rect.x - 26, rect.y - 54, rect.w + 52, rect.h + 82, { row: levelSpriteRow(structure.level, "welcomeCenter") })) {
+    drawStructureLabel(structure, "Welcome");
+    return;
+  }
   ctx.save();
   ctx.fillStyle = "rgba(0,0,0,0.22)";
   ctx.beginPath();
@@ -3839,10 +5064,12 @@ function drawDecoration(structure) {
     ctx.fillStyle = "#5b3b2e";
     roundRect(structure.x - 5, structure.y - 28, 10, 54, 4);
     ctx.fill();
-    ctx.fillStyle = `rgba(255, ${150 + Math.sin(t * 9) * 35}, 70, 0.9)`;
-    ctx.beginPath();
-    ctx.ellipse(structure.x, structure.y - 38, 14, 22, 0, 0, Math.PI * 2);
-    ctx.fill();
+    if (state.wave.active) {
+      ctx.fillStyle = `rgba(255, ${150 + Math.sin(t * 9) * 35}, 70, 0.9)`;
+      ctx.beginPath();
+      ctx.ellipse(structure.x, structure.y - 38, 14, 22, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
   } else if (structure.type === "shrub") {
     ctx.fillStyle = "#2f6d45";
     for (let i = 0; i < 5; i += 1) {
@@ -3901,13 +5128,12 @@ function drawDecoration(structure) {
     });
   }
   ctx.restore();
-  drawStructureLabel(structure, structureDisplayName(structure.type));
 }
 
 function drawOutpostStructure(structure) {
   const rect = structureRect(structure);
-  const sprite = structure.type === "iceTrap" ? "furnace" : "tower";
-  drawSprite(sprite, rect.x - 18, rect.y - 42, rect.w + 36, rect.h + 48, { row: levelSpriteRow(structure.level) });
+  const sprite = towerSpriteName(structure.type);
+  drawSprite(sprite, rect.x - 22, rect.y - 48, rect.w + 44, rect.h + 58, { row: levelSpriteRow(structure.level, sprite) });
   if (buildMode || structure.stationedResidentId) {
     ctx.save();
     ctx.globalAlpha = 0.12;
@@ -3917,16 +5143,81 @@ function drawOutpostStructure(structure) {
     ctx.fill();
     ctx.restore();
   }
+  if (structure.type === "signalTower") {
+    ctx.save();
+    ctx.strokeStyle = "#dff7ff";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(structure.x, structure.y - 42, 22, 0, Math.PI * 2);
+    ctx.stroke();
+    for (let i = -1; i <= 1; i += 1) {
+      ctx.beginPath();
+      ctx.moveTo(structure.x - 24, structure.y - 42 + i * 9);
+      ctx.lineTo(structure.x + 24, structure.y - 42 + i * 9);
+      ctx.moveTo(structure.x + i * 9, structure.y - 64);
+      ctx.lineTo(structure.x + i * 9, structure.y - 20);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
   drawStructureLabel(structure, structureDisplayName(structure.type));
 }
 
+function towerSpriteName(type) {
+  const sprites = {
+    outpost: "outpost",
+    hunterPost: "hunterPost",
+    signalTower: "signalTower",
+    iceTrap: "iceTrap"
+  };
+  return sprites[type] || "tower";
+}
+
 function drawStructureLabel(structure, label) {
+  const job = getUpgradeJob("structure", structure.id);
+  if (job) drawUpgradeConstructionEffect(structureRect(structure), job);
+  const labelHeight = job ? 42 : 28;
   ctx.fillStyle = "rgba(3, 12, 22, 0.6)";
-  roundRect(structure.x - 58, structure.y + 50, 116, 28, 7);
+  roundRect(structure.x - 58, structure.y + 50, 116, labelHeight, 7);
   ctx.fillStyle = "#f4f9ff";
   ctx.font = "800 12px Inter, system-ui, sans-serif";
   ctx.textAlign = "center";
   ctx.fillText(label, structure.x, structure.y + 68, 108);
+  if (job) {
+    ctx.fillStyle = "#ffd166";
+    ctx.font = "900 11px Inter, system-ui, sans-serif";
+    ctx.fillText(`${Math.ceil(job.remaining)}s`, structure.x, structure.y + 84, 108);
+  }
+}
+
+function drawUpgradeConstructionEffect(rect, job) {
+  const time = performance.now() / 1000;
+  const progress = job.total ? clamp(1 - job.remaining / job.total, 0, 1) : 0;
+  ctx.save();
+  ctx.strokeStyle = "#ffd166";
+  ctx.lineWidth = 4;
+  ctx.setLineDash([12, 8]);
+  ctx.lineDashOffset = -time * 28;
+  ctx.strokeRect(rect.x - 10, rect.y - 12, rect.w + 20, rect.h + 24);
+  ctx.setLineDash([]);
+  ctx.fillStyle = "rgba(255, 209, 102, 0.12)";
+  roundRect(rect.x - 8, rect.y - 10, rect.w + 16, rect.h + 20, 12);
+  ctx.fill();
+  ctx.fillStyle = "rgba(3, 12, 22, 0.78)";
+  roundRect(rect.x + rect.w / 2 - 50, rect.y - 34, 100, 22, 8);
+  ctx.fillStyle = "#ffd166";
+  roundRect(rect.x + rect.w / 2 - 46, rect.y - 30, 92 * progress, 14, 7);
+  ctx.fillStyle = "#f4f9ff";
+  ctx.font = "900 11px Inter, system-ui, sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText(`${Math.ceil(job.remaining)}s`, rect.x + rect.w / 2, rect.y - 19);
+  const sparkX = rect.x + (rect.w * ((time * 0.35) % 1));
+  const sparkY = rect.y - 16 + Math.sin(time * 8) * 6;
+  ctx.fillStyle = "#ffb35c";
+  ctx.beginPath();
+  ctx.arc(sparkX, sparkY, 5 + Math.sin(time * 12) * 2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
 }
 
 function drawBuildPreview() {
@@ -4036,7 +5327,7 @@ function drawFarmPlots() {
   ctx.beginPath();
   ctx.ellipse(farm.x + farm.w / 2 + 10, farm.y + farm.h / 2 + 28, farm.w / 2 + 26, farm.h / 2 + 20, 0, 0, Math.PI * 2);
   ctx.fill();
-  if (drawSprite("farm", farm.x - 24, farm.y - 30, farm.w + 48, farm.h + 62, { row: levelSpriteRow(farm.level) })) {
+  if (drawSprite("farm", farm.x - 24, farm.y - 30, farm.w + 48, farm.h + 62, { row: levelSpriteRow(farm.level, "farm") })) {
     const pct = farm.produceProgress / Math.max(1, farmProduceSeconds());
     for (let i = 0; i < Math.floor(pct * 10); i += 1) {
       drawResourceSprite("lettuce", farm.x + 25 + i * 14, farm.y + farm.h - 30, 18);
@@ -4081,16 +5372,36 @@ function drawBuildings() {
       drawBuildingLabel(building);
       return;
     }
+    if (building.id === "furnace") {
+      drawFurnaceGlow(building);
+      ctx.fillStyle = "rgba(0,0,0,0.24)";
+      ctx.beginPath();
+      ctx.ellipse(building.x + building.w / 2 + 16, building.y + building.h / 2 + 52, building.w / 2 + 62, building.h / 2 + 26, 0, 0, Math.PI * 2);
+      ctx.fill();
+      if (drawSprite("furnace", building.x - 66, building.y - 94, building.w + 132, building.h + 128, { row: levelSpriteRow(building.level, "furnace") })) {
+        drawFurnaceLoadAnimation(building);
+      } else {
+        drawFurnaceBoiler(building);
+      }
+      drawBuildingLabel(building);
+      return;
+    }
+    if (building.id === "storageShed") {
+      if (!drawSprite("storageShed", building.x - 38, building.y - 58, building.w + 76, building.h + 84, { row: levelSpriteRow(building.level, "storageShed") })) {
+        drawStorageShed(building);
+      }
+      drawBuildingLabel(building);
+      return;
+    }
     const spriteName = building.id;
     const spritePad = building.id === "tower" ? 48 : 30;
     const spriteTop = building.id === "tower" ? 74 : 54;
     if (building.id === "tower") drawTowerRange(building);
-    if (building.id === "furnace") drawFurnaceGlow(building);
     ctx.fillStyle = "rgba(0,0,0,0.2)";
     ctx.beginPath();
     ctx.ellipse(building.x + building.w / 2 + 12, building.y + building.h / 2 + 48, building.w / 2 + 30, building.h / 2 + 22, 0, 0, Math.PI * 2);
     ctx.fill();
-    if (drawSprite(spriteName, building.x - spritePad, building.y - spriteTop, building.w + spritePad * 2, building.h + spriteTop + 30, { row: levelSpriteRow(building.level) })) {
+    if (drawSprite(spriteName, building.x - spritePad, building.y - spriteTop, building.w + spritePad * 2, building.h + spriteTop + 30, { row: levelSpriteRow(building.level, spriteName) })) {
       ctx.fillStyle = theme.accent;
       roundRect(building.x + 12, building.y + building.h + 4, building.w - 24, 9, 5);
       ctx.fillStyle = "rgba(3, 12, 22, 0.56)";
@@ -4107,8 +5418,99 @@ function drawBuildings() {
     drawBuildingWindows(building);
     drawBuildingLabel(building);
     if (building.id === "tower") drawTowerTop(building);
-    if (building.id === "furnace") drawFurnaceGlow(building);
   });
+}
+
+function drawFurnaceBoiler(furnace) {
+  const theme = levelTheme(furnace.level);
+  const pct = furnace.maxFuel ? clamp(furnace.fuel / furnace.maxFuel, 0, 1) : 0;
+  const pulse = clamp(furnace.hatchPulse || 0, 0, 1);
+  const hatchOpen = Math.sin(pulse * Math.PI);
+  ctx.save();
+  ctx.fillStyle = "rgba(0,0,0,0.24)";
+  ctx.beginPath();
+  ctx.ellipse(furnace.x + furnace.w / 2 + 16, furnace.y + furnace.h / 2 + 52, furnace.w / 2 + 36, furnace.h / 2 + 22, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "#35323c";
+  roundRect(furnace.x + 18, furnace.y + 44, furnace.w - 36, furnace.h - 28, 14);
+  ctx.fillStyle = "#5f6670";
+  roundRect(furnace.x + 34, furnace.y + 18, furnace.w - 68, 58, 28);
+  ctx.fillStyle = "#20202a";
+  roundRect(furnace.x + furnace.w - 34, furnace.y - 64, 24, 104, 7);
+  ctx.fillStyle = theme.trim;
+  roundRect(furnace.x + 28, furnace.y + 54, furnace.w - 56, 9, 5);
+  roundRect(furnace.x + 28, furnace.y + 92, furnace.w - 56, 9, 5);
+  ctx.fillStyle = `rgba(255, ${106 + pct * 84}, 48, ${0.38 + pct * 0.48})`;
+  roundRect(furnace.x + 48, furnace.y + 78, furnace.w - 96, 38, 12);
+  ctx.fillStyle = "#211919";
+  roundRect(furnace.x + 42, furnace.y + 72 - hatchOpen * 14, furnace.w - 84, 14, 6);
+  roundRect(furnace.x + 42, furnace.y + 112 + hatchOpen * 8, furnace.w - 84, 10, 5);
+  const storagePoint = storageShedDropoff(buildings.storageShed);
+  const hatch = { x: furnace.x + furnace.w / 2, y: furnace.y + 96 };
+  if (pulse > 0) {
+    for (let i = 0; i < 3; i += 1) {
+      const t = clamp(1 - pulse + i * 0.12, 0, 1);
+      const x = storagePoint.x + (hatch.x - storagePoint.x) * t;
+      const y = storagePoint.y - 12 + (hatch.y - storagePoint.y) * t - Math.sin(t * Math.PI) * 28;
+      drawResourceSprite("wood", x, y, 18);
+    }
+  }
+  ctx.fillStyle = "rgba(245,253,255,0.75)";
+  roundRect(furnace.x + 60, furnace.y + 30, 30, 16, 8);
+  ctx.fillStyle = "#67c7ff";
+  roundRect(furnace.x + 62, furnace.y + 32, 26 * pct, 12, 6);
+  ctx.restore();
+}
+
+function drawFurnaceLoadAnimation(furnace) {
+  const pulse = clamp(furnace.hatchPulse || 0, 0, 1);
+  if (pulse <= 0) return;
+  const hatchOpen = Math.sin(pulse * Math.PI);
+  const storagePoint = storageShedDropoff(buildings.storageShed);
+  const hatch = { x: furnace.x + furnace.w / 2 + 2, y: furnace.y + 91 };
+  ctx.save();
+  ctx.fillStyle = `rgba(255, 118, 42, ${0.28 + hatchOpen * 0.45})`;
+  roundRect(hatch.x - 34, hatch.y - 10, 68, 28, 10);
+  ctx.fillStyle = "#211919";
+  roundRect(hatch.x - 36, hatch.y - 18 - hatchOpen * 11, 72, 12, 6);
+  roundRect(hatch.x - 36, hatch.y + 17 + hatchOpen * 7, 72, 9, 5);
+  for (let i = 0; i < 3; i += 1) {
+    const t = clamp(1 - pulse + i * 0.12, 0, 1);
+    const x = storagePoint.x + (hatch.x - storagePoint.x) * t;
+    const y = storagePoint.y - 12 + (hatch.y - storagePoint.y) * t - Math.sin(t * Math.PI) * 28;
+    drawResourceSprite("wood", x, y, 18);
+  }
+  ctx.restore();
+}
+
+function drawStorageShed(shed) {
+  const theme = levelTheme(shed.level || 1);
+  ctx.save();
+  ctx.fillStyle = "rgba(0,0,0,0.2)";
+  ctx.beginPath();
+  ctx.ellipse(shed.x + shed.w / 2, shed.y + shed.h / 2 + 52, shed.w / 2 + 34, shed.h / 2 + 18, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = theme.roof;
+  ctx.beginPath();
+  ctx.moveTo(shed.x - 10, shed.y + 54);
+  ctx.lineTo(shed.x + shed.w / 2, shed.y + 4);
+  ctx.lineTo(shed.x + shed.w + 10, shed.y + 54);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = "#5b3b2e";
+  ctx.lineWidth = 8;
+  [["left", shed.x + 24], ["right", shed.x + shed.w - 24]].forEach(([, x]) => {
+    ctx.beginPath();
+    ctx.moveTo(x, shed.y + 50);
+    ctx.lineTo(x, shed.y + shed.h - 8);
+    ctx.stroke();
+  });
+  ctx.fillStyle = "rgba(112, 77, 46, 0.78)";
+  roundRect(shed.x + 38, shed.y + 70, shed.w - 76, 46, 8);
+  for (let i = 0; i < Math.min(10, state.stored.wood); i += 1) {
+    drawResourceSprite("wood", shed.x + 48 + (i % 5) * 14, shed.y + 100 - Math.floor(i / 5) * 13, 18);
+  }
+  ctx.restore();
 }
 
 function levelTheme(level) {
@@ -4280,6 +5682,7 @@ function drawFurnaceSmoke() {
 function drawBuildingLabel(building) {
   const job = getUpgradeJob("building", building.id);
   const theme = levelTheme(building.level);
+  if (job) drawUpgradeConstructionEffect(building, job);
   ctx.fillStyle = "rgba(3, 12, 22, 0.56)";
   roundRect(building.x + building.w / 2 - 76, building.y + building.h + 24, 152, 43, 8);
   ctx.fillStyle = theme.accent;
@@ -4296,9 +5699,11 @@ function drawBuildingLabel(building) {
 }
 
 function drawDropoffs() {
-  drawStack(dropoffs.wood, "wood", Math.min(8, state.stored.wood), "Wood");
-  drawStack(dropoffs.food, "lettuce", Math.min(6, buildings.foodPrep.raw), "Raw");
-  drawStack(dropoffs.mealPickup, "meal", Math.min(6, buildings.foodPrep.meals), "Meals");
+  storageSheds().forEach((shed) => drawStack(storageShedDropoff(shed), "wood", Math.min(8, state.stored.wood), "Wood"));
+  foodPreps().forEach((prep) => {
+    drawStack(foodPrepRawDropoff(prep), "lettuce", Math.min(6, prep.raw || 0), "Raw");
+    drawStack(foodPrepMealDropoff(prep), "meal", Math.min(6, prep.meals || 0), "Meals");
+  });
   drawStack(dropoffs.dining, "meal", Math.min(6, buildings.diningHall ? buildings.diningHall.meals : 0), "Dining");
 }
 
@@ -4322,33 +5727,35 @@ function drawResourceSprite(type, x, y, size) {
 }
 
 function drawFoodProcessingAnimation() {
-  const prep = buildings.foodPrep;
-  if (prep.raw <= 0 || prep.processProgress <= 0 || !pointInRect(state.player, prep, 20)) return;
-  const cx = prep.x + prep.w / 2;
-  const cy = prep.y + prep.h / 2 + 12;
-  const progress = clamp(prep.processProgress / foodProcessSeconds(), 0, 1);
   const time = performance.now() / 1000;
-  ctx.save();
-  ctx.globalAlpha = 0.9;
-  for (let i = 0; i < 5; i += 1) {
-    const angle = time * 3.6 + i * 1.26;
-    const radius = 32 + Math.sin(time * 5 + i) * 8;
-    const x = cx + Math.cos(angle) * radius;
-    const y = cy + Math.sin(angle) * 12 - 30;
-    drawResourceSprite(i % 2 ? "meat" : "lettuce", x, y, 18);
-  }
-  ctx.strokeStyle = "rgba(255, 203, 114, 0.95)";
-  ctx.lineWidth = 7;
-  ctx.beginPath();
-  ctx.arc(cx, cy - 26, 46, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * progress);
-  ctx.stroke();
-  ctx.fillStyle = "rgba(255, 255, 255, 0.78)";
-  for (let i = 0; i < 3; i += 1) {
+  foodPreps().forEach((prep) => {
+    const rect = foodPrepRect(prep);
+    if (prep.raw <= 0 || prep.processProgress <= 0 || !pointInRect(state.player, rect, 20)) return;
+    const cx = rect.x + rect.w / 2;
+    const cy = rect.y + rect.h / 2 + 12;
+    const progress = clamp(prep.processProgress / foodProcessSeconds(prep), 0, 1);
+    ctx.save();
+    ctx.globalAlpha = 0.9;
+    for (let i = 0; i < 5; i += 1) {
+      const angle = time * 3.6 + i * 1.26;
+      const radius = 32 + Math.sin(time * 5 + i) * 8;
+      const x = cx + Math.cos(angle) * radius;
+      const y = cy + Math.sin(angle) * 12 - 30;
+      drawResourceSprite(i % 2 ? "meat" : "lettuce", x, y, 18);
+    }
+    ctx.strokeStyle = "rgba(255, 203, 114, 0.95)";
+    ctx.lineWidth = 7;
     ctx.beginPath();
-    ctx.ellipse(cx - 28 + i * 28, cy - 70 - Math.sin(time * 4 + i) * 8, 9, 18, -0.15, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  ctx.restore();
+    ctx.arc(cx, cy - 26, 46, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * progress);
+    ctx.stroke();
+    ctx.fillStyle = "rgba(255, 255, 255, 0.78)";
+    for (let i = 0; i < 3; i += 1) {
+      ctx.beginPath();
+      ctx.ellipse(cx - 28 + i * 28, cy - 70 - Math.sin(time * 4 + i) * 8, 9, 18, -0.15, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  });
 }
 
 function drawDiningServiceAnimation() {
@@ -4400,7 +5807,8 @@ function drawTrees() {
     }
     ctx.save();
     ctx.translate(tree.x + shake, tree.y);
-    if (drawSprite("tree", -64, -128, 128, 208)) {
+    const row = clamp(Number.isFinite(tree.spriteRow) ? tree.spriteRow : 0, 0, spriteRowCount("tree") - 1);
+    if (drawSprite("tree", -64, -128, 128, 208, { row, trim: true, trimPadding: 6 })) {
       if (tree.progress > 0) {
         ctx.fillStyle = "rgba(3, 12, 22, 0.66)";
         roundRect(-42, 88, 84, 10, 5);
@@ -4514,12 +5922,82 @@ function drawResidents() {
 
 function drawCityResidents() {
   (state.cityVisitors || []).forEach((visitor) => {
-    drawCityPerson(visitor, "V");
+    drawCityPerson(visitor, "");
     drawActorHealth(visitor, 58);
   });
   (state.cityResidents || []).forEach((resident) => {
     drawCityPerson(resident, resident.chatTimer > 0 ? "..." : "");
     drawActorHealth(resident, 58);
+  });
+}
+
+function drawDeer() {
+  deer.forEach((animal) => {
+    const row = animal.fleeTimer > 0 ? 0 : (animal.grazeTimer || 0) > 0 ? 2 : 1;
+    const fps = row === 0 ? 10 : row === 1 ? 6 : 3;
+    const frame = Math.floor((animal.walkTime || 0) * fps) % spriteFrameCount("deer");
+    if (drawSprite("deer", animal.x - 64, animal.y - 70, 128, 96, { row, flip: animal.facing < 0, frame, fps, trim: true, trimPadding: 10 })) {
+      if (animal.hp < animal.maxHp) {
+        ctx.save();
+        ctx.fillStyle = "rgba(3, 12, 22, 0.66)";
+        roundRect(animal.x - 34, animal.y - 58, 68, 7, 4);
+        ctx.fillStyle = "#ff5d66";
+        roundRect(animal.x - 34, animal.y - 58, 68 * clamp(animal.hp / animal.maxHp, 0, 1), 7, 4);
+        ctx.restore();
+      }
+      return;
+    }
+    const side = animal.direction === "left" || animal.direction === "right";
+    const stride = Math.sin((animal.walkTime || 0) * 6);
+    const flip = animal.facing < 0 ? -1 : 1;
+    ctx.save();
+    ctx.translate(animal.x, animal.y);
+    ctx.scale(flip, 1);
+    ctx.fillStyle = "rgba(0,0,0,0.18)";
+    ctx.beginPath();
+    ctx.ellipse(0, 25, 42, 13, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = animal.hitFlash > 0 ? "#ffdf9a" : "#8a5a36";
+    ctx.beginPath();
+    ctx.ellipse(0, -4, side ? 45 : 38, 21, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#a87549";
+    ctx.beginPath();
+    ctx.ellipse(34, -22, 22, 15, -0.2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#f4e0bd";
+    ctx.beginPath();
+    ctx.ellipse(-28, -1, 12, 10, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = "#5d3923";
+    ctx.lineWidth = 5;
+    for (let i = -1; i <= 1; i += 2) {
+      ctx.beginPath();
+      ctx.moveTo(-18 + i * 14, 12);
+      ctx.lineTo(-22 + i * 16, 46 + stride * i * 4);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(18 + i * 10, 10);
+      ctx.lineTo(24 + i * 12, 44 - stride * i * 4);
+      ctx.stroke();
+    }
+    ctx.strokeStyle = "#d9c08e";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(42, -34);
+    ctx.lineTo(52, -56);
+    ctx.moveTo(44, -34);
+    ctx.lineTo(35, -55);
+    ctx.stroke();
+    ctx.restore();
+    if (animal.hp < animal.maxHp) {
+      ctx.save();
+      ctx.fillStyle = "rgba(3, 12, 22, 0.66)";
+      roundRect(animal.x - 34, animal.y - 58, 68, 7, 4);
+      ctx.fillStyle = "#ff5d66";
+      roundRect(animal.x - 34, animal.y - 58, 68 * clamp(animal.hp / animal.maxHp, 0, 1), 7, 4);
+      ctx.restore();
+    }
   });
 }
 
@@ -4533,11 +6011,13 @@ function drawWolves() {
       ctx.ellipse(wolf.x, wolf.y + 44, 42, 12, 0, 0, Math.PI * 2);
       ctx.fill();
       const frame = Math.floor((wolf.walkTime || 0) * (gameConfig.animation.walkFps || 8)) % spriteFrameCount("eagle");
-      if (drawSprite("eagle", wolf.x - 60, wolf.y - 78 + bob, 120, 92, { flip: wolf.facing < 0, frame, fps: 9 })) {
+      const row = wolf.attacking ? 1 : 0;
+      if (drawSprite("eagle", wolf.x - 70, wolf.y - 88 + bob, 140, 104, { flip: wolf.facing < 0, frame, row, fps: 9, trim: true, trimPadding: 10 })) {
         ctx.fillStyle = "rgba(3, 12, 22, 0.66)";
         roundRect(wolf.x - 34, wolf.y - 72 + bob, 68, 8, 4);
         ctx.fillStyle = "#ff5d66";
         roundRect(wolf.x - 34, wolf.y - 72 + bob, 68 * clamp(wolf.hp / wolf.maxHp, 0, 1), 8, 4);
+        drawNetStatus(wolf, bob);
         ctx.restore();
         return;
       }
@@ -4547,11 +6027,13 @@ function drawWolves() {
     ctx.ellipse(wolf.x - 2, wolf.y + 24, 48, 18, 0, 0, Math.PI * 2);
     ctx.fill();
     const frame = Math.floor((wolf.walkTime || 0) * (gameConfig.animation.walkFps || 8)) % spriteFrameCount("wolf");
-    if (drawSprite("wolf", wolf.x - 70, wolf.y - 78, 128, 106, { flip: wolf.facing < 0, frame, fps: 8 })) {
+    const row = wolf.attacking ? 1 : 0;
+    if (drawSprite("wolf", wolf.x - 70, wolf.y - 78, 128, 106, { flip: wolf.facing < 0, frame, row, fps: 8, trim: true, trimPadding: 10 })) {
       ctx.fillStyle = "rgba(3, 12, 22, 0.66)";
       roundRect(wolf.x - 40, wolf.y - 58, 80, 8, 4);
       ctx.fillStyle = "#ff5d66";
       roundRect(wolf.x - 40, wolf.y - 58, 80 * clamp(wolf.hp / wolf.maxHp, 0, 1), 8, 4);
+      drawNetStatus(wolf);
       ctx.restore();
       return;
     }
@@ -4595,8 +6077,28 @@ function drawWolves() {
     roundRect(wolf.x - 40, wolf.y - 58, 80, 8, 4);
     ctx.fillStyle = "#ff5d66";
     roundRect(wolf.x - 40, wolf.y - 58, 80 * clamp(wolf.hp / wolf.maxHp, 0, 1), 8, 4);
+    drawNetStatus(wolf);
     ctx.restore();
   });
+}
+
+function drawNetStatus(wolf, yOffset = 0) {
+  if (!wolf.netTimer) return;
+  ctx.save();
+  ctx.strokeStyle = "rgba(223,247,255,0.86)";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.ellipse(wolf.x, wolf.y - 12 + yOffset, 46, 28, 0, 0, Math.PI * 2);
+  ctx.stroke();
+  for (let i = -2; i <= 2; i += 1) {
+    ctx.beginPath();
+    ctx.moveTo(wolf.x - 44, wolf.y - 12 + yOffset + i * 10);
+    ctx.lineTo(wolf.x + 44, wolf.y - 12 + yOffset + i * 10);
+    ctx.moveTo(wolf.x + i * 18, wolf.y - 38 + yOffset);
+    ctx.lineTo(wolf.x + i * 18, wolf.y + 15 + yOffset);
+    ctx.stroke();
+  }
+  ctx.restore();
 }
 
 function drawPlayer() {
@@ -4604,6 +6106,98 @@ function drawPlayer() {
   drawPerson(p, "");
   drawActorHealth(p, 58);
   drawCarryStack();
+}
+
+function drawWoodChopMiniGame() {
+  if (!woodChopMiniGame) return;
+  const time = performance.now() / 1000;
+  ctx.save();
+  if (!woodChopMiniGame.active) {
+    const pct = 1 - clamp(woodChopMiniGame.startDelay / Math.max(0.1, chopMiniGameConfig().startDelaySeconds || 1), 0, 1);
+    ctx.fillStyle = "rgba(3, 12, 22, 0.7)";
+    roundRect(state.player.x - 56, state.player.y - 226, 112, 22, 11);
+    ctx.fillStyle = "#ffcb72";
+    roundRect(state.player.x - 52, state.player.y - 222, 104 * pct, 14, 8);
+    ctx.fillStyle = "#f4f9ff";
+    ctx.font = "800 10px Inter, system-ui, sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("READY AXE", state.player.x, state.player.y - 210);
+    ctx.restore();
+    return;
+  }
+  const targetPoint = woodChopTargetPoint();
+  const factors = [woodChopMiniGame.factorA, woodChopMiniGame.factorB];
+  ctx.fillStyle = "rgba(0, 0, 0, 0.24)";
+  roundRect(targetPoint.x - 86, targetPoint.y - 34, 172, 66, 16);
+  ctx.fillStyle = "#6d4327";
+  roundRect(targetPoint.x - 82, targetPoint.y - 38, 164, 58, 16);
+  ctx.fillStyle = "rgba(255, 221, 160, 0.16)";
+  roundRect(targetPoint.x - 72, targetPoint.y - 30, 144, 9, 5);
+  ctx.strokeStyle = "#3f2a1c";
+  ctx.lineWidth = 3;
+  ctx.strokeRect(targetPoint.x - 78, targetPoint.y - 34, 156, 50);
+  factors.forEach((factor, index) => {
+    const x = targetPoint.x + (index === 0 ? -38 : 38);
+    ctx.fillStyle = "#b77742";
+    ctx.beginPath();
+    ctx.ellipse(x, targetPoint.y - 7, 24, 20, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = "rgba(61, 36, 20, 0.62)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.ellipse(x, targetPoint.y - 7, 14, 11, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.fillStyle = "#fff7df";
+    ctx.font = "900 20px Inter, system-ui, sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText(String(factor), x, targetPoint.y + 1);
+  });
+  ctx.strokeStyle = "#d9edf7";
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(targetPoint.x - 10, targetPoint.y - 22);
+  ctx.lineTo(targetPoint.x + 10, targetPoint.y + 8);
+  ctx.moveTo(targetPoint.x + 10, targetPoint.y - 22);
+  ctx.lineTo(targetPoint.x - 10, targetPoint.y + 8);
+  ctx.stroke();
+  ctx.fillStyle = "rgba(244,249,255,0.92)";
+  ctx.font = "800 10px Inter, system-ui, sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText("SPLIT TOTAL", targetPoint.x, targetPoint.y + 28);
+  const layout = woodChopLogLayout();
+  ctx.fillStyle = "rgba(0,0,0,0.22)";
+  ctx.beginPath();
+  ctx.ellipse(state.player.x, layout.y + layout.segmentH + 10, 150, 19, 0, 0, Math.PI * 2);
+  ctx.fill();
+  woodChopMiniGame.choices.forEach((choice, index) => {
+    const rect = woodChopSegmentRect(index);
+    const wobble = choice.flash > 0 ? Math.sin(time * 36) * 4 : 0;
+    ctx.save();
+    ctx.translate(wobble, 0);
+    const end = index === 0 || index === woodChopMiniGame.choices.length - 1;
+    const flash = choice.flash > 0;
+    ctx.fillStyle = flash ? "#7b3d35" : (index % 2 ? "#9b6337" : "#b77742");
+    roundRect(rect.x, rect.y, rect.w, rect.h, end ? 18 : 8);
+    ctx.fillStyle = "rgba(255, 221, 160, 0.2)";
+    roundRect(rect.x + 8, rect.y + 7, rect.w - 16, 8, 4);
+    ctx.strokeStyle = "#5b3b2e";
+    ctx.lineWidth = 3;
+    ctx.strokeRect(rect.x + 2, rect.y + 2, rect.w - 4, rect.h - 4);
+    if (end) {
+      ctx.strokeStyle = "rgba(61, 36, 20, 0.55)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.ellipse(rect.x + rect.w / 2, rect.y + rect.h / 2, rect.w * 0.32, rect.h * 0.32, 0, 0, Math.PI * 2);
+      ctx.ellipse(rect.x + rect.w / 2, rect.y + rect.h / 2, rect.w * 0.2, rect.h * 0.2, 0, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.fillStyle = "#fff7df";
+    ctx.font = choice.value >= 10 ? "900 18px Inter, system-ui, sans-serif" : "900 22px Inter, system-ui, sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText(String(choice.value), rect.x + rect.w / 2, rect.y + rect.h / 2 + 8);
+    ctx.restore();
+  });
+  ctx.restore();
 }
 
 function drawActorHealth(actor, yOffset) {
@@ -4868,12 +6462,28 @@ function drawArrows() {
     const t = clamp(arrow.t, 0, 1);
     const x = arrow.from.x + (arrow.to.x - arrow.from.x) * t;
     const y = arrow.from.y + (arrow.to.y - arrow.from.y) * t;
-    ctx.strokeStyle = "#ffdf9a";
-    ctx.lineWidth = 4;
-    ctx.beginPath();
-    ctx.moveTo(x - 16, y + 8);
-    ctx.lineTo(x + 16, y - 8);
-    ctx.stroke();
+    if (arrow.kind === "net") {
+      ctx.strokeStyle = "#dff7ff";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(x, y, 18 + t * 12, 0, Math.PI * 2);
+      ctx.stroke();
+      for (let i = -1; i <= 1; i += 1) {
+        ctx.beginPath();
+        ctx.moveTo(x - 22, y + i * 9);
+        ctx.lineTo(x + 22, y + i * 9);
+        ctx.moveTo(x + i * 9, y - 22);
+        ctx.lineTo(x + i * 9, y + 22);
+        ctx.stroke();
+      }
+    } else {
+      ctx.strokeStyle = "#ffdf9a";
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(x - 16, y + 8);
+      ctx.lineTo(x + 16, y - 8);
+      ctx.stroke();
+    }
   });
 }
 
@@ -4901,7 +6511,8 @@ function drawParticles() {
 function drawSnow() {
   ctx.save();
   ctx.fillStyle = "rgba(244, 251, 255, 0.8)";
-  snow.forEach((flake) => {
+  const visible = Math.min(snow.length, Math.ceil((gameConfig.snow.count || 150) * snowDensityMultiplier()));
+  snow.slice(0, visible).forEach((flake) => {
     ctx.globalAlpha = 0.36;
     ctx.beginPath();
     ctx.arc(flake.x, flake.y, flake.r, 0, Math.PI * 2);
@@ -4939,16 +6550,33 @@ function drawLightGlow(x, y, radius, alpha = 0.36) {
   ctx.fill();
 }
 
+function lightSources() {
+  if (!state.wave.active) return [];
+  const size = gridSize();
+  return state.structures
+    .filter((structure) => (structure.type === "torch" || isBarrierType(structure.type)) && structure.health > 0)
+    .map((structure) => ({
+      x: structure.type === "torch" ? structure.x : structure.x + 13,
+      y: structure.type === "torch" ? structure.y - 20 : structure.y - 39,
+      radius: structure.type === "torch" ? size * 4 : size * 2
+    }));
+}
+
+function nearestLightSource(point) {
+  return lightSources().sort((a, b) => dist(point, a) - dist(point, b))[0] || null;
+}
+
+function pointInTorchLight(point) {
+  return lightSources().some((light) => dist(point, light) <= light.radius);
+}
+
 function drawLighting() {
+  if (!state.wave.active) return;
   const size = gridSize();
   ctx.save();
   ctx.globalCompositeOperation = "screen";
-  state.structures.forEach((structure) => {
-    if (structure.type === "torch") {
-      drawLightGlow(structure.x, structure.y - 20, size * 4, state.wave.active ? 0.58 : 0.34);
-    } else if (isBarrierType(structure.type)) {
-      drawLightGlow(structure.x + 13, structure.y - 39, size * 2, state.wave.active ? 0.32 : 0.18);
-    }
+  lightSources().forEach((light) => {
+    drawLightGlow(light.x, light.y, light.radius, light.radius > size * 3 ? 0.58 : 0.32);
   });
   ctx.restore();
 }
@@ -5021,46 +6649,79 @@ function easeOut(t) {
   return 1 - Math.pow(1 - clamp(t, 0, 1), 3);
 }
 
+function furnaceLogsToFill(building = buildings.furnace) {
+  const remainingFuel = Math.max(0, building.maxFuel - building.fuel);
+  if (remainingFuel <= 0) return 0;
+  return Math.ceil(remainingFuel / gameConfig.furnace.fuelPerWood);
+}
+
+function furnaceLoadButtonAmount(building = buildings.furnace) {
+  return Math.min(gameConfig.furnace.woodLoadAmount, furnaceLogsToFill(building));
+}
+
+function warnFurnaceFull() {
+  showCenterMessage("Furnace is full. Upgrade it to increase capacity.", 2.4);
+  setMessage("The furnace is full. Upgrade it to increase capacity.", 5);
+}
+
+function loadFurnaceLogs(building, requestedLogs) {
+  const logsToFit = furnaceLogsToFill(building);
+  if (logsToFit <= 0) {
+    warnFurnaceFull();
+    return;
+  }
+  if (state.stored.wood <= 0) {
+    showCenterMessage("Not enough wood.");
+    setMessage("Storage Shed inventory is empty.");
+    return;
+  }
+  const used = Math.min(Math.max(1, requestedLogs || 1), logsToFit, state.stored.wood);
+  const remainingFuel = building.maxFuel - building.fuel;
+  state.stored.wood -= used;
+  building.fuel = clamp(building.fuel + Math.min(remainingFuel, used * gameConfig.furnace.fuelPerWood), 0, building.maxFuel);
+  building.hatchPulse = 1;
+  setMessage(`Loaded ${used} log${used === 1 ? "" : "s"} from Storage Shed inventory into the furnace.`);
+  playSound("drop");
+  saveState();
+  openBuildingMenu(building);
+}
+
 function openBuildingMenu(building) {
   const meter = getBuildingMeter(building);
   const cost = adjustedUpgradeCost(building);
   const job = getUpgradeJob("building", building.id);
   const cooldown = getCooldown(`building:${building.id}`);
   const residentSection = building.id === "cabin" ? renderCabinResidents() : building.id === "tower" ? renderStarterTowerStations() : "";
-  hud.modalEyebrow.textContent = "Building";
-  hud.modalTitle.textContent = building.name;
-  hud.modalBody.innerHTML = `
-    <p>${building.task}</p>
+  const furnaceLoadAmount = building.id === "furnace" ? furnaceLoadButtonAmount(building) : 0;
+  const furnaceFillLogs = building.id === "furnace" ? furnaceLogsToFill(building) : 0;
+  const meterMarkup = building.id === "cabin" ? "" : `
     <div class="stat-line">
       <span>${meter.label}</span>
       <div class="mini-meter"><i style="width:${meter.pct}%"></i></div>
     </div>
+  `;
+  hud.modalEyebrow.textContent = "Building";
+  hud.modalTitle.textContent = building.name;
+  hud.modalBody.innerHTML = `
+    <p>${building.task}</p>
+    ${meterMarkup}
     ${residentSection}
     ${job ? `<p>Upgrade in progress: ${Math.ceil(job.remaining)}s remaining.</p>` : ""}
     ${cooldown ? `<p class="small-note">Upgrade retry cooldown: ${Math.ceil(cooldown)}s.</p>` : ""}
     <p>Level ${building.level}. Upgrade cost: ${cost} wood.</p>
     <div class="modal-actions">
-      ${building.id === "furnace" ? `<button id="loadFurnace" type="button">Load ${gameConfig.furnace.woodLoadAmount} wood into furnace</button>` : ""}
+      ${building.id === "furnace" ? `<button id="loadFurnace" type="button">${furnaceLoadAmount ? `Load ${furnaceLoadAmount} log${furnaceLoadAmount === 1 ? "" : "s"}` : "Furnace full"}</button><button id="fillFurnace" type="button">Fill furnace${furnaceFillLogs ? ` (${furnaceFillLogs} logs)` : ""}</button>` : ""}
       <button id="upgradeBuilding" class="primary" type="button">${job ? "Upgrading" : "Upgrade Options"}</button>
     </div>
   `;
   openModal();
   const loadButton = document.querySelector("#loadFurnace");
   if (loadButton) {
-    loadButton.addEventListener("click", () => {
-      if (state.stored.wood <= 0) {
-        showCenterMessage("Not enough wood.");
-        setMessage("The wood pile is empty.");
-        return;
-      }
-      const used = Math.min(gameConfig.furnace.woodLoadAmount, state.stored.wood);
-      state.stored.wood -= used;
-      building.fuel = clamp(building.fuel + used * gameConfig.furnace.fuelPerWood, 0, building.maxFuel);
-      setMessage("Wood loaded into the furnace.");
-      playSound("drop");
-      saveState();
-      openBuildingMenu(building);
-    });
+    loadButton.addEventListener("click", () => loadFurnaceLogs(building, furnaceLoadButtonAmount(building)));
+  }
+  const fillButton = document.querySelector("#fillFurnace");
+  if (fillButton) {
+    fillButton.addEventListener("click", () => loadFurnaceLogs(building, furnaceLogsToFill(building)));
   }
   document.querySelector("#upgradeBuilding").addEventListener("click", () => {
     if (job) {
@@ -5076,6 +6737,9 @@ function openBuildingMenu(building) {
       saveState();
       openBuildingMenu(building);
     });
+  });
+  document.querySelectorAll("[data-train-expert]").forEach((button) => {
+    button.addEventListener("click", () => openExpertTrainingMenu(button.dataset.trainExpert));
   });
 }
 
@@ -5096,15 +6760,113 @@ function renderCabinResidents() {
         <span>Level ${residentLevel(survivor)} ${survivor.title}: ${survivor.bonus}</span>
         <span>Health: ${Math.round(survivor.health)}/${survivor.maxHealth}</span>
         <span>Current work: ${residentWorkLabel(survivor)}</span>
+        <div class="resident-actions">
+          <button data-train-expert="${survivor.id}" type="button">Train</button>
+        </div>
       </div>
     </article>
   `).join("");
+  const cost = expertRetrainCost();
   return `
     <div class="resident-list">
       <h3>Current Experts</h3>
+      <p class="small-note">Train an Expert into a different job for ${cost.points} learning points and ${cost.wood} wood.</p>
       ${rows}
     </div>
   `;
+}
+
+function expertRetrainCost() {
+  const config = gameConfig.residents || {};
+  return {
+    points: Number.isFinite(config.retrainLearningCost) ? config.retrainLearningCost : 10,
+    wood: Number.isFinite(config.retrainWoodCost) ? config.retrainWoodCost : 200
+  };
+}
+
+function openExpertTrainingMenu(expertId) {
+  const survivor = state.survivors.find((expert) => expert.id === expertId);
+  if (!survivor) {
+    showCenterMessage("That Expert is no longer in camp.", 2);
+    openBuildingMenu(buildings.cabin);
+    return;
+  }
+  const cost = expertRetrainCost();
+  const options = specialtyCatalog
+    .filter((specialty) => specialty.id !== survivor.specialty)
+    .map((specialty) => `
+      <button data-retrain-specialty="${specialty.id}" type="button">
+        <strong>${specialty.title}</strong>
+        <span>${specialty.bonus}</span>
+      </button>
+    `).join("");
+  hud.modalEyebrow.textContent = "Expert Training";
+  hud.modalTitle.textContent = survivor.name;
+  hud.modalBody.innerHTML = `
+    <div class="resident-row training-profile">
+      <img class="resident-icon" src="${actorIconDataUrl(survivor, 56)}" alt="">
+      <div>
+        <strong>Current job: Level ${residentLevel(survivor)} ${survivor.title}</strong>
+        <span>${survivor.bonus}</span>
+        <span>Cost: ${cost.points} learning points and ${cost.wood} wood.</span>
+      </div>
+    </div>
+    <div class="option-list">${options}</div>
+    <div class="modal-actions">
+      <button id="backToCabin" type="button">Back To Cabin</button>
+    </div>
+  `;
+  openModal();
+  document.querySelector("#backToCabin")?.addEventListener("click", () => openBuildingMenu(buildings.cabin));
+  document.querySelectorAll("[data-retrain-specialty]").forEach((button) => {
+    button.addEventListener("click", () => trainExpert(expertId, button.dataset.retrainSpecialty));
+  });
+}
+
+function trainExpert(expertId, specialtyId) {
+  const survivorIndex = state.survivors.findIndex((expert) => expert.id === expertId);
+  const survivor = state.survivors[survivorIndex];
+  const specialty = specialtyById(specialtyId);
+  if (!survivor || !specialty) {
+    showCenterMessage("That Expert is no longer in camp.", 2);
+    openBuildingMenu(buildings.cabin);
+    return;
+  }
+  if (survivor.specialty === specialty.id) {
+    showCenterMessage(`${survivor.name} already has that job.`, 2);
+    return;
+  }
+  const cost = expertRetrainCost();
+  if (state.learningPoints < cost.points) {
+    showCenterMessage(`Need ${cost.points} learning points.`, 2.4);
+    setMessage("Complete Recruitment missions to earn more learning points.", 5);
+    return;
+  }
+  if (state.stored.wood < cost.wood) {
+    showCenterMessage(`Need ${cost.wood} wood.`, 2.4);
+    setMessage("Gather and drop off more wood before training an Expert.", 5);
+    return;
+  }
+  state.learningPoints -= cost.points;
+  state.stored.wood -= cost.wood;
+  clearExpertStations(survivor.id);
+  survivor.specialty = specialty.id;
+  survivor.title = specialty.title;
+  survivor.bonus = specialty.bonus;
+  survivor.carrying = null;
+  survivor.carryAmount = 0;
+  survivor.workTimer = 0;
+  survivor.target = null;
+  survivor.pathNudge = null;
+  survivor.stuckTimer = 0;
+  survivor.assignedFoodPrepId = null;
+  if (survivor.specialty === "cook") assignedCookFoodPrep(survivor);
+  state.survivors[survivorIndex] = normalizeSurvivor(survivor, survivorIndex);
+  playSound("upgrade");
+  setMessage(`${survivor.name} trained as a ${specialty.title}.`, 6);
+  showCenterMessage(`${specialty.title} training complete.`, 2.2);
+  saveState();
+  openBuildingMenu(buildings.cabin);
 }
 
 function renderStarterTowerStations() {
@@ -5112,8 +6874,9 @@ function renderStarterTowerStations() {
     `<button data-starter-station="none" type="button">No Expert${!state.towerStationedResidentId ? " Selected" : ""}</button>`,
     ...state.survivors.map((survivor) => `
       <button data-starter-station="${survivor.id}" type="button">
-        ${survivor.name} - Lv ${residentLevel(survivor)} ${survivor.title}${state.towerStationedResidentId === survivor.id ? " Selected" : ""}
-        <span>${stationAssignmentLabel(survivor.id, null, true)}</span>
+        <img class="resident-icon" src="${actorIconDataUrl(survivor, 42)}" alt="">
+        <span>${survivor.name} - Lv ${residentLevel(survivor)} ${survivor.title}${state.towerStationedResidentId === survivor.id ? " Selected" : ""}</span>
+        <small>${stationAssignmentLabel(survivor.id, null, true)}</small>
       </button>
     `)
   ].join("");
@@ -5128,7 +6891,7 @@ function renderStarterTowerStations() {
 
 function residentWorkLabel(survivor) {
   const labels = {
-    lumberjack: "Hauling wood to the pile",
+    lumberjack: "Hauling wood to Storage Sheds",
     farmer: "Carrying lettuce to food prep",
     cook: "Cooking meals at food prep",
     engineer: "Helping active construction",
@@ -5146,8 +6909,11 @@ function getBuildingMeter(building) {
     return { label: "Hunger", pct: (building.hunger / building.maxHunger) * 100 };
   }
   if (building.id === "foodPrep") {
-    const pct = building.raw ? (building.processProgress / foodProcessSeconds()) * 100 : 0;
+    const pct = building.raw ? (building.processProgress / foodProcessSeconds(building)) * 100 : 0;
     return { label: "Cooking", pct: clamp(pct, 0, 100) };
+  }
+  if (building.id === "storageShed") {
+    return { label: `Shared wood (${state.stored.wood})`, pct: 100 };
   }
   if (building.id === "diningHall") {
     const pct = building.meals ? ((building.serveProgress || 0) / Math.max(1, gameConfig.cabin.diningServeSeconds)) * 100 : 0;
@@ -5196,7 +6962,9 @@ function upgradeCooldownKey(kind, targetId) {
 }
 
 function structureUpgradeCost(structure) {
-  return Math.ceil(structureCost(structure.type) * 0.8 + (structure.level || 1) * 8);
+  const base = Math.ceil(structureCost(structure.type) * 0.8 + 8);
+  const level = Math.max(1, structure.level || 1);
+  return Math.ceil(base * (gameConfig.upgrades.buildingCostMultiplier ** (level - 1)));
 }
 
 function getUpgradeStats(kind, target) {
@@ -5218,17 +6986,29 @@ function getUpgradeStats(kind, target) {
     const currentTower = isTowerType(structure.type) ? towerStats(structure) : null;
     const nextTower = isTowerType(structure.type) ? towerStats(nextStructure) : null;
     const nextHealth = structure.maxHealth + (isBarrierType(structure.type) ? 25 : 35);
+    const towerCurrent = currentTower
+      ? [`Health ${Math.round(structure.health)}/${structure.maxHealth}`, currentTower.netSeconds ? `Net hold ${currentTower.netSeconds.toFixed(1)}s` : `Damage ${Math.round(currentTower.damage)}`, `Range ${currentTower.range}`]
+      : null;
+    const towerNext = nextTower
+      ? [`Health max ${nextHealth}`, nextTower.netSeconds ? `Net hold ${nextTower.netSeconds.toFixed(1)}s` : `Damage ${Math.round(nextTower.damage)}`, `Range ${nextTower.range}`]
+      : null;
+    const utilityCurrent = structure.type === "foodPrep"
+      ? [`Health ${Math.round(structure.health)}/${structure.maxHealth}`, `Cooking speed level ${level}`, `Raw food ${structure.raw || 0}`]
+      : structure.type === "storageShed"
+        ? [`Health ${Math.round(structure.health)}/${structure.maxHealth}`, `Shared wood inventory ${state.stored.wood}`]
+        : null;
+    const utilityNext = structure.type === "foodPrep"
+      ? [`Health max ${nextHealth}`, "Faster meal processing", `Level ${level + 1}`]
+      : structure.type === "storageShed"
+        ? [`Health max ${nextHealth}`, "Sturdier shared wood depot", `Level ${level + 1}`]
+        : null;
     return {
       name: structureDisplayName(structure.type),
       level,
       cost: structureUpgradeCost(structure),
       time: adjustedUpgradeTime(level),
-      current: currentTower
-        ? [`Health ${Math.round(structure.health)}/${structure.maxHealth}`, `Damage ${Math.round(currentTower.damage)}`, `Range ${currentTower.range}`]
-        : [`Health ${Math.round(structure.health)}/${structure.maxHealth}`, `Level ${level}`],
-      next: nextTower
-        ? [`Health max ${nextHealth}`, `Damage ${Math.round(nextTower.damage)}`, `Faster shots`]
-        : [`Health max ${nextHealth}`, `Level ${level + 1}`]
+      current: towerCurrent || utilityCurrent || [`Health ${Math.round(structure.health)}/${structure.maxHealth}`, `Level ${level}`],
+      next: towerNext || utilityNext || [`Health max ${nextHealth}`, `Level ${level + 1}`]
     };
   }
   const building = target;
@@ -5241,14 +7021,21 @@ function getUpgradeStats(kind, target) {
     next: []
   };
   if (building.id === "furnace") {
-    stats.current = [`Fuel capacity ${building.maxFuel}`, `Fuel drain level ${building.level}`];
-    stats.next = [`Fuel capacity ${building.maxFuel + gameConfig.upgrades.furnaceFuelCapacityBonus}`, "Slower fuel drain"];
+    const nextLevel = building.level + 1;
+    const nextType = furnaceUpgradeTypeForLevel(nextLevel);
+    stats.current = [`Fuel capacity ${building.maxFuel}`, `Fuel drain ${furnaceFuelDrainForLevel(building.level).toFixed(2)}/sec`];
+    stats.next = nextType === "drain"
+      ? [`Fuel drain ${furnaceFuelDrainForLevel(nextLevel).toFixed(2)}/sec`, "Fuel lasts longer before needing wood"]
+      : [`Fuel capacity ${building.maxFuel + gameConfig.upgrades.furnaceFuelCapacityBonus}`, "Stores more fuel from each refill run"];
   } else if (building.id === "cabin") {
     stats.current = [`Expert capacity ${survivorCapacity()}`, `Hunger max ${building.maxHunger}`];
     stats.next = [`Expert capacity ${survivorCapacity() + 1}`, `Hunger max ${building.maxHunger + gameConfig.upgrades.cabinHungerMaxBonus}`];
   } else if (building.id === "foodPrep") {
     stats.current = [`Cooking speed level ${building.level}`, `Raw food ${building.raw}`];
     stats.next = ["Faster meal processing", "More efficient prep station"];
+  } else if (building.id === "storageShed") {
+    stats.current = [`Shared wood inventory ${state.stored.wood}`, `Shed level ${building.level}`];
+    stats.next = ["Stronger storage platform", "Clearer shared wood drop point"];
   } else if (building.id === "diningHall") {
     stats.current = [`Serving speed level ${building.level}`, `${building.meals || 0} meals waiting`];
     stats.next = ["Faster meal service", "Better order window flow"];
@@ -5346,9 +7133,19 @@ function failUpgradeMission(context) {
   state.stored.wood = Math.max(0, state.stored.wood - penalty);
   const key = upgradeCooldownKey(context.upgradeKind, context.targetId);
   setCooldown(key, gameConfig.timers.upgradeFailCooldown);
+  notifyChallengeResourceCost("Upgrade Mission Failed", penalty, `${stats.name} retry is locked for ${gameConfig.timers.upgradeFailCooldown} seconds.`);
   setMessage(`Upgrade mission failed. Lost ${penalty} wood and retry is locked for ${gameConfig.timers.upgradeFailCooldown} seconds.`, 6);
   playSound("fail");
   saveState();
+}
+
+function notifyChallengeResourceCost(title, woodCost, detail = "") {
+  pushNotification({
+    id: `challenge-cost-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    title,
+    copy: `Resource cost: ${woodCost} wood.${detail ? ` ${detail}` : ""}`,
+    warning: true
+  });
 }
 
 function updateUpgradeJobs(dt) {
@@ -5396,8 +7193,12 @@ function upgradeBuilding(building) {
   building.level += 1;
   building.upgradeCost = Math.ceil(building.upgradeCost * gameConfig.upgrades.buildingCostMultiplier);
   if (building.id === "furnace") {
-    building.maxFuel += gameConfig.upgrades.furnaceFuelCapacityBonus;
-    building.fuel = building.maxFuel;
+    if (furnaceUpgradeTypeForLevel(building.level) === "capacity") {
+      building.maxFuel += gameConfig.upgrades.furnaceFuelCapacityBonus;
+      building.fuel = building.maxFuel;
+    } else {
+      building.fuel = clamp(building.fuel + building.maxFuel * 0.12, 0, building.maxFuel);
+    }
   }
   if (building.id === "cabin") {
     building.maxHunger += gameConfig.upgrades.cabinHungerMaxBonus;
@@ -5409,6 +7210,8 @@ function upgradeBuilding(building) {
     setMessage("Farm upgraded. Lettuce grows faster.");
   } else if (building.id === "foodPrep") {
     setMessage("Food prep upgraded. Meals cook faster.");
+  } else if (building.id === "storageShed") {
+    setMessage("Storage shed upgraded. The shared wood depot is sturdier.");
   } else if (building.id === "diningHall") {
     setMessage("Dining hall upgraded. Meals are served faster.");
   } else {
@@ -5689,7 +7492,7 @@ function enterRemoveMode() {
   movePreview = null;
   buildTrayCollapsed = false;
   renderBuildTray();
-  setMessage("Remove mode: tap a fence, gate, tower, city building, decoration, cabin, or farm to remove it.", 6);
+  setMessage("Remove mode: tap a fence, gate, tower, city building, decoration, cabin, storage shed, food prep, or farm to remove it.", 6);
 }
 
 function enterRepairMode() {
@@ -5703,7 +7506,7 @@ function enterRepairMode() {
   movePreview = null;
   buildTrayCollapsed = false;
   renderBuildTray();
-  setMessage("Repair mode: tap a damaged fence, gate, tower, house, cabin, farm, or decoration to repair it with wood.", 6);
+  setMessage("Repair mode: tap a damaged fence, gate, tower, house, cabin, storage shed, food prep, farm, or decoration to repair it with wood.", 6);
 }
 
 function renderBuildTray() {
@@ -5776,7 +7579,7 @@ function buildTrayStateKey() {
   return [
     state.stored.wood,
     playerLevel(),
-    buildings.foodPrep.level,
+    maxFoodPrepLevel(),
     state.structures.length,
     buildMode ? selectedBuildType : "",
     moveMode ? "move" : "",
@@ -5826,7 +7629,7 @@ function confirmBuildAt(point) {
     setMessage(placement.reason, 4);
     return;
   }
-  if (["hunterPost", "signalTower", "iceTrap", "cabin", "farm", "welcomeCenter", "house", "largeFountain", "statue", "garden"].includes(selectedBuildType)) {
+  if (["hunterPost", "signalTower", "iceTrap", "cabin", "storageShed", "foodPrep", "farm", "welcomeCenter", "house", "largeFountain", "statue", "garden"].includes(selectedBuildType)) {
     activeTask = selectLearningTask(Math.min(5, Math.max(2, Math.floor(playerLevel() / 4))));
     activeTaskContext = { kind: "build", buildType: selectedBuildType, point: snapped, cost: placement.cost, replaceIds: placement.replaceIds || null };
     renderLearningTask(activeTask, activeTaskContext);
@@ -5854,7 +7657,9 @@ function placeStructure(type, point, cost, replaceIds = null) {
       existing.gateGroup = replaceIds.join("-");
     });
   } else {
-    state.structures.push(createStructure(type, point.x, point.y));
+    const structure = createStructure(type, point.x, point.y);
+    clearTreesInRect(structureRect(structure));
+    state.structures.push(structure);
   }
   const canContinue = state.stored.wood >= structureCost(type);
   buildMode = canContinue;
@@ -5888,6 +7693,7 @@ function canMoveTargetTo(target, point) {
   if (rect.x < 60 || rect.y < 80 || rect.x + rect.w > world.width - 60 || rect.y + rect.h > world.height - 60) {
     return { ok: false, reason: "Too close to the wilderness edge." };
   }
+  if (rectTouchesWater(rect)) return { ok: false, reason: "Water covers that grid space." };
   const overlapsBuilding = Object.values(buildings).some((building) => {
     if (target.kind === "building" && building.id === target.id) return false;
     return rectanglesOverlap(rect, building);
@@ -5916,7 +7722,7 @@ function selectMoveTarget(point) {
     setMessage(`Move mode: tap a new grid cell for ${structureDisplayName(structure.type)}.`, 5);
     return true;
   }
-  setMessage("Tap a building, tower, cabin, farm, house, attraction, or decoration to move it. Fences and gates stay in the wall network.", 5);
+  setMessage("Tap a building, tower, cabin, storage shed, food prep, farm, house, attraction, or decoration to move it. Fences and gates stay in the wall network.", 5);
   return false;
 }
 
@@ -5930,12 +7736,14 @@ function applyMoveTarget(point) {
     const building = buildings[selectedMoveTarget.id];
     building.x = point.x - building.w / 2;
     building.y = point.y - building.h / 2;
+    clearTreesInRect(building);
     syncDropoffsToBuildings();
   } else {
     const structure = state.structures.find((item) => item.id === selectedMoveTarget.id);
     if (structure) {
       structure.x = point.x;
       structure.y = point.y;
+      clearTreesInRect(structureRect(structure));
     }
   }
   const label = moveTargetLabel(selectedMoveTarget);
@@ -5980,7 +7788,7 @@ function removeObjectAt(point) {
     setMessage("Move core buildings from the Build menu. Survival systems stay in camp.", 5);
     return false;
   }
-  setMessage("Remove mode: tap a fence, gate, tower, city building, decoration, cabin, or farm.", 4);
+  setMessage("Remove mode: tap a fence, gate, tower, city building, decoration, cabin, storage shed, food prep, or farm.", 4);
   return false;
 }
 
@@ -6005,7 +7813,7 @@ function openHelpMenu() {
     <div class="menu-grid">
       <div class="menu-card">
         <h3>First Moves</h3>
-        <p>Gather wood from trees for the furnace and repairs. Gather berries or lettuce for raw food.</p>
+        <p>Gather wood from trees, drop it at Storage Sheds, then load the furnace from storage. Gather berries or lettuce for raw food.</p>
       </div>
       <div class="menu-card">
         <h3>Food Loop</h3>
@@ -6109,11 +7917,14 @@ function renderLearningTask(task, context) {
         }
       } else {
         button.classList.add("wrong");
+        showCenterMessage(task.feedback || option.feedback || "That answer misses the clue. Read it again carefully.", 4);
         if (context && context.kind === "failure") {
           window.setTimeout(() => showGameOver(context.failureType), 850);
         } else if (context && context.kind === "build") {
-          state.stored.wood = Math.max(0, state.stored.wood - Math.ceil(context.cost * gameConfig.upgrades.failureCostPercent));
-          setMessage("Build mission failed. Some wood was wasted in the storm.", 5);
+          const penalty = Math.ceil(context.cost * gameConfig.upgrades.failureCostPercent);
+          state.stored.wood = Math.max(0, state.stored.wood - penalty);
+          notifyChallengeResourceCost("Build Mission Failed", penalty, `${structureDisplayName(context.buildType)} was not placed.`);
+          setMessage(`Build mission failed. Lost ${penalty} wood in the storm.`, 5);
           playSound("fail");
           window.setTimeout(() => {
             activeTask = null;
@@ -6173,11 +7984,13 @@ function renderReplacementMenu(recruit) {
     button.addEventListener("click", () => {
       const index = Number(button.dataset.replace);
       const removed = state.survivors[index];
-      state.survivors[index] = normalizeSurvivor(recruit, index);
+      const survivor = normalizeSurvivor(recruit, index);
+      state.survivors[index] = survivor;
+      if (survivor.specialty === "cook") assignedCookFoodPrep(survivor);
       finishVisitor(`${recruit.name} joins camp. ${removed.name} leaves with supplies.`);
     });
   });
-  document.querySelector("#keepCrew").addEventListener("click", () => finishVisitor(`${recruit.name} leaves the fort gate.`));
+  document.querySelector("#keepCrew").addEventListener("click", () => finishVisitor(`${recruit.name} leaves the Group Cabin and heads back into the snow.`));
 }
 
 function openModal(mode = "") {
@@ -6220,15 +8033,20 @@ function openStructureMenu(structure) {
     ? `<p>Residents housed here: ${cityHouseOccupants(structure.id)}/${gameConfig.city.houseCapacity || 5}. Total city housing ${state.cityResidents.length}/${cityResidentCapacity()}.</p>`
     : structure.type === "welcomeCenter"
       ? `<p>Visitors enter through this building. Visitors become Residents when they like the city and housing is available.</p>`
+      : structure.type === "foodPrep"
+        ? `<p>Raw food ${structure.raw || 0}. Meals waiting ${structure.meals || 0}. Cooks can be assigned here automatically.</p>`
+        : structure.type === "storageShed"
+          ? `<p>Shared wood inventory: ${state.stored.wood}. Wood dropped at any Storage Shed becomes available to every furnace load action.</p>`
       : isDecorationType(structure.type)
         ? `<p>Decoration and attraction piece. Future city appeal metrics can use this placement.</p>`
         : "";
-  hud.modalEyebrow.textContent = tower ? "Outpost" : isCityBuildingType(structure.type) ? "City Building" : isDecorationType(structure.type) ? "City Decor" : "Structure";
+  const utility = structure.type === "foodPrep" || structure.type === "storageShed";
+  hud.modalEyebrow.textContent = tower ? "Tower" : isCityBuildingType(structure.type) ? "City Building" : utility ? "Camp Building" : isDecorationType(structure.type) ? "City Decor" : "Structure";
   hud.modalTitle.textContent = `${structureDisplayName(structure.type)} Lv ${structure.level}`;
   hud.modalBody.innerHTML = `
     <p>Health ${Math.round(structure.health)}/${structure.maxHealth}.</p>
     ${cityCopy}
-    ${tower ? `<p>Range ${stats.range}. Damage ${Math.round(stats.damage)}. ${stats.slow < 1 ? "Slows enemies in range." : "Automatic arrows."}</p>` : ""}
+    ${tower ? `<p>Range ${stats.range}. ${stats.netSeconds ? `Nets animals for ${stats.netSeconds.toFixed(1)}s.` : `Damage ${Math.round(stats.damage)}.`} ${stats.slow < 1 ? "Slows enemies in range." : stats.netSeconds ? "Stops animals in place." : "Automatic arrows."}</p>` : ""}
     ${job ? `<p class="small-note">Upgrade in progress: ${Math.ceil(job.remaining)}s remaining.</p>` : ""}
     ${cooldown ? `<p class="small-note">Upgrade retry cooldown: ${Math.ceil(cooldown)}s.</p>` : ""}
     ${tower ? stationRows : ""}
@@ -6258,14 +8076,15 @@ function renderStationButtons(structure) {
     `<button data-station="none" type="button">No Expert${!structure.stationedResidentId ? " Selected" : ""}</button>`,
     ...state.survivors.map((survivor) => `
       <button data-station="${survivor.id}" type="button">
-        ${survivor.name} - Lv ${residentLevel(survivor)} ${survivor.title}${structure.stationedResidentId === survivor.id ? " Selected" : ""}
-        <span>${stationAssignmentLabel(survivor.id, structure)}</span>
+        <img class="resident-icon" src="${actorIconDataUrl(survivor, 42)}" alt="">
+        <span>${survivor.name} - Lv ${residentLevel(survivor)} ${survivor.title}${structure.stationedResidentId === survivor.id ? " Selected" : ""}</span>
+        <small>${stationAssignmentLabel(survivor.id, structure)}</small>
       </button>
     `)
   ].join("");
   return `
     <h3>Station Expert</h3>
-    <p class="small-note">Stationed Experts boost arrows. Hunters give the largest damage boost.</p>
+    <p class="small-note">Stationed Experts boost tower shots. Hunters give the largest damage boost.</p>
     <div class="option-list">${rows}</div>
   `;
 }
@@ -6292,7 +8111,7 @@ function repairStructure(structure, reopenMenu = true) {
 function repairObjectAt(point) {
   const structure = clickedStructure(point);
   if (!structure) {
-    setMessage("Tap a damaged fence, gate, tower, house, cabin, farm, or decoration to repair it.", 5);
+    setMessage("Tap a damaged fence, gate, tower, house, cabin, storage shed, food prep, farm, or decoration to repair it.", 5);
     return;
   }
   if (repairStructure(structure, false)) {
@@ -6317,6 +8136,7 @@ function handleCanvasClick(event) {
     return;
   }
   const point = screenToWorld(event);
+  if (handleWoodChopBubbleClick(point)) return;
   if (moveMode) {
     handleMoveClick(point);
     return;
@@ -6347,11 +8167,17 @@ function handleCanvasClick(event) {
     openBuildingMenu(building);
     return;
   }
+  if (pointInLake(point, 18)) {
+    showCenterMessage("Water blocks the route.");
+    setMessage("The player cannot walk onto water.", 4);
+    return;
+  }
   state.player.target = point;
 }
 
 function canStartTouchMove(point) {
   if (paused || modalOpen || buildMode || moveMode || removeMode || repairMode || gameOver || failureLock) return false;
+  if (woodChopBubbleAt(point)) return false;
   return !clickedBuilding(point) && !clickedStructure(point);
 }
 
@@ -6413,6 +8239,7 @@ function handleCanvasPointerDown(event) {
 }
 
 function handleCanvasPointerMove(event) {
+  cursorScreen = { x: event.clientX, y: event.clientY, active: true };
   if (buildMode) buildPreview = snapToGrid(screenToWorld(event));
   if (moveMode && selectedMoveTarget) movePreview = snapToGrid(screenToWorld(event));
   if (event.pointerType === "touch" && activeTouchPointers.has(event.pointerId)) {
@@ -6505,12 +8332,17 @@ canvas.addEventListener("drop", (event) => {
   confirmBuildAt(screenToWorld(event));
 });
 canvas.addEventListener("pointermove", handleCanvasPointerMove);
+canvas.addEventListener("pointerleave", () => {
+  cursorScreen.active = false;
+});
 canvas.addEventListener("pointerup", (event) => handleCanvasPointerEnd(event, true));
 canvas.addEventListener("pointercancel", (event) => handleCanvasPointerEnd(event, false));
 canvas.addEventListener("lostpointercapture", (event) => handleCanvasPointerEnd(event, false));
 hud.closeModal?.addEventListener("click", () => closeModal());
 hud.actionsToggle?.addEventListener("click", () => runHudAction(openMainMenu));
 hud.playerIconButton?.addEventListener("click", () => runHudAction(openPlayerHubMenu));
+hud.furnaceMeterCard?.addEventListener("click", () => runHudAction(() => openBuildingMenu(buildings.furnace)));
+hud.cabinHungerCard?.addEventListener("click", () => runHudAction(() => openBuildingMenu(buildings.diningHall)));
 hud.mainMenuButton?.addEventListener("click", () => runHudAction(openMainMenu));
 hud.buildButton?.addEventListener("click", () => runHudAction(openBuildMenu));
 hud.upgradeMenuButton?.addEventListener("click", () => runHudAction(openUpgradeMenu));
@@ -6533,6 +8365,46 @@ hud.buildTrayToggle?.addEventListener("click", () => {
 });
 hud.buildScrollLeft?.addEventListener("click", () => scrollBuildTray(-1));
 hud.buildScrollRight?.addEventListener("click", () => scrollBuildTray(1));
+
+function spawnStarterResources() {
+  const rng = createSeededRandom(`${currentWorldSeed()}:starter`);
+  for (let i = 0; i < 5; i += 1) {
+    spawnResource("wood", fort.x - 180 + rng() * 180, fort.entrance.y - 110 + rng() * 220, 1);
+  }
+}
+
+function applyWorldSeed(seed) {
+  const cleanSeed = String(seed || Math.floor(Math.random() * 1000000000)).trim() || "frontier";
+  state.worldSeed = cleanSeed;
+  state.seedChosen = true;
+  resources = [];
+  generateWorldLayout();
+  spawnStarterResources();
+  saveState();
+  closeModal(true);
+  setMessage(`World seed ${cleanSeed} loaded. The same seed will recreate this wilderness layout.`, 7);
+}
+
+function openSeedMenu() {
+  hud.modalEyebrow.textContent = "World Seed";
+  hud.modalTitle.textContent = "Choose Your Frontier";
+  const seedValue = state.worldSeed || String(Math.floor(Math.random() * 1000000000));
+  hud.modalBody.innerHTML = `
+    <p>Enter a seed number to replay a specific wilderness layout, or randomize for a new Alaska map.</p>
+    <label class="seed-input">
+      <span>Seed</span>
+      <input id="worldSeedInput" type="number" inputmode="numeric" value="${seedValue}">
+    </label>
+    <div class="modal-actions">
+      <button id="startSeedWorld" class="primary" type="button">Start World</button>
+      <button id="randomSeedWorld" type="button">Random Seed</button>
+    </div>
+  `;
+  openModal();
+  document.querySelector("#startSeedWorld").addEventListener("click", () => applyWorldSeed(document.querySelector("#worldSeedInput").value));
+  document.querySelector("#randomSeedWorld").addEventListener("click", () => applyWorldSeed(String(Math.floor(Math.random() * 1000000000))));
+}
+
 window.addEventListener("keydown", (event) => {
   const key = event.key.toLowerCase();
   if (["arrowup", "arrowdown", "arrowleft", "arrowright", "w", "a", "s", "d"].includes(key)) {
@@ -6552,10 +8424,10 @@ async function init() {
   await loadSprites();
   resize();
   renderBuildTray();
-  for (let i = 0; i < 5; i += 1) {
-    spawnResource("wood", fort.x - 180 + Math.random() * 180, fort.entrance.y - 110 + Math.random() * 220, 1);
-  }
+  generateWorldLayout();
+  spawnStarterResources();
   setMessage("Start by gathering wood from trees and food from berry bushes. Wood fuels heat; food becomes meals.", 8);
+  if (!state.seedChosen) window.setTimeout(openSeedMenu, 80);
   window.requestAnimationFrame(frame);
 }
 

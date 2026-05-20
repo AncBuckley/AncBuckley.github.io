@@ -19,23 +19,28 @@
           <span id="playerLevelBadge" class="player-level-badge">Lv 1</span>
         </button>
 
-        <div class="meter-card">
+        <button id="furnaceMeterCard" class="meter-card meter-button" type="button" aria-label="Open furnace menu">
           <span>Furnace</span>
           <strong id="furnaceFuelText">50%</strong>
           <div class="meter"><i id="furnaceFuelMeter"></i></div>
-        </div>
+        </button>
 
-        <div class="meter-card">
+        <button id="cabinHungerCard" class="meter-card meter-button" type="button" aria-label="Open Dining Hall menu">
           <span>Cabin Hunger</span>
           <strong id="cabinHungerText">50%</strong>
           <div class="meter food"><i id="cabinHungerMeter"></i></div>
-        </div>
+        </button>
 
       </section>
 
       <section class="hud cycle-hud" aria-label="Day and night cycle">
-        <span id="cycleText">Day</span>
-        <div class="cycle-track"><i id="cycleFill"></i></div>
+        <div class="cycle-clock" aria-hidden="true">
+          <span class="clock-face"></span>
+          <span class="clock-gear gear-a"></span>
+          <span class="clock-gear gear-b"></span>
+          <i id="cycleFill" class="clock-hand"></i>
+        </div>
+        <span id="cycleText" class="cycle-label">Day 1</span>
       </section>
 
       <section class="hud quick-stats" aria-label="Camp resources">

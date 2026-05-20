@@ -173,45 +173,154 @@ button:focus-visible {
 .cycle-hud {
   top: calc(max(12px, env(safe-area-inset-top)) + 110px);
   left: max(12px, env(safe-area-inset-left));
-  width: 156px;
-  height: 22px;
+  width: 86px;
+  height: 96px;
   display: grid;
-  grid-template-columns: 42px 1fr;
+  grid-template-rows: 64px 1fr;
+  justify-items: center;
   align-items: center;
-  gap: 7px;
-  padding: 4px 7px;
+  gap: 4px;
+  padding: 7px;
+  --cycle-angle: 0deg;
 }
 
-.cycle-hud span {
+.cycle-label {
   color: var(--ice);
-  font-size: 0.58rem;
+  font-size: 0.66rem;
   font-weight: 950;
   line-height: 1;
   text-transform: uppercase;
+  letter-spacing: 0;
 }
 
-.cycle-track {
-  height: 7px;
-  overflow: hidden;
-  border-radius: 999px;
-  background: rgba(185, 232, 255, 0.14);
+.cycle-clock {
+  position: relative;
+  width: 64px;
+  height: 64px;
+  border: 3px solid #8c5830;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(255, 243, 191, 0.96) 0 23%, rgba(116, 71, 38, 0.18) 24% 28%, transparent 29%),
+    repeating-conic-gradient(from -2deg, rgba(47, 31, 22, 0.86) 0 3deg, transparent 3deg 30deg),
+    radial-gradient(circle at 50% 50%, #d69c58 0 56%, #5a3927 58% 100%);
+  box-shadow:
+    inset 0 0 0 4px rgba(255, 227, 154, 0.24),
+    inset 0 -8px 14px rgba(53, 28, 16, 0.48),
+    0 8px 24px rgba(0, 0, 0, 0.28);
 }
 
-.cycle-track i {
+.cycle-clock::before {
+  content: "";
+  position: absolute;
+  inset: 8px;
+  border: 1px solid rgba(80, 49, 30, 0.48);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 223, 142, 0.36), transparent 62%);
+}
+
+.clock-face {
+  position: absolute;
+  inset: 16px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #3f2a1c 0 24%, #9b653a 26% 100%);
+  box-shadow: inset 0 2px 4px rgba(255, 232, 170, 0.25);
+}
+
+.clock-gear {
+  position: absolute;
   display: block;
-  width: 0;
-  height: 100%;
-  border-radius: inherit;
-  background: linear-gradient(90deg, #ffd166, #ff8a4c);
+  border-radius: 50%;
+  background:
+    repeating-conic-gradient(#b77742 0 10deg, #5b3824 10deg 18deg),
+    radial-gradient(circle, #f2c572 0 30%, #5b3824 31% 100%);
+  box-shadow: inset 0 0 0 3px rgba(44, 25, 16, 0.44);
+  opacity: 0.82;
 }
 
-.cycle-hud.night .cycle-track i {
-  background: linear-gradient(90deg, #67c7ff, #b48cff);
+.gear-a {
+  width: 22px;
+  height: 22px;
+  right: 4px;
+  bottom: 6px;
+}
+
+.gear-b {
+  width: 16px;
+  height: 16px;
+  left: 8px;
+  top: 9px;
+}
+
+.clock-hand {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 4px;
+  height: 25px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #fff1b8, #ff7b3d);
+  box-shadow: 0 0 8px rgba(255, 209, 102, 0.6);
+  transform: translate(-50%, -90%) rotate(var(--cycle-angle));
+  transform-origin: 50% 90%;
+  transition: transform 220ms ease;
+}
+
+.clock-hand::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -4px;
+  width: 10px;
+  height: 10px;
+  border: 2px solid #3f2a1c;
+  border-radius: 50%;
+  background: #ffd166;
+  transform: translateX(-50%);
+}
+
+.cycle-hud.night .cycle-clock {
+  border-color: #426c8a;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(211, 239, 255, 0.95) 0 23%, rgba(62, 103, 139, 0.24) 24% 28%, transparent 29%),
+    repeating-conic-gradient(from -2deg, rgba(10, 27, 45, 0.9) 0 3deg, transparent 3deg 30deg),
+    radial-gradient(circle at 50% 50%, #78a7c9 0 56%, #25394f 58% 100%);
+}
+
+.cycle-hud.night .clock-hand {
+  background: linear-gradient(180deg, #e6f6ff, #67c7ff);
+  box-shadow: 0 0 10px rgba(103, 199, 255, 0.75);
+}
+
+.cycle-hud.day .cycle-label {
+  color: #ffe39a;
+  text-shadow: 0 0 10px rgba(255, 209, 102, 0.78);
+}
+
+.cycle-hud.night .cycle-label {
+  color: #cce8ff;
+  text-shadow: 0 0 11px rgba(103, 199, 255, 0.85), 0 0 18px rgba(180, 140, 255, 0.45);
+}
+
+.seed-input {
+  display: grid;
+  gap: 6px;
+  margin: 12px 0;
+  font-weight: 850;
+}
+
+.seed-input input {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: var(--ice);
+  background: rgba(255, 255, 255, 0.08);
+  font: inherit;
 }
 
 .quick-stats {
   top: calc(max(12px, env(safe-area-inset-top)) + 138px);
-  left: max(12px, env(safe-area-inset-left));
+  left: calc(max(12px, env(safe-area-inset-left)) + 98px);
   display: flex;
   gap: 7px;
   padding: 6px;
@@ -368,6 +477,17 @@ button:focus-visible {
 .meter-card {
   min-width: 0;
   padding: 9px 10px;
+  text-align: left;
+}
+
+.meter-button {
+  display: block;
+}
+
+.meter-button:hover,
+.meter-button:focus-visible {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 209, 102, 0.42);
 }
 
 .meter-card strong {
@@ -679,6 +799,12 @@ button:focus-visible {
   padding: 10px;
   background: rgba(7, 18, 31, 0.9);
   box-shadow: var(--shadow);
+  transition: opacity 500ms ease, transform 500ms ease;
+}
+
+.notice-card.fading {
+  opacity: 0.35;
+  transform: translateY(-6px);
 }
 
 .notice-card.warning {
@@ -915,6 +1041,30 @@ button:focus-visible {
   align-items: center;
 }
 
+.resident-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.resident-actions button {
+  min-height: 36px;
+  border: 1px solid rgba(255, 190, 96, 0.34);
+  border-radius: 8px;
+  padding: 7px 12px;
+  background: rgba(255, 179, 92, 0.14);
+  color: var(--text);
+  font-weight: 900;
+}
+
+.training-profile {
+  padding: 8px;
+  border: 1px solid rgba(218, 240, 255, 0.14);
+  border-radius: 8px;
+  background: rgba(185, 232, 255, 0.08);
+}
+
 .resident-icon,
 .large-resident-icon {
   border: 1px solid rgba(218, 240, 255, 0.18);
@@ -1078,16 +1228,30 @@ button:focus-visible {
   .cycle-hud {
     top: calc(max(8px, env(safe-area-inset-top)) + 62px);
     left: max(8px, env(safe-area-inset-left));
-    width: 128px;
+    width: 66px;
+    height: 76px;
+    grid-template-rows: 50px 1fr;
+    gap: 3px;
+    padding: 5px;
+  }
+
+  .cycle-clock {
+    width: 50px;
+    height: 50px;
+    border-width: 2px;
+  }
+
+  .clock-hand {
     height: 20px;
-    grid-template-columns: 36px 1fr;
-    gap: 5px;
-    padding: 4px 6px;
+  }
+
+  .cycle-label {
+    font-size: 0.56rem;
   }
 
   .quick-stats {
     top: calc(max(8px, env(safe-area-inset-top)) + 88px);
-    left: max(8px, env(safe-area-inset-left));
+    left: calc(max(8px, env(safe-area-inset-left)) + 74px);
     gap: 5px;
     padding: 4px;
   }
@@ -1286,7 +1450,18 @@ button:focus-visible {
   }
 
   .cycle-hud {
-    width: 116px;
+    width: 62px;
+    height: 72px;
+    grid-template-rows: 47px 1fr;
+  }
+
+  .cycle-clock {
+    width: 47px;
+    height: 47px;
+  }
+
+  .clock-hand {
+    height: 18px;
   }
 
   .build-tray {
@@ -1391,14 +1566,30 @@ button:focus-visible {
   .cycle-hud {
     top: calc(max(6px, env(safe-area-inset-top)) + 54px);
     left: max(6px, env(safe-area-inset-left));
-    width: 116px;
-    height: 18px;
-    grid-template-columns: 34px 1fr;
+    width: 58px;
+    height: 66px;
+    grid-template-rows: 42px 1fr;
+    gap: 2px;
+    padding: 4px;
+  }
+
+  .cycle-clock {
+    width: 42px;
+    height: 42px;
+    border-width: 2px;
+  }
+
+  .clock-hand {
+    height: 16px;
+  }
+
+  .cycle-label {
+    font-size: 0.5rem;
   }
 
   .quick-stats {
     top: calc(max(6px, env(safe-area-inset-top)) + 78px);
-    left: max(6px, env(safe-area-inset-left));
+    left: calc(max(6px, env(safe-area-inset-left)) + 66px);
   }
 
   .inventory-hud {
@@ -1595,6 +1786,25 @@ button:focus-visible {
   margin-top: 4px;
   color: var(--muted);
   font-size: 0.74rem;
+  font-weight: 800;
+}
+
+.option-list button .resident-icon {
+  width: 42px;
+  height: 42px;
+  float: left;
+  margin: -2px 9px 2px 0;
+}
+
+.option-list button .resident-icon + span {
+  color: var(--text);
+  font-size: 0.8rem;
+}
+
+.option-list button small {
+  display: block;
+  color: var(--muted);
+  font-size: 0.72rem;
   font-weight: 800;
 }
 
