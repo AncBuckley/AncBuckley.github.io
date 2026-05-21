@@ -249,6 +249,13 @@ function Draw-Goggles($G, $X, $Y, $Narrow = 1) {
   Fill-Rect $G ($X - 2 * $Narrow) ($Y - 1) (4 * $Narrow) 2 $DarkBrass
 }
 
+function Draw-SideGoggle($G, $X, $Y, $Sign = 1) {
+  Fill-Capsule $G ($X - $Sign * 22) ($Y - 1) ($X + $Sign * 4) ($Y - 1) 2 $DarkBrass
+  Fill-Ellipse $G ($X + $Sign * 8) $Y 10 7 $Brass
+  Fill-Ellipse $G ($X + $Sign * 8) $Y 6 4 $Glass
+  Fill-Ellipse $G ($X + $Sign * 18) ($Y + 1) 3 4 $DarkBrass
+}
+
 function Draw-Buttons($G, $X, $Y, $Count, $Step = 13) {
   for ($i = 0; $i -lt $Count; $i++) {
     Fill-Ellipse $G $X ($Y + $i * $Step) 2.2 2.2 $Brass
@@ -286,17 +293,124 @@ function Draw-Head($G, $Style, $Dir, $Frame) {
   }
 }
 
-function Draw-Hat($G, $Style, $Dir, $Frame) {
-  $side = $Dir -eq "left" -or $Dir -eq "right"
+function Draw-ProfileHat($G, $Style, $Dir, $Frame) {
   $sign = if ($Dir -eq "left") { -1 } else { 1 }
   $y = (Bob $Frame) - 4
-  $narrow = if ($side) { 0.72 } elseif ($Dir -eq "up") { 0.9 } else { 1 }
-  $x = 64 + (Phase $Frame) * 0.6 + $(if ($side) { $sign * 2 } else { 0 })
+  $x = 64 + (Phase $Frame) * 0.6 + $sign * 2
+
+  switch ($Style) {
+    0 {
+      Fill-Ellipse $G ($x - $sign * 2) (45 + $y) 24 15 $Primary
+      Fill-Polygon $G @(
+        @(($x - $sign * 27), (52 + $y)), @(($x + $sign * 35), (52 + $y)),
+        @(($x + $sign * 28), (60 + $y)), @(($x - $sign * 23), (58 + $y))
+      ) $DarkLeather
+      Draw-SideGoggle $G ($x + $sign * 2) (42 + $y) $sign
+      Fill-Ellipse $G ($x + $sign * 28) (39 + $y) 5 5 $Brass
+    }
+    1 {
+      Fill-Ellipse $G ($x + $sign * 2) (57 + $y) 38 5 $DarkLeather
+      Fill-Polygon $G @(
+        @(($x - $sign * 16), (22 + $y)), @(($x + $sign * 18), (22 + $y)),
+        @(($x + $sign * 22), (56 + $y)), @(($x - $sign * 20), (56 + $y))
+      ) $Primary
+      Draw-Line $G ($x - $sign * 17) (44 + $y) ($x + $sign * 21) (46 + $y) $Brass 3
+      Draw-Gear $G ($x + $sign * 18) (38 + $y) 5
+    }
+    2 {
+      Fill-Ellipse $G ($x - $sign) (43 + $y) 28 18 $Primary
+      Fill-Polygon $G @(
+        @(($x - $sign * 31), (49 + $y)), @(($x + $sign * 34), (49 + $y)),
+        @(($x + $sign * 29), (61 + $y)), @(($x - $sign * 26), (60 + $y))
+      ) $Fur
+      Fill-Capsule $G ($x - $sign * 20) (55 + $y) ($x - $sign * 17) (74 + $y) 6 $Fur
+      Fill-Capsule $G ($x + $sign * 21) (55 + $y) ($x + $sign * 18) (67 + $y) 5 $Fur
+      Draw-SideGoggle $G ($x + $sign) (43 + $y) $sign
+    }
+    3 {
+      Fill-Ellipse $G ($x + $sign * 4) (56 + $y) 38 5 $DarkLeather
+      Fill-Polygon $G @(
+        @(($x - $sign * 22), (36 + $y)), @(($x + $sign * 23), (34 + $y)),
+        @(($x + $sign * 27), (54 + $y)), @(($x - $sign * 23), (54 + $y))
+      ) $Primary
+      Fill-Polygon $G @(
+        @(($x - $sign * 14), (28 + $y)), @(($x + $sign * 17), (27 + $y)),
+        @(($x + $sign * 22), (36 + $y)), @(($x - $sign * 17), (36 + $y))
+      ) $Brass
+      Fill-Ellipse $G ($x + $sign * 15) (29 + $y) 7 5 $Glass
+    }
+    4 {
+      Fill-Ellipse $G ($x + $sign * 2) (55 + $y) 35 5 $DarkLeather
+      Fill-Ellipse $G ($x - $sign * 2) (42 + $y) 27 14 $Primary
+      Fill-Polygon $G @(
+        @(($x - $sign * 21), (46 + $y)), @(($x + $sign * 25), (46 + $y)),
+        @(($x + $sign * 29), (53 + $y)), @(($x - $sign * 18), (53 + $y))
+      ) $Brass
+      Draw-Gear $G ($x - $sign * 20) (43 + $y) 5
+    }
+    5 {
+      Fill-Ellipse $G ($x - $sign) (48 + $y) 25 18 $Primary
+      Fill-Polygon $G @(
+        @(($x - $sign * 30), (55 + $y)), @(($x + $sign * 38), (55 + $y)),
+        @(($x + $sign * 32), (63 + $y)), @(($x - $sign * 26), (62 + $y))
+      ) $DarkLeather
+      Draw-Line $G ($x - $sign * 16) (36 + $y) ($x - $sign * 27) (24 + $y) $Brass 2
+      Draw-Line $G ($x + $sign * 17) (36 + $y) ($x + $sign * 31) (25 + $y) $Brass 2
+      Draw-SideGoggle $G ($x + $sign * 2) (50 + $y) $sign
+    }
+    6 {
+      Fill-Ellipse $G ($x + $sign * 4) (58 + $y) 45 5 $DarkLeather
+      Fill-Polygon $G @(
+        @(($x - $sign * 25), (55 + $y)), @(($x + $sign * 30), (55 + $y)),
+        @(($x + $sign * 20), (33 + $y)), @(($x - $sign * 16), (35 + $y))
+      ) $Primary
+      Draw-Line $G ($x - $sign * 19) (48 + $y) ($x + $sign * 26) (47 + $y) $Brass 3
+    }
+    7 {
+      Fill-Ellipse $G ($x + $sign * 3) (57 + $y) 37 5 $DarkLeather
+      Fill-Polygon $G @(
+        @(($x - $sign * 18), (34 + $y)), @(($x + $sign * 19), (33 + $y)),
+        @(($x + $sign * 23), (56 + $y)), @(($x - $sign * 21), (55 + $y))
+      ) $Primary
+      Fill-Capsule $G ($x + $sign * 18) (22 + $y) ($x + $sign * 21) (46 + $y) 4 $Copper
+      Fill-Ellipse $G ($x + $sign * 21) (19 + $y) 5 4 $Steel
+    }
+    8 {
+      Fill-Ellipse $G ($x + $sign * 2) (55 + $y) 36 5 $DarkLeather
+      Fill-Ellipse $G ($x - $sign) (43 + $y) 29 12 $Primary
+      Draw-Line $G ($x - $sign * 20) (48 + $y) ($x + $sign * 25) (48 + $y) $Brass 3
+      for ($i = -2; $i -le 2; $i++) {
+        Draw-Line $G ($x - $sign * (9 - $i * 4)) (34 + $y) ($x + $sign * (10 + $i * 5)) (50 + $y) (Shade $Primary -30) 1
+      }
+    }
+    default {
+      Fill-Ellipse $G ($x + $sign * 3) (54 + $y) 37 6 $DarkLeather
+      Fill-Ellipse $G ($x - $sign * 3) (42 + $y) 25 16 $Primary
+      Fill-Polygon $G @(
+        @(($x - $sign * 12), (27 + $y)), @(($x + $sign * 15), (25 + $y)),
+        @(($x + $sign * 20), (35 + $y)), @(($x - $sign * 13), (36 + $y))
+      ) $Brass
+      Draw-Line $G ($x + $sign * 10) (26 + $y) ($x + $sign * 16) (12 + $y) $Brass 2
+      Fill-Ellipse $G ($x + $sign * 17) (11 + $y) 4 4 $Glass
+    }
+  }
+}
+
+function Draw-Hat($G, $Style, $Dir, $Frame) {
+  $side = $Dir -eq "left" -or $Dir -eq "right"
+  if ($side) {
+    Draw-ProfileHat $G $Style $Dir $Frame
+    return
+  }
+  $sign = if ($Dir -eq "left") { -1 } else { 1 }
+  $y = (Bob $Frame) - 4
+  $narrow = if ($Dir -eq "up") { 0.9 } else { 1 }
+  $x = 64 + (Phase $Frame) * 0.6
   switch ($Style) {
     0 {
       Fill-Ellipse $G $x (45 + $y) (25 * $narrow) 15 $Primary
       Fill-Rect $G ($x - 26 * $narrow) (52 + $y) (52 * $narrow) 7 $DarkLeather
-      Draw-Goggles $G $x (42 + $y) $narrow
+      if ($side) { Draw-SideGoggle $G $x (42 + $y) $sign } else { Draw-Goggles $G $x (42 + $y) $narrow }
       Fill-Ellipse $G ($x + $sign * 22 * $narrow) (39 + $y) 5 5 $Brass
     }
     1 {
@@ -310,7 +424,7 @@ function Draw-Hat($G, $Style, $Dir, $Frame) {
       Fill-Rect $G ($x - 30 * $narrow) (49 + $y) (60 * $narrow) 9 $Fur
       Fill-Capsule $G ($x - 24 * $narrow) (55 + $y) ($x - 20 * $narrow) (72 + $y) 6 $Fur
       Fill-Capsule $G ($x + 24 * $narrow) (55 + $y) ($x + 20 * $narrow) (72 + $y) 6 $Fur
-      Draw-Goggles $G $x (43 + $y) $narrow
+      if ($side) { Draw-SideGoggle $G $x (43 + $y) $sign } else { Draw-Goggles $G $x (43 + $y) $narrow }
     }
     3 {
       Fill-Ellipse $G $x (55 + $y) (34 * $narrow) 5 $DarkLeather
@@ -329,7 +443,7 @@ function Draw-Hat($G, $Style, $Dir, $Frame) {
       Fill-Rect $G ($x - 30 * $narrow) (55 + $y) (60 * $narrow) 8 $DarkLeather
       Draw-Line $G ($x - 18 * $narrow) (36 + $y) ($x - 27 * $narrow) (24 + $y) $Brass 2
       Draw-Line $G ($x + 18 * $narrow) (36 + $y) ($x + 27 * $narrow) (24 + $y) $Brass 2
-      Draw-Goggles $G $x (50 + $y) $narrow
+      if ($side) { Draw-SideGoggle $G $x (50 + $y) $sign } else { Draw-Goggles $G $x (50 + $y) $narrow }
     }
     6 {
       Fill-Ellipse $G $x (57 + $y) (43 * $narrow) 5 $DarkLeather
@@ -369,9 +483,9 @@ function Draw-Arms($G, $Dir, $Frame, $Bulky = $false) {
   $sign = if ($Dir -eq "left") { -1 } else { 1 }
   $r = if ($Bulky) { 9 } else { 7 }
   if ($side) {
-    Fill-Capsule $G (64 + $sign * 11) 86 (64 + $sign * (22 + $p * 5)) 133 $r $Primary
-    Fill-Capsule $G (64 - $sign * 5) 89 (64 - $sign * (9 + $p * 3)) 126 ([Math]::Max(5, $r - 2)) $Primary
-    Fill-Ellipse $G (64 + $sign * (23 + $p * 5)) 136 5 5 $DarkLeather
+    Fill-Capsule $G (64 - $sign * 10) 89 (64 - $sign * (18 + $p * 3)) 126 ([Math]::Max(5, $r - 2)) $Primary
+    Fill-Capsule $G (64 + $sign * 14) 86 (64 + $sign * (28 + $p * 5)) 133 ($r + 1) $Primary
+    Fill-Ellipse $G (64 + $sign * (29 + $p * 5)) 136 5 5 $DarkLeather
   } else {
     Fill-Capsule $G 43 86 (27 - $p * 7) 132 $r $Primary
     Fill-Capsule $G 85 86 (101 + $p * 7) 132 $r $Primary
@@ -380,8 +494,117 @@ function Draw-Arms($G, $Dir, $Frame, $Bulky = $false) {
   }
 }
 
-function Draw-Torso($G, $X, $W, $LongCoat) {
+function Draw-ProfileShirt($G, $Style, $Dir, $Frame) {
+  $sign = if ($Dir -eq "left") { -1 } else { 1 }
+  $p = Phase $Frame
+  $bulky = $Style -in @(1, 4, 7)
+  $arm = if ($bulky) { 9 } else { 7 }
+  $x = 64 + $sign * 2
+  $long = $Style -in @(0, 5, 8, 9)
+  $hem = if ($long) { 168 } else { 151 }
+
+  Fill-Capsule $G ($x - $sign * 10) 90 ($x - $sign * (16 + $p * 3)) 127 ([Math]::Max(5, $arm - 2)) (Shade $Primary -24)
+  Fill-Polygon $G @(
+    @(($x - $sign * 20), 78), @(($x - $sign * 7), 73), @(($x + $sign * 14), 78),
+    @(($x + $sign * 21), 101), @(($x + $sign * 18), $hem), @(($x - $sign * 18), ($hem - $(if ($long) { 0 } else { 3 })))
+  ) $Primary
+  Fill-Polygon $G @(
+    @(($x - $sign * 7), 74), @(($x + $sign * 13), 79),
+    @(($x + $sign * 7), 94), @(($x - $sign * 3), 88)
+  ) (Shade $Primary -20)
+  Draw-Line $G ($x - $sign * 18) 84 ($x - $sign * 19) ($hem - 4) (Shade $Primary -42) 2
+  Fill-Capsule $G ($x + $sign * 11) 86 ($x + $sign * (28 + $p * 5)) 133 ($arm + 1) $Primary
+  Fill-Ellipse $G ($x + $sign * (29 + $p * 5)) 136 5 5 $DarkLeather
+
+  switch ($Style) {
+    0 {
+      Draw-Line $G ($x + $sign * 14) 84 ($x + $sign * 17) ($hem - 8) $Leather 4
+      Draw-Buttons $G ($x + $sign * 12) 93 4 13
+      Draw-Line $G ($x - $sign * 18) 75 ($x + $sign * 15) 80 $Brass 4
+      Draw-Line $G ($x - $sign * 22) 153 ($x + $sign * 21) 156 $DarkLeather 3
+    }
+    1 {
+      Fill-Capsule $G ($x - $sign * 13) 78 ($x + $sign * 13) 81 7 $Fur
+      Draw-Line $G ($x - $sign * 18) 145 ($x + $sign * 18) 149 $Fur 5
+      Draw-Line $G ($x - $sign * 4) 92 ($x + $sign * 14) 132 $Leather 2
+    }
+    2 {
+      Fill-Polygon $G @(
+        @(($x - $sign * 12), 84), @(($x + $sign * 13), 87),
+        @(($x + $sign * 15), 143), @(($x - $sign * 12), 140)
+      ) $Dark
+      Draw-Line $G ($x - $sign * 7) 84 ($x + $sign * 11) 126 $Leather 3
+      Draw-Gear $G ($x + $sign * 9) 113 7
+    }
+    3 {
+      Fill-Polygon $G @(
+        @(($x - $sign * 13), 92), @(($x + $sign * 16), 95),
+        @(($x + $sign * 17), 149), @(($x - $sign * 14), 146)
+      ) $Leather
+      Draw-Line $G ($x - $sign * 10) 100 ($x + $sign * 13) 103 (Shade $Leather 24) 3
+      Draw-Line $G ($x - $sign * 18) 149 ($x + $sign * 18) 152 $Brass 3
+      Draw-Buttons $G ($x + $sign * 8) 89 3 12
+    }
+    4 {
+      Fill-Capsule $G ($x - $sign * 11) 80 ($x + $sign * 11) 84 6 $Steel
+      Fill-Ellipse $G ($x + $sign * 10) 112 10 10 $Glass
+      Draw-Line $G ($x - $sign * 20) 145 ($x + $sign * 20) 150 $Brass 4
+    }
+    5 {
+      Draw-Line $G ($x - $sign * 17) 78 ($x + $sign * 15) 82 $DarkLeather 5
+      Fill-Polygon $G @(
+        @(($x - $sign * 18), 88), @(($x - $sign), 90),
+        @(($x - $sign * 10), 163), @(($x - $sign * 22), 157)
+      ) (Shade $Primary -24)
+      Fill-Polygon $G @(
+        @(($x + $sign * 2), 84), @(($x + $sign * 15), 88), @(($x + $sign * 9), 102)
+      ) $Red
+      Draw-Line $G ($x + $sign * 6) 97 ($x + $sign * 8) 152 $Red 3
+    }
+    6 {
+      Draw-Line $G ($x - $sign * 8) 84 ($x + $sign * 15) 139 $Leather 3
+      Draw-Line $G ($x - $sign * 17) 112 ($x + $sign * 18) 116 $DarkLeather 4
+      Draw-Gear $G ($x + $sign * 14) 102 5
+    }
+    7 {
+      Fill-Capsule $G ($x - $sign * 13) 78 ($x + $sign * 12) 81 5 $Fur
+      Fill-Polygon $G @(
+        @(($x + $sign), 84), @(($x + $sign * 15), 87),
+        @(($x + $sign * 14), 152), @(($x + $sign * 4), 151)
+      ) $Cream
+      Draw-Line $G ($x - $sign * 16) 101 ($x + $sign * 17) 104 $Brass 2
+    }
+    8 {
+      Fill-Polygon $G @(
+        @(($x - $sign * 11), 92), @(($x + $sign * 14), 95),
+        @(($x + $sign * 17), 144), @(($x - $sign * 12), 141)
+      ) $DarkLeather
+      for ($i = 0; $i -lt 4; $i++) {
+        Draw-Line $G ($x - $sign * 7) (101 + $i * 9) ($x + $sign * 12) (97 + $i * 9) $Brass 1
+      }
+      Draw-Line $G ($x - $sign * 20) 146 ($x + $sign * 20) 151 $Brass 4
+    }
+    default {
+      Fill-Polygon $G @(
+        @(($x - $sign * 12), 91), @(($x + $sign * 15), 94),
+        @(($x + $sign * 17), 150), @(($x - $sign * 13), 147)
+      ) $Cream
+      Draw-Line $G ($x + $sign * 5) 101 ($x + $sign * 11) 130 $Red 4
+      Draw-Line $G ($x - $sign * 19) 147 ($x + $sign * 19) 152 $Brass 3
+      Draw-Buttons $G ($x + $sign * 13) 88 3 12
+    }
+  }
+}
+
+function Draw-Torso($G, $X, $W, $LongCoat, $Side = $false, $Sign = 1) {
   $bottom = if ($LongCoat) { 168 } else { 151 }
+  if ($Side) {
+    Fill-Polygon $G @(
+      @(($X - $Sign * $W * 0.42), 76), @(($X + $Sign * $W * 0.5), 79),
+      @(($X + $Sign * $W * 0.46), $bottom), @(($X - $Sign * $W * 0.54), ($bottom - $(if ($LongCoat) { 0 } else { 2 })))
+    ) $Primary
+    return
+  }
   Fill-Polygon $G @(
     @(($X - $W / 2), 76), @(($X + $W / 2), 76),
     @(($X + $W / 2 - 7), $bottom), @(($X - $W / 2 + 7), $bottom)
@@ -390,12 +613,16 @@ function Draw-Torso($G, $X, $W, $LongCoat) {
 
 function Draw-Shirt($G, $Style, $Dir, $Frame) {
   $side = $Dir -eq "left" -or $Dir -eq "right"
+  if ($side) {
+    Draw-ProfileShirt $G $Style $Dir $Frame
+    return
+  }
   $sign = if ($Dir -eq "left") { -1 } else { 1 }
-  $x = 64 + $(if ($side) { $sign * 3 } else { 0 })
-  $w = if ($side) { 30 + ($Style % 3) * 2 } else { 45 + ($Style % 4) * 2 }
+  $x = 64 + $(if ($side) { $sign * 2 } else { 0 })
+  $w = if ($side) { 40 + ($Style % 3) * 3 } else { 45 + ($Style % 4) * 2 }
   $long = $Style -in @(0, 5, 8, 9)
   Draw-Arms $G $Dir $Frame ($Style -in @(1, 4, 7))
-  Draw-Torso $G $x $w $long
+  Draw-Torso $G $x $w $long $side $sign
   Fill-Rect $G ($x - $w / 2 + 4) 82 ($w - 8) 8 (Shade $Primary -28)
   switch ($Style) {
     0 {
@@ -461,6 +688,15 @@ function Draw-Shirt($G, $Style, $Dir, $Frame) {
       Fill-Rect $G ($x - 22) 146 44 7 $Brass
       Draw-Buttons $G ($x + 17) 87 4 12
     }
+  }
+  if ($side) {
+    $bottom = if ($long) { 164 } else { 147 }
+    Fill-Capsule $G ($x - $sign * ($w * 0.42)) 84 ($x - $sign * ($w * 0.48)) $bottom 2 (Shade $Primary -42)
+    Fill-Polygon $G @(
+      @(($x - $sign * 5), 78), @(($x + $sign * 10), 80),
+      @(($x + $sign * 16), 101), @(($x + $sign * 2), 94)
+    ) (Shade $Primary -20)
+    Draw-Line $G ($x + $sign * 5) 82 ($x + $sign * 14) 103 $Brass 1
   }
 }
 

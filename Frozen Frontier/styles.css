@@ -93,7 +93,10 @@ button:focus-visible {
   min-height: 62px;
   padding: 8px;
   display: grid;
-  grid-template-columns: 92px 56px repeat(2, minmax(118px, 0.72fr));
+  grid-template-columns: 92px 56px repeat(2, minmax(118px, 0.72fr)) minmax(190px, 1fr) 86px;
+  grid-template-areas:
+    "menu player furnace hunger stats cycle"
+    "hint hint hint hint zoom cycle";
   gap: 8px;
   align-items: stretch;
   overflow: visible;
@@ -102,8 +105,7 @@ button:focus-visible {
 .brand,
 .main-menu-button,
 .meter-card,
-.resource-pill,
-.carry-hud {
+.resource-pill {
   border: 1px solid rgba(218, 240, 255, 0.13);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.05);
@@ -121,6 +123,7 @@ button:focus-visible {
 }
 
 .player-icon-button {
+  grid-area: player;
   width: 56px;
   min-height: 100%;
   border: 1px solid rgba(218, 240, 255, 0.18);
@@ -138,8 +141,17 @@ button:focus-visible {
 }
 
 .actions-toggle {
+  grid-area: menu;
   position: relative;
   z-index: 2;
+}
+
+#furnaceMeterCard {
+  grid-area: furnace;
+}
+
+#cabinHungerCard {
+  grid-area: hunger;
 }
 
 .actions-panel {
@@ -171,17 +183,21 @@ button:focus-visible {
 }
 
 .cycle-hud {
-  top: calc(max(12px, env(safe-area-inset-top)) + 110px);
-  left: max(12px, env(safe-area-inset-left));
+  grid-area: cycle;
+  justify-self: end;
   width: 86px;
-  height: 96px;
+  min-height: 96px;
   display: grid;
   grid-template-rows: 64px 1fr;
   justify-items: center;
   align-items: center;
   gap: 4px;
   padding: 7px;
+  border: 1px solid rgba(218, 240, 255, 0.13);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
   --cycle-angle: 0deg;
+  --day-sweep: 257deg;
 }
 
 .cycle-label {
@@ -202,7 +218,7 @@ button:focus-visible {
   background:
     radial-gradient(circle at 50% 50%, rgba(255, 243, 191, 0.96) 0 23%, rgba(116, 71, 38, 0.18) 24% 28%, transparent 29%),
     repeating-conic-gradient(from -2deg, rgba(47, 31, 22, 0.86) 0 3deg, transparent 3deg 30deg),
-    radial-gradient(circle at 50% 50%, #d69c58 0 56%, #5a3927 58% 100%);
+    conic-gradient(from -90deg, #dcab65 0 var(--day-sweep), #567fa8 var(--day-sweep) 360deg);
   box-shadow:
     inset 0 0 0 4px rgba(255, 227, 154, 0.24),
     inset 0 -8px 14px rgba(53, 28, 16, 0.48),
@@ -221,13 +237,44 @@ button:focus-visible {
 .clock-face {
   position: absolute;
   inset: 16px;
+  z-index: 1;
   border-radius: 50%;
   background: radial-gradient(circle, #3f2a1c 0 24%, #9b653a 26% 100%);
   box-shadow: inset 0 2px 4px rgba(255, 232, 170, 0.25);
 }
 
+.clock-phase {
+  position: absolute;
+  z-index: 2;
+  padding: 1px 2px;
+  border-radius: 999px;
+  color: #07111e;
+  font-size: 0.34rem;
+  font-weight: 950;
+  line-height: 1;
+  text-transform: uppercase;
+  text-shadow: 0 1px rgba(255, 255, 255, 0.18);
+}
+
+.clock-phase-day {
+  top: 52%;
+  right: 1px;
+  background: rgba(255, 231, 159, 0.86);
+  transform: translateY(-50%) rotate(18deg);
+}
+
+.clock-phase-night {
+  left: 1px;
+  top: 31%;
+  color: #e8f7ff;
+  background: rgba(28, 70, 108, 0.8);
+  text-shadow: 0 1px rgba(0, 0, 0, 0.36);
+  transform: translateY(-50%) rotate(-28deg);
+}
+
 .clock-gear {
   position: absolute;
+  z-index: 2;
   display: block;
   border-radius: 50%;
   background:
@@ -253,6 +300,7 @@ button:focus-visible {
 
 .clock-hand {
   position: absolute;
+  z-index: 3;
   left: 50%;
   top: 50%;
   width: 4px;
@@ -280,10 +328,10 @@ button:focus-visible {
 
 .cycle-hud.night .cycle-clock {
   border-color: #426c8a;
-  background:
-    radial-gradient(circle at 50% 50%, rgba(211, 239, 255, 0.95) 0 23%, rgba(62, 103, 139, 0.24) 24% 28%, transparent 29%),
-    repeating-conic-gradient(from -2deg, rgba(10, 27, 45, 0.9) 0 3deg, transparent 3deg 30deg),
-    radial-gradient(circle at 50% 50%, #78a7c9 0 56%, #25394f 58% 100%);
+  box-shadow:
+    inset 0 0 0 4px rgba(180, 227, 255, 0.22),
+    inset 0 -8px 14px rgba(7, 22, 38, 0.52),
+    0 8px 24px rgba(0, 0, 0, 0.28);
 }
 
 .cycle-hud.night .clock-hand {
@@ -319,11 +367,18 @@ button:focus-visible {
 }
 
 .quick-stats {
-  top: calc(max(12px, env(safe-area-inset-top)) + 138px);
-  left: calc(max(12px, env(safe-area-inset-left)) + 98px);
+  grid-area: stats;
+  min-width: 0;
   display: flex;
+  align-items: center;
   gap: 7px;
   padding: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.quick-stats::-webkit-scrollbar {
+  display: none;
 }
 
 .quick-chip {
@@ -420,8 +475,9 @@ button:focus-visible {
 }
 
 .zoom-tools {
-  top: calc(max(12px, env(safe-area-inset-top)) + 110px);
-  right: max(12px, env(safe-area-inset-right));
+  grid-area: zoom;
+  justify-self: end;
+  align-self: center;
   display: flex;
   gap: 6px;
   padding: 6px;
@@ -465,7 +521,6 @@ button:focus-visible {
 .brand span,
 .meter-card span,
 .resource-pill span,
-.carry-hud span,
 .eyebrow {
   color: var(--blue);
   font-size: 0.68rem;
@@ -558,26 +613,15 @@ button:focus-visible {
   color: var(--muted);
 }
 
-.carry-hud {
-  right: max(12px, env(safe-area-inset-right));
-  top: calc(max(12px, env(safe-area-inset-top)) + 168px);
-  width: 190px;
-  min-height: 62px;
-  padding: 10px 12px;
-}
-
-.carry-hud strong {
-  display: block;
-  margin-top: 5px;
-  font-size: 0.98rem;
-}
-
 .hint-hud {
-  left: 50%;
-  bottom: calc(max(12px, env(safe-area-inset-bottom)) + 78px);
-  width: min(560px, calc(100% - 24px));
-  transform: translateX(-50%);
+  grid-area: hint;
+  min-width: 0;
+  min-height: 42px;
   padding: 10px 13px;
+  border: 1px solid rgba(218, 240, 255, 0.13);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  overflow: hidden;
 }
 
 .hint-hud p {
@@ -585,6 +629,9 @@ button:focus-visible {
   color: #dceeff;
   font-size: 0.9rem;
   line-height: 1.32;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .center-toast {
@@ -1161,6 +1208,10 @@ button:focus-visible {
     right: max(8px, env(safe-area-inset-right));
     top: max(8px, env(safe-area-inset-top));
     grid-template-columns: 54px 42px repeat(2, minmax(58px, 1fr));
+    grid-template-areas:
+      "menu player furnace hunger"
+      "stats stats stats cycle"
+      "hint hint hint cycle";
     gap: 5px;
     min-height: 0;
     padding: 5px;
@@ -1226,10 +1277,9 @@ button:focus-visible {
   }
 
   .cycle-hud {
-    top: calc(max(8px, env(safe-area-inset-top)) + 62px);
-    left: max(8px, env(safe-area-inset-left));
     width: 66px;
     height: 76px;
+    min-height: 0;
     grid-template-rows: 50px 1fr;
     gap: 3px;
     padding: 5px;
@@ -1250,8 +1300,6 @@ button:focus-visible {
   }
 
   .quick-stats {
-    top: calc(max(8px, env(safe-area-inset-top)) + 88px);
-    left: calc(max(8px, env(safe-area-inset-left)) + 74px);
     gap: 5px;
     padding: 4px;
   }
@@ -1304,31 +1352,9 @@ button:focus-visible {
     font-size: 0.5rem;
   }
 
-  .carry-hud {
-    width: 108px;
-    min-height: 46px;
-    padding: 6px 7px;
-    top: calc(max(8px, env(safe-area-inset-top)) + 62px);
-    bottom: auto;
-  }
-
-  .carry-hud strong {
-    margin-top: 3px;
-    font-size: 0.72rem;
-  }
-
-  .carry-hud span {
-    font-size: 0.52rem;
-  }
-
   .hint-hud {
-    left: 8px;
-    right: 122px;
-    width: auto;
-    transform: none;
-    bottom: calc(max(8px, env(safe-area-inset-bottom)) + 54px);
+    min-height: 30px;
     padding: 7px 9px;
-    max-height: 44px;
     overflow: hidden;
   }
 
@@ -1415,6 +1441,9 @@ button:focus-visible {
 @media (max-width: 520px) {
   .top-hud {
     grid-template-columns: 50px 40px repeat(2, minmax(54px, 1fr));
+    grid-template-areas:
+      "menu player furnace hunger"
+      "stats stats stats cycle";
   }
 
   .brand {
@@ -1442,26 +1471,43 @@ button:focus-visible {
     bottom: max(8px, env(safe-area-inset-bottom));
   }
 
-  .carry-hud {
-    right: max(8px, env(safe-area-inset-right));
-    top: calc(max(8px, env(safe-area-inset-top)) + 62px);
-    bottom: auto;
-    width: 98px;
-  }
-
   .cycle-hud {
-    width: 62px;
-    height: 72px;
-    grid-template-rows: 47px 1fr;
+    width: 54px;
+    height: 56px;
+    grid-template-rows: 36px 1fr;
+    gap: 2px;
+    padding: 4px;
   }
 
   .cycle-clock {
-    width: 47px;
-    height: 47px;
+    width: 36px;
+    height: 36px;
   }
 
   .clock-hand {
-    height: 18px;
+    height: 13px;
+  }
+
+  .cycle-label {
+    font-size: 0.46rem;
+  }
+
+  .quick-stats {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    align-content: center;
+    gap: 3px;
+    padding: 3px;
+    overflow: hidden;
+  }
+
+  .quick-chip {
+    min-width: 0;
+    height: 31px;
+    justify-content: center;
+    gap: 3px;
+    padding: 3px 2px;
+    font-size: 0.72rem;
   }
 
   .build-tray {
@@ -1476,8 +1522,7 @@ button:focus-visible {
   }
 
   .hint-hud {
-    right: 112px;
-    bottom: calc(max(8px, env(safe-area-inset-bottom)) + 52px);
+    display: none;
   }
 
   .notification-stack {
@@ -1514,7 +1559,8 @@ button:focus-visible {
     left: max(6px, env(safe-area-inset-left));
     right: max(6px, env(safe-area-inset-right));
     top: max(6px, env(safe-area-inset-top));
-    grid-template-columns: 50px 40px repeat(2, minmax(54px, 1fr));
+    grid-template-columns: 50px 40px repeat(2, minmax(54px, 1fr)) minmax(150px, 1fr) 58px;
+    grid-template-areas: "menu player furnace hunger stats cycle";
     gap: 4px;
     padding: 4px;
   }
@@ -1564,10 +1610,9 @@ button:focus-visible {
   }
 
   .cycle-hud {
-    top: calc(max(6px, env(safe-area-inset-top)) + 54px);
-    left: max(6px, env(safe-area-inset-left));
     width: 58px;
     height: 66px;
+    min-height: 0;
     grid-template-rows: 42px 1fr;
     gap: 2px;
     padding: 4px;
@@ -1588,8 +1633,8 @@ button:focus-visible {
   }
 
   .quick-stats {
-    top: calc(max(6px, env(safe-area-inset-top)) + 78px);
-    left: calc(max(6px, env(safe-area-inset-left)) + 66px);
+    gap: 4px;
+    padding: 3px;
   }
 
   .inventory-hud {
@@ -1613,15 +1658,11 @@ button:focus-visible {
     font-size: 0.45rem;
   }
 
-  .carry-hud {
-    right: max(6px, env(safe-area-inset-right));
-    top: calc(max(6px, env(safe-area-inset-top)) + 54px);
-    bottom: auto;
-    width: 96px;
-    min-height: 38px;
+  .hint-hud {
+    display: none;
   }
 
-  .hint-hud {
+  .zoom-tools {
     display: none;
   }
 

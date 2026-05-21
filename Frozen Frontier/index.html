@@ -31,38 +31,34 @@
           <div class="meter food"><i id="cabinHungerMeter"></i></div>
         </button>
 
-      </section>
+        <section class="quick-stats" aria-label="Camp resources">
+          <div class="quick-chip"><span class="resource-icon wood-icon"></span><strong id="quickWoodText">0</strong></div>
+          <div class="quick-chip"><span class="resource-icon meal-icon"></span><strong id="quickDiningMealText">0</strong></div>
+          <div id="quickVisitorChip" class="quick-chip city-chip hidden"><span class="resource-icon visitor-icon"></span><strong id="quickVisitorText">0</strong></div>
+          <div id="quickResidentChip" class="quick-chip city-chip hidden"><span class="resource-icon resident-count-icon"></span><strong id="quickResidentText">0</strong></div>
+        </section>
 
-      <section class="hud cycle-hud" aria-label="Day and night cycle">
-        <div class="cycle-clock" aria-hidden="true">
-          <span class="clock-face"></span>
-          <span class="clock-gear gear-a"></span>
-          <span class="clock-gear gear-b"></span>
-          <i id="cycleFill" class="clock-hand"></i>
-        </div>
-        <span id="cycleText" class="cycle-label">Day 1</span>
-      </section>
+        <section class="cycle-hud" aria-label="Day and night cycle">
+          <div class="cycle-clock" aria-hidden="true">
+            <span class="clock-phase clock-phase-day">Day</span>
+            <span class="clock-phase clock-phase-night">Night</span>
+            <span class="clock-face"></span>
+            <span class="clock-gear gear-a"></span>
+            <span class="clock-gear gear-b"></span>
+            <i id="cycleFill" class="clock-hand"></i>
+          </div>
+          <span id="cycleText" class="cycle-label">Day 1</span>
+        </section>
 
-      <section class="hud quick-stats" aria-label="Camp resources">
-        <div class="quick-chip"><span class="resource-icon wood-icon"></span><strong id="quickWoodText">0</strong></div>
-        <div class="quick-chip"><span class="resource-icon meal-icon"></span><strong id="quickDiningMealText">0</strong></div>
-        <div id="quickVisitorChip" class="quick-chip city-chip hidden"><span class="resource-icon visitor-icon"></span><strong id="quickVisitorText">0</strong></div>
-        <div id="quickResidentChip" class="quick-chip city-chip hidden"><span class="resource-icon resident-count-icon"></span><strong id="quickResidentText">0</strong></div>
-      </section>
+        <section class="zoom-tools" aria-label="Zoom controls">
+          <button id="zoomOutButton" type="button" aria-label="Zoom out">-</button>
+          <button id="zoomResetButton" type="button" aria-label="Reset zoom">1x</button>
+          <button id="zoomInButton" type="button" aria-label="Zoom in">+</button>
+        </section>
 
-      <section class="hud carry-hud" aria-label="Carried stack">
-        <span>Carrying</span>
-        <strong id="carryText">Empty</strong>
-      </section>
-
-      <section class="hud zoom-tools" aria-label="Zoom controls">
-        <button id="zoomOutButton" type="button" aria-label="Zoom out">-</button>
-        <button id="zoomResetButton" type="button" aria-label="Reset zoom">1x</button>
-        <button id="zoomInButton" type="button" aria-label="Zoom in">+</button>
-      </section>
-
-      <section class="hud hint-hud" aria-live="polite">
-        <p id="eventLog">Gather wood and food to keep the camp alive.</p>
+        <section class="hint-hud" aria-live="polite">
+          <p id="eventLog">Gather wood and food to keep the camp alive.</p>
+        </section>
       </section>
 
       <section id="buildTray" class="hud build-tray collapsed" aria-label="Build menu">

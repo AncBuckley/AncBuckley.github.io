@@ -31,7 +31,6 @@ const hud = {
   learningPointCount: document.querySelector("#learningPointCount"),
   playerLevelCount: document.querySelector("#playerLevelCount"),
   waveCount: document.querySelector("#waveCount"),
-  carryText: document.querySelector("#carryText"),
   eventLog: document.querySelector("#eventLog"),
   actionsToggle: document.querySelector("#actionsToggle"),
   actionsPanel: document.querySelector("#actionsPanel"),
@@ -618,7 +617,7 @@ const outfitCategories = [
   { id: "shoes", label: "Shoes", folder: "shoes", colors: ["#2b211b", "#704d2e", "#1f2e36", "#5b3b2e"] }
 ];
 
-const clothingAssetVersion = "steam-2";
+const clothingAssetVersion = "steam-4";
 
 const storageKey = "frozen-frontier-base-v28";
 const keys = new Set();
@@ -1502,6 +1501,14 @@ function currentPhaseDuration() {
 function cyclePhaseProgress() {
   const duration = currentPhaseDuration();
   return clamp(1 - (state.wave.timer || 0) / duration, 0, 1);
+}
+
+function cycleClockProgress() {
+  const fullDuration = dayDuration() + nightDuration();
+  const daySlice = fullDuration ? dayDuration() / fullDuration : 0.5;
+  return state.wave.active
+    ? daySlice + cyclePhaseProgress() * (1 - daySlice)
+    : cyclePhaseProgress() * daySlice;
 }
 
 function worldDayNumber() {
@@ -4298,7 +4305,7 @@ function updateCamera(dt = 0) {
   const viewW = window.innerWidth / camera.zoom;
   const viewH = window.innerHeight / camera.zoom;
   camera.x = clamp(state.player.x - viewW / 2, 0, Math.max(0, world.width - viewW));
-  camera.y = clamp(state.player.y - viewH / 2, 0, Math.max(0, world.height - viewH));
+  camera.y = clamp(state.player.y - viewH * 0.65, 0, Math.max(0, world.height - viewH));
 }
 
 function setActionsCollapsed(collapsed) {
@@ -4348,9 +4355,12 @@ function updateHud(dt) {
   if (hud.quickResidentText) hud.quickResidentText.textContent = (state.cityResidents || []).length;
   if (hud.cycleText) hud.cycleText.textContent = cycleTimeText();
   if (hud.cycleFill) {
-    const cycleProgress = cyclePhaseProgress();
+    const cycleProgress = cycleClockProgress();
+    const fullCycleDuration = dayDuration() + nightDuration();
+    const daySweep = fullCycleDuration ? dayDuration() / fullCycleDuration * 360 : 180;
     const cycleHud = hud.cycleFill.closest(".cycle-hud");
     cycleHud?.style.setProperty("--cycle-angle", `${cycleProgress * 360}deg`);
+    cycleHud?.style.setProperty("--day-sweep", `${daySweep}deg`);
     cycleHud?.classList.toggle("night", state.wave.active);
     cycleHud?.classList.toggle("day", !state.wave.active);
   }
@@ -4373,13 +4383,6 @@ function updateHud(dt) {
   if (hud.buildTray) hud.buildTray.classList.toggle("collapsed", buildTrayCollapsed);
   if (hud.buildTrayToggle) hud.buildTrayToggle.setAttribute("aria-expanded", String(!buildTrayCollapsed));
   refreshBuildTrayIfNeeded();
-  const carriedNow = carryTotal();
-  if (hud.carryText) hud.carryText.textContent = carriedNow
-    ? `${Object.entries(state.carry)
-      .filter(([, amount]) => amount > 0)
-      .map(([type, amount]) => `${resourceMeta[type].label} ${amount}`)
-      .join(", ")} (${carriedNow}/${carryCapacity()} max)`
-    : `Empty (${carryCapacity()} max)`;
 
   if (hud.phaseLabel) hud.phaseLabel.textContent = paused ? "Paused" : repairMode ? "Repair Mode" : removeMode ? "Remove Mode" : moveMode ? "Move Buildings" : buildMode ? "Build Mode" : gameOver ? "Camp Lost" : failureLock ? "Emergency" : attackActive ? `Night ${state.wave.number}` : pendingVisitor ? "Visitor Approaching" : state.wave.active ? "Night Watch" : "Daylight Prep";
   updateCanvasToolCursor();
@@ -6455,12 +6458,33 @@ function actorIconDataUrl(actor, size = 56) {
 
 function drawCarryStack() {
   const entries = Object.entries(state.carry).flatMap(([type, amount]) => Array.from({ length: amount }, () => type));
+  if (!entries.length) return;
   const base = playerHeadPoint();
   entries.slice(0, 12).forEach((type, index) => {
     const x = base.x - 18 + (index % 4) * 12;
     const y = base.y - 16 - Math.floor(index / 4) * 12;
     drawResourceSprite(type, x, y, 15);
   });
+  const badgeScale = clamp(1 / camera.zoom, 0.82, 2);
+  const label = `${carryTotal()}/${carryCapacity()}`;
+  const fontSize = 12 * badgeScale;
+  const badgePadX = 7 * badgeScale;
+  const badgeH = 22 * badgeScale;
+  const badgeX = base.x + 30;
+  const badgeY = base.y - 42;
+  ctx.save();
+  ctx.font = `950 ${fontSize}px Inter, system-ui, sans-serif`;
+  const badgeW = ctx.measureText(label).width + badgePadX * 2;
+  ctx.fillStyle = "rgba(4, 14, 24, 0.84)";
+  roundRect(badgeX, badgeY, badgeW, badgeH, badgeH / 2);
+  ctx.strokeStyle = "rgba(255, 209, 102, 0.82)";
+  ctx.lineWidth = Math.max(1.5, badgeScale);
+  ctx.stroke();
+  ctx.fillStyle = "#fff0c7";
+  ctx.textAlign = "left";
+  ctx.textBaseline = "middle";
+  ctx.fillText(label, badgeX + badgePadX, badgeY + badgeH / 2 + badgeScale * 0.5);
+  ctx.restore();
 }
 
 function drawCrate(x, y, color, size) {
