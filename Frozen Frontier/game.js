@@ -20,9 +20,11 @@ const hud = {
   furnaceMeterCard: document.querySelector("#furnaceMeterCard"),
   furnaceFuelText: document.querySelector("#furnaceFuelText"),
   furnaceFuelMeter: document.querySelector("#furnaceFuelMeter"),
+  generatorAlert: document.querySelector("#generatorAlert"),
   cabinHungerCard: document.querySelector("#cabinHungerCard"),
   cabinHungerText: document.querySelector("#cabinHungerText"),
   cabinHungerMeter: document.querySelector("#cabinHungerMeter"),
+  hungerAlert: document.querySelector("#hungerAlert"),
   woodCount: document.querySelector("#woodCount"),
   lettuceCount: document.querySelector("#lettuceCount"),
   meatCount: document.querySelector("#meatCount"),
@@ -42,6 +44,8 @@ const hud = {
   pauseButton: document.querySelector("#pauseButton"),
   buildTray: document.querySelector("#buildTray"),
   buildTrayToggle: document.querySelector("#buildTrayToggle"),
+  repairAllButton: document.querySelector("#repairAllButton"),
+  repairAllCost: document.querySelector("#repairAllCost"),
   buildTrayBody: document.querySelector("#buildTrayBody"),
   buildScrollLeft: document.querySelector("#buildScrollLeft"),
   buildScrollRight: document.querySelector("#buildScrollRight"),
@@ -73,15 +77,150 @@ const fort = {
 const resourceMeta = {
   wood: { label: "Wood", short: "WD", color: "#b77a43", stack: "#8f5f36" },
   lettuce: { label: "Lettuce", short: "LT", color: "#75df76", stack: "#3ca85c" },
-  berries: { label: "Berries", short: "BR", color: "#d94c7c", stack: "#8d2b57" },
-  meat: { label: "Meat", short: "MT", color: "#d65d58", stack: "#9a3633" },
+  blueberries: { label: "Blueberries", short: "BL", color: "#5078e7", stack: "#334893" },
+  salmonberries: { label: "Salmonberries", short: "SB", color: "#ff8b6b", stack: "#b85157" },
+  crowberries: { label: "Crowberries", short: "CB", color: "#9266d9", stack: "#50327d" },
+  berries: { label: "Stored Berries", short: "BR", color: "#d94c7c", stack: "#8d2b57" },
+  deerMeat: { label: "Venison", short: "VN", color: "#d78362", stack: "#9a4e3a" },
+  wolfMeat: { label: "Wolf Meat", short: "WM", color: "#b95b59", stack: "#773836" },
+  eagleMeat: { label: "Eagle Meat", short: "EM", color: "#d8a36c", stack: "#9d6b3f" },
+  ptarmiganMeat: { label: "Ptarmigan Meat", short: "PM", color: "#ead6bb", stack: "#a47d60" },
+  birdMeat: { label: "Stored Game Bird", short: "GB", color: "#d8a36c", stack: "#9d6b3f" },
+  meat: { label: "Stored Meat", short: "MT", color: "#d65d58", stack: "#9a3633" },
   meal: { label: "Meal", short: "ML", color: "#ffcb72", stack: "#d99135" }
 };
+
+const berryFoodTypes = ["blueberries", "salmonberries", "crowberries"];
+const meatFoodTypes = ["deerMeat", "wolfMeat", "eagleMeat", "ptarmiganMeat"];
+const rawFoodTypes = ["lettuce", ...berryFoodTypes, ...meatFoodTypes, "berries", "birdMeat", "meat"];
+const berryBushStyles = {
+  blueberries: { label: "Blueberry Bush", foliage: "#254f3e", bright: "#39785c", berry: "#5078e7", berryShape: "round" },
+  salmonberries: { label: "Salmonberry Thicket", foliage: "#31523b", bright: "#4a7d4b", berry: "#ff8b6b", berryShape: "cluster" },
+  crowberries: { label: "Crowberry Mat", foliage: "#1d4038", bright: "#2d6857", berry: "#9266d9", berryShape: "oval" }
+};
+
+const recipeCatalog = [
+  {
+    id: "wildBerryCup",
+    name: "Wild Berry Cup",
+    copy: "A fast warm cup of gathered berries.",
+    ingredients: [{ type: "wildBerry", amount: 1, label: "any wild berry" }],
+    meals: 1,
+    starter: true
+  },
+  {
+    id: "lettuceBroth",
+    name: "Lettuce Broth",
+    copy: "A quick green broth learned from the first farm leaf.",
+    unlockOnIngredient: "lettuce",
+    ingredients: [{ type: "lettuce", amount: 1 }],
+    meals: 1,
+    site: false
+  },
+  {
+    id: "blueberryMash",
+    name: "Blueberry Mash",
+    copy: "A bright berry mash that needs only blueberries.",
+    unlockOnIngredient: "blueberries",
+    ingredients: [{ type: "blueberries", amount: 1 }],
+    meals: 1,
+    site: false
+  },
+  {
+    id: "salmonberryCup",
+    name: "Salmonberry Cup",
+    copy: "A warm cup of tart salmonberries.",
+    unlockOnIngredient: "salmonberries",
+    ingredients: [{ type: "salmonberries", amount: 1 }],
+    meals: 1,
+    site: false
+  },
+  {
+    id: "crowberryTea",
+    name: "Crowberry Tea",
+    copy: "A dark warming tea from fresh crowberries.",
+    unlockOnIngredient: "crowberries",
+    ingredients: [{ type: "crowberries", amount: 1 }],
+    meals: 1,
+    site: false
+  },
+  {
+    id: "venisonRoast",
+    name: "Venison Roast",
+    copy: "A simple roast from a fresh deer hunt.",
+    unlockOnIngredient: "deerMeat",
+    ingredients: [{ type: "deerMeat", amount: 1 }],
+    meals: 1,
+    site: false
+  },
+  {
+    id: "wolfJerky",
+    name: "Wolf Jerky",
+    copy: "A careful strip of wolf meat dried over camp heat.",
+    unlockOnIngredient: "wolfMeat",
+    ingredients: [{ type: "wolfMeat", amount: 1 }],
+    meals: 1,
+    site: false
+  },
+  {
+    id: "eagleSkewer",
+    name: "Eagle Skewer",
+    copy: "A fast skewer made from an eagle hunt.",
+    unlockOnIngredient: "eagleMeat",
+    ingredients: [{ type: "eagleMeat", amount: 1 }],
+    meals: 1,
+    site: false
+  },
+  {
+    id: "ptarmiganRoast",
+    name: "Ptarmigan Roast",
+    copy: "A small roast from a willow ptarmigan.",
+    unlockOnIngredient: "ptarmiganMeat",
+    ingredients: [{ type: "ptarmiganMeat", amount: 1 }],
+    meals: 1,
+    site: false
+  },
+  {
+    id: "forestSalad",
+    name: "Forest Salad",
+    copy: "Lettuce and bright berries make a filling cold lunch.",
+    ingredients: [{ type: "lettuce", amount: 1 }, { type: "wildBerry", amount: 1, label: "any wild berry" }],
+    meals: 2
+  },
+  {
+    id: "venisonStew",
+    name: "Venison Stew",
+    copy: "A heavy stew built from venison and cellar greens.",
+    ingredients: [{ type: "deerMeat", amount: 1 }, { type: "lettuce", amount: 1 }],
+    meals: 3
+  },
+  {
+    id: "hunterSkillet",
+    name: "Hunter Skillet",
+    copy: "Wolf meat cooks down with tart crowberries.",
+    ingredients: [{ type: "wolfMeat", amount: 1 }, { type: "crowberries", amount: 1 }],
+    meals: 2
+  },
+  {
+    id: "skyTrailRoast",
+    name: "Sky Trail Roast",
+    copy: "Ptarmigan and salmonberries travel well after a long day.",
+    ingredients: [{ type: "ptarmiganMeat", amount: 1 }, { type: "salmonberries", amount: 1 }],
+    meals: 3
+  },
+  {
+    id: "frontierPlatter",
+    name: "Frontier Platter",
+    copy: "A feast that uses every part of a successful hunt.",
+    ingredients: [{ type: "deerMeat", amount: 1 }, { type: "eagleMeat", amount: 1 }, { type: "blueberries", amount: 1 }],
+    meals: 4
+  }
+];
 
 const buildingData = {
   furnace: {
     id: "furnace",
-    name: "Furnace",
+    name: "Generator",
     x: 4280,
     y: 3480,
     w: 150,
@@ -93,7 +232,7 @@ const buildingData = {
     fuel: 50,
     maxFuel: 100,
     hatchPulse: 0,
-    task: "Burns logs from Storage Sheds to keep the camp warm."
+    task: "Burns logs from Storage Sheds to power towers and camp work."
   },
   storageShed: {
     id: "storageShed",
@@ -108,9 +247,22 @@ const buildingData = {
     upgradeCost: 14,
     task: "Shared wood storage. Any Storage Shed adds to and draws from the same wood inventory."
   },
+  rootCellar: {
+    id: "rootCellar",
+    name: "Root Cellar",
+    x: 4310,
+    y: 3685,
+    w: 150,
+    h: 118,
+    color: "#4c4339",
+    roof: "#243528",
+    level: 1,
+    upgradeCost: 18,
+    task: "Shared raw food storage. Drop berries, greens, and hunted meat here for recipes."
+  },
   foodPrep: {
     id: "foodPrep",
-    name: "Food Prep",
+    name: "Kitchen Hall",
     x: 4490,
     y: 3685,
     w: 190,
@@ -122,23 +274,9 @@ const buildingData = {
     raw: 0,
     meals: 0,
     processProgress: 0,
-    task: "Turns lettuce and meat into meals when the player stands at the prep table."
-  },
-  diningHall: {
-    id: "diningHall",
-    name: "Dining Hall",
-    x: 4700,
-    y: 3665,
-    w: 165,
-    h: 130,
-    color: "#5b4b3c",
-    roof: "#2b2534",
-    level: 1,
-    upgradeCost: 18,
-    meals: 0,
     serveProgress: 0,
     servedPulse: 0,
-    task: "Serves prepared meals through the order window before hunger can rise."
+    task: "Cooks Root Cellar recipes and serves finished meals through its dining window."
   },
   cabin: {
     id: "cabin",
@@ -161,9 +299,7 @@ const buildingData = {
 
 const dropoffs = {
   wood: { x: 4375, y: 3635, label: "Storage Shed" },
-  food: { x: 4545, y: 3715, label: "Food Prep" },
-  mealPickup: { x: 4650, y: 3715, label: "Meal Stack" },
-  dining: { x: 4785, y: 3752, label: "Dining Hall" },
+  food: { x: 4385, y: 3724, label: "Root Cellar" },
   cabin: { x: 4570, y: 3565, label: "Cabin Table" }
 };
 
@@ -171,14 +307,26 @@ const specialtyCatalog = [
   {
     id: "hunter",
     title: "Hunter",
-    bonus: "Wolves drop one extra meat.",
+    bonus: "Hunts deer and birds, then carries meat to Root Cellars.",
     names: ["Mara Pike", "Rowan Holt", "Kira Vale"]
   },
   {
+    id: "forager",
+    title: "Forager",
+    bonus: "Gathers berry bushes and stocks Root Cellars.",
+    names: ["Wren Alder", "Silas Berry", "Mika Spruce"]
+  },
+  {
     id: "cook",
-    title: "Cook",
+    title: "Chef",
     bonus: "Cooks raw food into meals.",
     names: ["Eli Brooks", "Talia Reed", "Nora Lake"]
+  },
+  {
+    id: "courier",
+    title: "Courier",
+    bonus: "Collects loose camp resources and carries them to collection points.",
+    names: ["Pax Mercer", "Remy Flint", "Skye Brass"]
   },
   {
     id: "lumberjack",
@@ -195,8 +343,14 @@ const specialtyCatalog = [
   {
     id: "engineer",
     title: "Engineer",
-    bonus: "Building upgrades cost less wood.",
+    bonus: "Building upgrades and repairs cost less wood.",
     names: ["Niko Lane", "Sasha Cole", "Theo North"]
+  },
+  {
+    id: "doctor",
+    title: "Doctor",
+    bonus: "Heals hurt NPCs from Medical Tents and field rounds.",
+    names: ["Dr. Ada Snow", "Dr. Leo Quinn", "Dr. Mina Shore"]
   },
   {
     id: "guard",
@@ -290,11 +444,32 @@ const defaultGameConfig = {
     minProduceSeconds: 6
   },
   foodPrep: {
-    baseProcessSeconds: 3.2,
+    baseProcessSeconds: 6.4,
     levelReductionSeconds: 0.45,
     cookReductionSeconds: 0,
-    playerCookingReductionSeconds: 0.45,
-    minProcessSeconds: 0.75
+    minProcessSeconds: 0.75,
+    cookingMiniGame: {
+      roundSeconds: 6,
+      minimumWordLength: 3,
+      baseWordBonusFraction: 0.055,
+      letterBonusFraction: 0.012,
+      speedBonusFraction: 0.045,
+      streakBonusFraction: 0.01,
+      maxStreakBonusFraction: 0.04,
+      clearBoardBonusFraction: 0.08,
+      correctTimeGainSeconds: 0.55,
+      wrongTimePenaltySeconds: 1.1,
+      wordBank: [
+        "ate", "eat", "tea", "team", "steam", "steak", "stake", "take", "late", "plate", "map", "mat", "mate", "loam", "oak",
+        "ice", "pie", "piece", "spice", "stew", "wet", "pew", "heat", "heap", "pan", "pans", "pants",
+        "broth", "rot", "saute", "sat", "meat", "step", "seat", "same", "mane", "pane"
+      ],
+      boards: [
+        { letters: "STEAPLAMROATSTEK", words: ["steam", "plate", "team", "tea", "eat", "ate"] },
+        { letters: "SPICETEWHEATPANS", words: ["spice", "ice", "stew", "heat", "pan", "pea", "tea"] },
+        { letters: "BROTSAUHMETEPANS", words: ["broth", "saute", "meat", "pan", "ate"] }
+      ]
+    }
   },
   cabin: {
     baseHungerGainPerSecond: 0.11,
@@ -313,14 +488,13 @@ const defaultGameConfig = {
     baseFuelDrainPerSecond: 0.42,
     levelDrainReductionPerSecond: 0.08,
     minFuelDrainPerSecond: 0.12,
-    emptyHungerGainPerSecond: 0.08,
+    outageProductivityMultiplier: 0.25,
     woodLoadAmount: 5,
     fuelPerWood: 7
   },
   trees: {
-    chopSeconds: 7.5,
+    chopSeconds: 15,
     lumberjackReductionSeconds: 1.1,
-    playerLumberReductionSeconds: 0.55,
     minChopSeconds: 1.4,
     progressDecayPerSecond: 0.45,
     respawnSeconds: 225,
@@ -336,6 +510,8 @@ const defaultGameConfig = {
     chopMiniGame: {
       segmentCount: 4,
       correctBonusFraction: 0.25,
+      correctWoodBonus: 2,
+      correctBerryBonus: 2,
       wrongPenaltyFraction: 0.1,
       startDelaySeconds: 1,
       endDelaySeconds: 1,
@@ -369,7 +545,7 @@ const defaultGameConfig = {
     wolfRaidBonusCount: 2,
     arrowSeconds: 0.18,
     waveBaseCount: 3,
-    waveCountPerTier: 1,
+    waveCountPerTier: 20,
     waveHpPerTier: 40,
     waveDamagePerTier: 1,
     waveSpeedPerTier: 3,
@@ -391,6 +567,25 @@ const defaultGameConfig = {
     roamRadius: 520,
     meatDrops: 2
   },
+  ptarmigan: {
+    count: 8,
+    hp: 52,
+    speed: 84,
+    fleeSpeed: 150,
+    roamRadius: 460,
+    meatDrops: 1
+  },
+  medical: {
+    patientThreshold: 0.7,
+    tentHealPerSecond: 1.4,
+    doctorHealPerSecond: 2.5,
+    fieldHealRange: 34
+  },
+  variableFlow: {
+    machineCount: 5,
+    respawnDays: 5,
+    baseLearningPointReward: 6
+  },
   build: {
     fenceCost: 4,
     fenceHealth: 70,
@@ -400,6 +595,9 @@ const defaultGameConfig = {
     outpostHealth: 90,
     cabinCost: 2000,
     storageShedCost: 50,
+    rootCellarCost: 60,
+    blacksmithCost: 90,
+    medicalTentCost: 80,
     foodPrepCost: 50,
     farmCost: 55,
     welcomeCenterCost: 120,
@@ -417,7 +615,9 @@ const defaultGameConfig = {
     iceTrapCost: 60,
     welcomeCenterPlayerLevel: 10,
     advancedTowerPlayerLevel: 5,
+    blacksmithPlayerLevel: 4,
     storageShedPlayerLevel: 12,
+    medicalTentPlayerLevel: 3,
     foodPrepPlayerLevel: 14,
     signalTowerPlayerLevel: 8,
     iceTrapPlayerLevel: 12,
@@ -434,10 +634,10 @@ const defaultGameConfig = {
     roamRadius: 260
   },
   towers: {
-    outpost: { range: 250, damage: 12, cooldown: 1.45 },
-    hunterPost: { range: 310, damage: 20, cooldown: 1.25 },
-    signalTower: { range: 280, damage: 8, cooldown: 1.7, netSeconds: 3 },
-    iceTrap: { range: 170, damage: 4, cooldown: 2.2, slow: 0.45 },
+    outpost: { range: 250, damage: 24, cooldown: 1.45 },
+    hunterPost: { range: 310, damage: 40, cooldown: 1.25 },
+    signalTower: { range: 280, damage: 16, cooldown: 1.7, netSeconds: 3 },
+    iceTrap: { range: 170, damage: 8, cooldown: 2.2, slow: 0.45 },
     rangeGrowthMultiplier: 1.12,
     stationedMultiplier: 1.8,
     playerMultiplier: 2.3,
@@ -451,12 +651,17 @@ const defaultGameConfig = {
     levelSpeedMultipliers: [0.65, 0.75, 0.85, 0.93, 1, 1.08, 1.16, 1.25, 1.35, 1.5],
     stuckSeconds: 1.15,
     stuckNudgeDistance: 92,
+    routeRefreshSeconds: 1.2,
+    routeSearchCells: 10000,
+    pathMoveCost: 0.58,
     lumberjackWorkSeconds: 9,
     lumberjackLowLevelWoodAmount: 5,
     lumberjackHighLevelWoodAmount: 10,
     lumberjackHighLevelThreshold: 6,
     farmerWorkSeconds: 11,
     farmerFoodAmount: 1,
+    foragerWorkSeconds: 6,
+    foragerBerryAmount: 3,
     cookWorkSecondsMultiplier: 1,
     engineerBuildReductionPerSecond: 0.35,
     hunterArrowCooldown: 1.25,
@@ -465,13 +670,6 @@ const defaultGameConfig = {
     guardArrowDamage: 10,
     retrainLearningCost: 10,
     retrainWoodCost: 200
-  },
-  failure: {
-    furnaceRestorePercent: 20,
-    hungerReliefPercent: 20,
-    fortRepairPercent: 20,
-    minHardGrade: 8,
-    minHardLevel: 5
   },
   upgrades: {
     baseSeconds: 24,
@@ -489,6 +687,14 @@ const defaultGameConfig = {
     fortRepairHealthPerWood: 10,
     repairCostMultiplier: 3
   },
+  blacksmith: {
+    baseBasketPointCost: 8,
+    baseWeaponPointCost: 10,
+    pointCostMultiplier: 1.61803398875,
+    basketCapacityBonus: 5,
+    weaponDamageMultiplier: 1.22,
+    weaponFireRateMultiplier: 1.14
+  },
   particles: {
     minSpeed: 80,
     maxSpeed: 210,
@@ -504,7 +710,6 @@ const defaultGameConfig = {
   sprites: {
     furnace: "assets/sprites/furnace-sheet.png",
     cabin: "assets/sprites/cabin-sheet.png",
-    diningHall: "assets/sprites/dining-hall-sheet.png",
     foodPrep: "assets/sprites/food-prep-sheet.png",
     storageShed: "assets/sprites/storage-shed-sheet.png",
     house: "assets/sprites/house-sheet.png",
@@ -540,7 +745,6 @@ const defaultGameConfig = {
   spriteFrames: {
     furnace: 4,
     cabin: 4,
-    diningHall: 4,
     foodPrep: 4,
     storageShed: 4,
     house: 4,
@@ -555,6 +759,7 @@ const defaultGameConfig = {
     wolf: 7,
     eagle: 8,
     deer: 7,
+    ptarmigan: 6,
     wood: 4,
     lettuce: 4,
     meat: 4,
@@ -564,7 +769,6 @@ const defaultGameConfig = {
   spriteRows: {
     furnace: 10,
     cabin: 10,
-    diningHall: 10,
     foodPrep: 10,
     storageShed: 10,
     house: 10,
@@ -591,7 +795,8 @@ const defaultGameConfig = {
     "visitor-yellow": 3,
     wolf: 2,
     eagle: 2,
-    deer: 3
+    deer: 3,
+    ptarmigan: 1
   },
   animation: {
     spriteFps: 7,
@@ -621,6 +826,8 @@ const clothingAssetVersion = "steam-4";
 
 const storageKey = "frozen-frontier-base-v28";
 const keys = new Set();
+const friendlyRouteCache = new WeakMap();
+const groundEnemyRouteCache = new WeakMap();
 let heldMove = { x: 0, y: 0 };
 let touchMove = null;
 const activeTouchPointers = new Map();
@@ -645,6 +852,13 @@ let selectedMoveTarget = null;
 let movePreview = null;
 let buildTrayCollapsed = true;
 let buildTrayRenderKey = "";
+const buildTrayGroupState = {
+  tools: true,
+  defense: true,
+  survival: true,
+  settlement: false,
+  decor: false
+};
 let actionsCollapsed = true;
 let paused = false;
 let modalPauseActive = false;
@@ -656,13 +870,10 @@ let arrowCooldown = 0;
 let starterTowerCooldown = 0;
 let messageTimer = 0;
 let saveTimer = 0;
-let gameOver = false;
-let failureLock = null;
 let audioContext = null;
 let audioUnlocked = false;
 let dismissedUpgradeNoticeAt = -1;
 let notificationMarkup = "";
-let warningState = { furnace: false, hunger: false };
 let centerToastTimer = 0;
 let recentLearningTaskIds = [];
 let pendingCarry = 0;
@@ -671,6 +882,10 @@ let residentDeathNotices = [];
 let cityVisitorTimer = 0;
 let woodChopMiniGame = null;
 let woodChopReturnZoom = null;
+let cookingMiniGame = null;
+let variableFlowGame = null;
+let enteredMachineSiteId = null;
+let cookingTracePointer = null;
 
 const defaultState = {
   player: {
@@ -691,8 +906,8 @@ const defaultState = {
     health: 100,
     maxHealth: 100
   },
-  stored: { wood: 18, lettuce: 0, meat: 0, meal: 0 },
-  carry: { wood: 0, lettuce: 0, berries: 0, meat: 0, meal: 0 },
+  stored: { wood: 18, lettuce: 0, blueberries: 0, salmonberries: 0, crowberries: 0, berries: 0, deerMeat: 0, wolfMeat: 0, eagleMeat: 0, ptarmiganMeat: 0, birdMeat: 0, meat: 0, meal: 0 },
+  carry: { wood: 0, lettuce: 0, blueberries: 0, salmonberries: 0, crowberries: 0, berries: 0, deerMeat: 0, wolfMeat: 0, eagleMeat: 0, ptarmiganMeat: 0, birdMeat: 0, meat: 0, meal: 0 },
   survivors: [],
   expertSpecialtyBag: [],
   cityResidents: [],
@@ -703,13 +918,15 @@ const defaultState = {
   fortLevel: 1,
   fortUpgradeCost: 35,
   learningPoints: 0,
-  playerUpgrades: { attack: 0, carry: 0, lumber: 0, cooking: 0 },
+  blacksmithTech: { basket: 0, weapon: 0 },
   playerLevel: 1,
   structures: [],
   wave: { number: 0, timer: defaultGameConfig.timers.daySeconds, active: false, survivorCooldown: 0, interWaveVisitorPending: false, spawnTimer: 0, nightSpawned: 0 },
   towerStationedResidentId: null,
   towerInstructionShown: false,
-  tutorialFlags: { furnaceUpgrade: false, foodUpgrade: false, cabinUpgrade: false, cityUnlock: false },
+  tutorialFlags: { basics: false, furnaceUpgrade: false, foodUpgrade: false, cabinUpgrade: false, blacksmithUnlock: false, cityUnlock: false },
+  unlockedRecipes: recipeCatalog.filter((recipe) => recipe.starter).map((recipe) => recipe.id),
+  machineCooldowns: {},
   cooldowns: {},
   upgradeJobs: [],
   worldSeed: "",
@@ -721,8 +938,11 @@ let buildings = hydrateBuildings();
 syncDropoffsToBuildings();
 let resources = [];
 let trees = [];
+let recipeSites = [];
+let machineSites = [];
 let wolves = [];
 let deer = [];
+let ptarmigans = [];
 let arrows = [];
 let flies = [];
 let particles = [];
@@ -734,11 +954,21 @@ state.survivors = state.survivors.map((survivor, index) => normalizeSurvivor(sur
 state.cityResidents = (state.cityResidents || []).map((resident, index) => normalizeCityPerson(resident, index, "resident"));
 state.cityVisitors = (state.cityVisitors || []).map((visitor, index) => normalizeCityPerson(visitor, index, "visitor"));
 if (!state.structures.length) state.structures = createInitialDefenseStructures();
+syncCabinLinkedUpgrades(buildings.cabin.level);
 state.wave = normalizeNightCycleState({ ...defaultState.wave, ...(state.wave || {}) });
 trees = createTrees();
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
+}
+
+function normalizeBlacksmithTech(saved = {}) {
+  const legacy = saved.playerUpgrades || {};
+  const tech = saved.blacksmithTech || {};
+  return {
+    basket: Math.max(0, Math.round(tech.basket || legacy.carry || 0)),
+    weapon: Math.max(0, Math.round(tech.weapon || legacy.attack || 0))
+  };
 }
 
 function loadState() {
@@ -752,7 +982,7 @@ function loadState() {
       stored: { ...defaultState.stored, ...(parsed.stored || {}) },
       carry: { ...defaultState.carry, ...(parsed.carry || {}) },
       player: { ...defaultState.player, ...(parsed.player || {}) },
-      playerUpgrades: { ...defaultState.playerUpgrades, ...(parsed.playerUpgrades || {}) },
+      blacksmithTech: normalizeBlacksmithTech(parsed),
       playerLevel: parsed.playerLevel || defaultState.playerLevel,
       structures: Array.isArray(parsed.structures) ? parsed.structures : [],
       wave: { ...defaultState.wave, ...(parsed.wave || {}) },
@@ -766,6 +996,10 @@ function loadState() {
       cityVisitors: Array.isArray(parsed.cityVisitors) ? parsed.cityVisitors : [],
       city: { ...defaultState.city, ...(parsed.city || {}) },
       buildings: parsed.buildings || {},
+      machineCooldowns: parsed.machineCooldowns || {},
+      unlockedRecipes: Array.isArray(parsed.unlockedRecipes) && parsed.unlockedRecipes.length
+        ? parsed.unlockedRecipes
+        : [...defaultState.unlockedRecipes],
       worldSeed: parsed.worldSeed || "",
       seedChosen: Boolean(parsed.seedChosen)
     };
@@ -792,7 +1026,10 @@ function saveState() {
       meals: building.meals,
       mealUseProgress: building.mealUseProgress,
       produceProgress: building.produceProgress,
-      processProgress: building.processProgress
+      processProgress: building.processProgress,
+      serveProgress: building.serveProgress,
+      wordMealBonus: building.wordMealBonus,
+      selectedRecipeId: building.selectedRecipeId
     };
   });
   localStorage.setItem(storageKey, JSON.stringify(state));
@@ -806,6 +1043,10 @@ function hydrateBuildings() {
       Object.assign(building, saved);
     }
   });
+  const legacyDiningMeals = state.buildings.diningHall?.meals || 0;
+  if (legacyDiningMeals && result.foodPrep) {
+    result.foodPrep.meals = (result.foodPrep.meals || 0) + legacyDiningMeals;
+  }
   fort.maxHealth = fortMaxHealth();
   fort.health = fort.maxHealth;
   Object.values(result).forEach((building) => snapBuildingPositionToGrid(building));
@@ -847,7 +1088,10 @@ function generateWorldLayout() {
   groundPatches = createGroundPatches(rng);
   lakes = createLakes(rng);
   trees = createTrees(rng);
+  recipeSites = createRecipeSites(rng);
+  machineSites = createBrokenMachineSites(rng);
   deer = createDeer(rng);
+  ptarmigans = createPtarmigans(rng);
 }
 
 function createGroundPatches(rng) {
@@ -1002,6 +1246,7 @@ function createTrees(rng = Math.random) {
       treesList.push({
         id: `berry-bush-${i}`,
         type: "berryBush",
+        berryType: berryFoodTypes[Math.floor(rng() * berryFoodTypes.length)],
         x: point.x,
         y: point.y,
         health: 1,
@@ -1014,6 +1259,58 @@ function createTrees(rng = Math.random) {
     }
   }
   return treesList;
+}
+
+function createRecipeSites(rng = Math.random) {
+  return recipeCatalog
+    .filter((recipe) => !recipe.starter && recipe.site !== false && !recipe.unlockOnIngredient)
+    .map((recipe, index) => {
+      let point = null;
+      for (let attempt = 0; attempt < 120; attempt += 1) {
+        const candidate = {
+          x: 180 + rng() * (world.width - 360),
+          y: 180 + rng() * (world.height - 360)
+        };
+        if (pointInRect(candidate, fort, 900) || pointInLake(candidate, 80) || groundSpawnBlocked(candidate, 60)) continue;
+        point = candidate;
+        break;
+      }
+      return {
+        id: `recipe-site-${recipe.id}-${index}`,
+        recipeId: recipe.id,
+        x: point ? point.x : fort.x + fort.w + 560 + index * 180,
+        y: point ? point.y : fort.y + 240 + index * 120,
+        bob: rng() * Math.PI * 2
+      };
+    });
+}
+
+function createBrokenMachineSites(rng = Math.random) {
+  const config = gameConfig.variableFlow || defaultGameConfig.variableFlow;
+  const result = [];
+  for (let index = 0; index < (config.machineCount || 5); index += 1) {
+    let point = null;
+    for (let attempt = 0; attempt < 140; attempt += 1) {
+      const candidate = {
+        x: 220 + rng() * (world.width - 440),
+        y: 220 + rng() * (world.height - 440)
+      };
+      const closeToSite = recipeSites.some((site) => dist(candidate, site) < 240)
+        || result.some((site) => dist(candidate, site) < 420);
+      const closeToTree = trees.some((tree) => tree.alive && dist(candidate, tree) < 110);
+      if (pointInRect(candidate, fort, 920) || pointInLake(candidate, 100) || groundSpawnBlocked(candidate, 80) || closeToSite || closeToTree) continue;
+      point = candidate;
+      break;
+    }
+    result.push({
+      id: `broken-machine-${index}`,
+      x: point ? point.x : fort.x + fort.w + 720 + index * 220,
+      y: point ? point.y : fort.y + 340 + index * 150,
+      bob: rng() * Math.PI * 2,
+      puzzleSeed: Math.floor(rng() * 1000000)
+    });
+  }
+  return result;
 }
 
 function treePointAllowed(point, clearance) {
@@ -1045,6 +1342,28 @@ function createDeer(rng = Math.random) {
     });
   }
   return herd;
+}
+
+function createPtarmigans(rng = Math.random) {
+  const config = gameConfig.ptarmigan || defaultGameConfig.ptarmigan;
+  return Array.from({ length: config.count || 8 }, (_, index) => {
+    const point = randomFreeWorldPoint(rng, 180);
+    return {
+      id: `ptarmigan-${index}`,
+      type: "ptarmigan",
+      x: point.x,
+      y: point.y,
+      hp: config.hp,
+      maxHp: config.hp,
+      target: ptarmiganRoamTarget(point, rng),
+      walkTime: rng() * 4,
+      facing: rng() > 0.5 ? 1 : -1,
+      direction: "right",
+      fleeTimer: 0,
+      hitFlash: 0,
+      altitude: 24 + rng() * 28
+    };
+  });
 }
 
 function randomFreeWorldPoint(rng = Math.random, edge = 120) {
@@ -1101,16 +1420,13 @@ function snapAllBuildingsToGrid() {
 }
 
 function syncDropoffsToBuildings() {
-  if (!buildings || !buildings.furnace || !buildings.storageShed || !buildings.foodPrep || !buildings.diningHall || !buildings.cabin) return;
+  if (!buildings || !buildings.furnace || !buildings.storageShed || !buildings.rootCellar || !buildings.foodPrep || !buildings.cabin) return;
   const storage = storageShedDropoff(buildings.storageShed);
+  const rootCellar = rootCellarDropoff(buildings.rootCellar);
   dropoffs.wood.x = storage.x;
   dropoffs.wood.y = storage.y;
-  dropoffs.food.x = buildings.foodPrep.x + buildings.foodPrep.w * 0.3;
-  dropoffs.food.y = buildings.foodPrep.y + buildings.foodPrep.h * 0.25;
-  dropoffs.mealPickup.x = buildings.foodPrep.x + buildings.foodPrep.w * 0.84;
-  dropoffs.mealPickup.y = buildings.foodPrep.y + buildings.foodPrep.h * 0.25;
-  dropoffs.dining.x = buildings.diningHall.x + buildings.diningHall.w / 2;
-  dropoffs.dining.y = buildings.diningHall.y + buildings.diningHall.h * 0.67;
+  dropoffs.food.x = rootCellar.x;
+  dropoffs.food.y = rootCellar.y;
   dropoffs.cabin.x = buildings.cabin.x + buildings.cabin.w * 0.31;
   dropoffs.cabin.y = buildings.cabin.y + buildings.cabin.h * 0.62;
 }
@@ -1121,6 +1437,9 @@ function structureRect(structure) {
   if (structure.type === "cabin") return { x: structure.x - 90, y: structure.y - 70, w: 180, h: 130 };
   if (structure.type === "foodPrep") return { x: structure.x - 95, y: structure.y - 65, w: 190, h: 130 };
   if (structure.type === "storageShed") return { x: structure.x - 75, y: structure.y - 65, w: 150, h: 130 };
+  if (structure.type === "rootCellar") return { x: structure.x - 78, y: structure.y - 60, w: 156, h: 120 };
+  if (structure.type === "medicalTent") return { x: structure.x - 86, y: structure.y - 62, w: 172, h: 124 };
+  if (structure.type === "blacksmith") return { x: structure.x - 98, y: structure.y - 70, w: 196, h: 140 };
   if (structure.type === "house") return { x: structure.x - 82, y: structure.y - 64, w: 164, h: 124 };
   if (structure.type === "welcomeCenter") return { x: structure.x - 104, y: structure.y - 68, w: 208, h: 136 };
   if (structure.type === "farm") return { x: structure.x - 80, y: structure.y - 50, w: 160, h: 110 };
@@ -1131,15 +1450,15 @@ function structureRect(structure) {
 
 function createStructure(type, x, y, extras = {}) {
   const build = gameConfig.build;
-  const level = isBarrierType(type) ? state.fortLevel || 1 : 1;
+  const level = isCabinLinkedStructure(type) ? cabinLinkedLevel() : 1;
   const health = type === "fence" || type === "gate"
     ? barrierMaxHealth(type, level)
-    : type === "cabin" || type === "house" || type === "welcomeCenter" || type === "storageShed"
+    : type === "cabin" || type === "house" || type === "welcomeCenter" || type === "storageShed" || type === "rootCellar" || type === "medicalTent" || type === "blacksmith"
       ? 120
       : type === "farm" || type === "foodPrep"
         ? 85
         : isDecorationType(type)
-          ? 40
+          ? decorationMaxHealth(level)
           : build.outpostHealth;
   return {
     id: `${type}-${Date.now()}-${Math.random().toString(16).slice(2)}`,
@@ -1152,6 +1471,7 @@ function createStructure(type, x, y, extras = {}) {
     cooldown: Math.random(),
     raw: 0,
     meals: 0,
+    selectedRecipeId: recipeCatalog[0].id,
     processProgress: 0,
     produceProgress: 0,
     stationedResidentId: null,
@@ -1202,7 +1522,13 @@ function hasSpecialty(id) {
 }
 
 function specialtyCount(id) {
-  return state.survivors.filter((survivor) => survivor.specialty === id).length;
+  return state.survivors.filter((survivor) => survivor.specialty === id && survivor.health > 0).length;
+}
+
+function specialtyLevelTotal(id) {
+  return state.survivors
+    .filter((survivor) => survivor.specialty === id && survivor.health > 0)
+    .reduce((sum, survivor) => sum + residentLevel(survivor), 0);
 }
 
 function randomResidentLevel() {
@@ -1248,20 +1574,12 @@ function lumberjackCarryAmount(survivor) {
     : (config.lumberjackLowLevelWoodAmount || 5);
 }
 
-function playerStatBonus(stat) {
-  return state.playerUpgrades[stat] || 0;
-}
-
 function damageGrowthMultiplier() {
   return gameConfig.combat.damageGrowthMultiplier || gameConfig.upgrades.buildingCostMultiplier || 1.61803398875;
 }
 
 function damageLevelScale(level) {
   return damageGrowthMultiplier() ** Math.max(0, (level || 1) - 1);
-}
-
-function damageUpgradeScale(upgrades) {
-  return damageGrowthMultiplier() ** Math.max(0, upgrades || 0);
 }
 
 function clothingOptions() {
@@ -1397,6 +1715,14 @@ function survivorPosition(index = 0) {
   };
 }
 
+function expertProtestPoint(index = 0) {
+  const center = buildingCenter(buildings.cabin);
+  return {
+    x: center.x - Math.min(80, buildings.cabin.w * 0.28) + (index % 4) * 42,
+    y: buildings.cabin.y + buildings.cabin.h + 30 + Math.floor(index / 4) * 32
+  };
+}
+
 const cityResidentNames = [
   "Nora Fields", "Eli Ward", "Mina Brook", "Tessa Vale", "Owen Hart",
   "Ivy Stone", "Finn Cross", "Luca Reed", "Maya Snow", "Rafi Lane",
@@ -1473,16 +1799,53 @@ function normalizeCityPerson(person = {}, index = 0, kind = "resident") {
   };
 }
 
-function playerUpgradeCost(stat) {
-  return Math.ceil(8 * (gameConfig.upgrades.buildingCostMultiplier ** playerStatBonus(stat)));
+const blacksmithWeaponCatalog = [
+  { name: "Basic Bow", family: "Bow" },
+  { name: "Workshop Bow", family: "Bow" },
+  { name: "Recurve Bow", family: "Bow" },
+  { name: "Scout Crossbow", family: "Crossbow" },
+  { name: "Repeating Crossbow", family: "Crossbow" },
+  { name: "Flintlock Rifle", family: "Gun" },
+  { name: "Gearlock Carbine", family: "Gun" },
+  { name: "Frontier Repeater", family: "Gun" }
+];
+
+function blacksmithTechLevel(id) {
+  state.blacksmithTech = normalizeBlacksmithTech(state);
+  return state.blacksmithTech[id] || 0;
 }
 
-function playerUpgradeOptions() {
+function blacksmithTechCost(id) {
+  const config = gameConfig.blacksmith || defaultGameConfig.blacksmith;
+  const base = id === "weapon" ? config.baseWeaponPointCost : config.baseBasketPointCost;
+  return Math.ceil(base * ((config.pointCostMultiplier || gameConfig.upgrades.buildingCostMultiplier) ** blacksmithTechLevel(id)));
+}
+
+function currentWeaponTech() {
+  return blacksmithWeaponCatalog[Math.min(blacksmithWeaponCatalog.length - 1, blacksmithTechLevel("weapon"))];
+}
+
+function nextWeaponTech() {
+  return blacksmithWeaponCatalog[Math.min(blacksmithWeaponCatalog.length - 1, blacksmithTechLevel("weapon") + 1)];
+}
+
+function blacksmithTechOptions() {
+  const carryBonus = gameConfig.blacksmith.basketCapacityBonus || gameConfig.carry.playerUpgradeBonus || 5;
   return [
-    { id: "attack", name: "Arrow Power", copy: "Adds damage to every arrow." },
-    { id: "carry", name: "Carry Stack", copy: "Increases how many items can be carried." },
-    { id: "lumber", name: "Woodcutting", copy: "Cuts trees faster." },
-    { id: "cooking", name: "Cooking", copy: "Processes food faster." }
+    {
+      id: "basket",
+      name: "Basket Tech",
+      level: blacksmithTechLevel("basket"),
+      copy: `Reinforce straps and panniers for +${carryBonus} carry capacity.`
+    },
+    {
+      id: "weapon",
+      name: "Weapon Tech",
+      level: blacksmithTechLevel("weapon"),
+      copy: blacksmithTechLevel("weapon") >= blacksmithWeaponCatalog.length - 1
+        ? `${currentWeaponTech().name} is the best weapon in this workshop.`
+        : `Forge ${nextWeaponTech().name} for more damage and faster shots.`
+    }
   ];
 }
 
@@ -1522,6 +1885,34 @@ function cycleTimeText() {
     : `Day ${worldDayNumber()}`;
 }
 
+function worldDaySeconds() {
+  return dayDuration() + nightDuration();
+}
+
+function variableFlowRepairCooldownSeconds() {
+  const config = gameConfig.variableFlow || defaultGameConfig.variableFlow;
+  return worldDaySeconds() * (config.respawnDays || 5);
+}
+
+function machineCooldownSeconds(site) {
+  return Math.max(0, state.machineCooldowns?.[site.id] || 0);
+}
+
+function machineSiteReady(site) {
+  return machineCooldownSeconds(site) <= 0;
+}
+
+function updateMachineCooldowns(dt) {
+  state.machineCooldowns = state.machineCooldowns || {};
+  Object.entries(state.machineCooldowns).forEach(([siteId, seconds]) => {
+    if (seconds <= 0) {
+      delete state.machineCooldowns[siteId];
+      return;
+    }
+    state.machineCooldowns[siteId] = Math.max(0, seconds - dt);
+  });
+}
+
 function normalizeNightCycleState(wave = {}) {
   return {
     ...defaultState.wave,
@@ -1541,10 +1932,12 @@ function randomNightSpawnDelay(first = false) {
   return min + Math.random() * (max - min);
 }
 
-function affordablePlayerUpgrade() {
-  return playerUpgradeOptions()
-    .map((upgrade) => ({ ...upgrade, cost: playerUpgradeCost(upgrade.id) }))
-    .filter((upgrade) => state.learningPoints >= upgrade.cost)
+function affordableBlacksmithTech() {
+  if (!blacksmithStructures().length) return null;
+  return blacksmithTechOptions()
+    .filter((tech) => tech.id !== "weapon" || tech.level < blacksmithWeaponCatalog.length - 1)
+    .map((tech) => ({ ...tech, cost: blacksmithTechCost(tech.id) }))
+    .filter((tech) => state.learningPoints >= tech.cost)
     .sort((a, b) => a.cost - b.cost)[0] || null;
 }
 
@@ -1601,7 +1994,9 @@ function carryTotal() {
 
 function carryCapacity() {
   const config = gameConfig.carry;
-  return config.baseCapacity + specialtyCount("lumberjack") * config.lumberjackBonus + playerStatBonus("carry") * config.playerUpgradeBonus;
+  return config.baseCapacity
+    + specialtyCount("lumberjack") * config.lumberjackBonus
+    + blacksmithTechLevel("basket") * (gameConfig.blacksmith.basketCapacityBonus || config.playerUpgradeBonus);
 }
 
 function reservedCarryTotal() {
@@ -1654,6 +2049,75 @@ function closestStorageShedDropoff(point) {
   return shed ? storageShedDropoff(shed) : dropoffs.wood;
 }
 
+function rootCellars() {
+  return [
+    buildings.rootCellar,
+    ...state.structures.filter((structure) => structure.type === "rootCellar")
+  ].filter(Boolean);
+}
+
+function rootCellarRect(cellar) {
+  return cellar.id === "rootCellar" ? cellar : structureRect(cellar);
+}
+
+function rootCellarDropoff(cellar) {
+  const rect = rootCellarRect(cellar);
+  return { x: rect.x + rect.w / 2, y: rect.y + rect.h + 24 };
+}
+
+function closestRootCellarDropoff(point) {
+  const cellar = rootCellars().sort((a, b) => dist(point, rootCellarDropoff(a)) - dist(point, rootCellarDropoff(b)))[0];
+  return cellar ? rootCellarDropoff(cellar) : dropoffs.food;
+}
+
+function medicalTents() {
+  return state.structures.filter((structure) => structure.type === "medicalTent" && structure.health > 0);
+}
+
+function blacksmithStructures() {
+  return state.structures.filter((structure) => structure.type === "blacksmith" && structure.health > 0);
+}
+
+function medicalTentCarePoint(tent) {
+  return tent ? { x: tent.x, y: tent.y + 24 } : survivorPosition(0);
+}
+
+function closestMedicalTent(point) {
+  return medicalTents().sort((a, b) => dist(point, a) - dist(point, b))[0] || null;
+}
+
+function actorNeedsMedicalTent(actor) {
+  if (!actor || actor.health <= 0 || !actor.maxHealth) return false;
+  return actor.health / actor.maxHealth <= (gameConfig.medical.patientThreshold || 0.7);
+}
+
+function healActor(actor, amount) {
+  if (!actor || actor.health <= 0 || !actor.maxHealth || amount <= 0) return false;
+  const before = actor.health;
+  actor.health = clamp(actor.health + amount, 0, actor.maxHealth);
+  return actor.health > before;
+}
+
+function updatePatientRoute(actor, dt, speed) {
+  if (!actorNeedsMedicalTent(actor)) return false;
+  const tent = closestMedicalTent(actor);
+  if (!tent) return false;
+  const carePoint = medicalTentCarePoint(tent);
+  actor.target = carePoint;
+  if (moveActor(actor, carePoint, speed, dt) || pointInRect(actor, structureRect(tent), 28)) {
+    healActor(actor, (gameConfig.medical.tentHealPerSecond || 1.4) * dt);
+  }
+  return true;
+}
+
+function doctorPatients() {
+  return [
+    ...state.survivors.filter((survivor) => survivor.health > 0 && survivor.specialty !== "doctor"),
+    ...(state.cityResidents || []).filter((resident) => resident.health > 0),
+    ...(state.cityVisitors || []).filter((visitor) => visitor.health > 0)
+  ].filter((actor) => actor.health < actor.maxHealth);
+}
+
 function foodPreps() {
   return [
     buildings.foodPrep,
@@ -1665,6 +2129,10 @@ function ensureFoodPrepState(prep) {
   prep.raw = Number.isFinite(prep.raw) ? prep.raw : 0;
   prep.meals = Number.isFinite(prep.meals) ? prep.meals : 0;
   prep.processProgress = Number.isFinite(prep.processProgress) ? prep.processProgress : 0;
+  prep.serveProgress = Number.isFinite(prep.serveProgress) ? prep.serveProgress : 0;
+  prep.servedPulse = Number.isFinite(prep.servedPulse) ? prep.servedPulse : 0;
+  prep.wordMealBonus = Number.isFinite(prep.wordMealBonus) ? prep.wordMealBonus : 0;
+  prep.selectedRecipeId = prep.selectedRecipeId || unlockedRecipes()[0]?.id || recipeCatalog[0].id;
   prep.level = prep.level || 1;
   return prep;
 }
@@ -1698,11 +2166,75 @@ function closestFoodPrep(point, requireMeals = false) {
 }
 
 function totalRawFood() {
-  return foodPreps().reduce((sum, prep) => sum + (prep.raw || 0), 0);
+  return rawFoodTypes.reduce((sum, type) => sum + (state.stored[type] || 0), 0);
 }
 
 function totalPreparedMeals() {
   return foodPreps().reduce((sum, prep) => sum + (prep.meals || 0), 0);
+}
+
+function recipeById(id) {
+  return recipeCatalog.find((recipe) => recipe.id === id) || recipeCatalog[0];
+}
+
+function unlockedRecipes() {
+  const unlocked = new Set(state.unlockedRecipes || []);
+  return recipeCatalog.filter((recipe) => recipe.starter || unlocked.has(recipe.id));
+}
+
+function recipeUnlocked(recipeId) {
+  return unlockedRecipes().some((recipe) => recipe.id === recipeId);
+}
+
+function currentPrepRecipe(prep) {
+  prep = ensureFoodPrepState(prep);
+  if (!recipeUnlocked(prep.selectedRecipeId)) prep.selectedRecipeId = unlockedRecipes()[0]?.id || recipeCatalog[0].id;
+  return recipeById(prep.selectedRecipeId);
+}
+
+function ingredientStoredAmount(ingredient) {
+  if (ingredient.type === "wildBerry") {
+    return [...berryFoodTypes, "berries"].reduce((sum, type) => sum + (state.stored[type] || 0), 0);
+  }
+  return ingredientStorageTypes(ingredient.type).reduce((sum, type) => sum + (state.stored[type] || 0), 0);
+}
+
+function ingredientStorageTypes(type) {
+  if (type === "eagleMeat" || type === "ptarmiganMeat") return [type, "birdMeat"];
+  return [type];
+}
+
+function recipeHasIngredients(recipe) {
+  return recipe.ingredients.every((ingredient) => ingredientStoredAmount(ingredient) >= ingredient.amount);
+}
+
+function consumeRecipeIngredient(ingredient) {
+  let remaining = ingredient.amount;
+  const choices = ingredient.type === "wildBerry" ? [...berryFoodTypes, "berries"] : ingredientStorageTypes(ingredient.type);
+  choices.forEach((type) => {
+    if (remaining <= 0) return;
+    const amount = Math.min(remaining, state.stored[type] || 0);
+    state.stored[type] = Math.max(0, (state.stored[type] || 0) - amount);
+    remaining -= amount;
+  });
+  return remaining <= 0;
+}
+
+function consumeRecipeIngredients(recipe) {
+  if (!recipeHasIngredients(recipe)) return false;
+  recipe.ingredients.forEach(consumeRecipeIngredient);
+  return true;
+}
+
+function recipeIngredientsText(recipe) {
+  return recipe.ingredients.map((ingredient) => {
+    const meta = resourceMeta[ingredient.type];
+    return `${ingredient.amount} ${ingredient.label || meta?.label || ingredient.type}`;
+  }).join(", ");
+}
+
+function chefMealYield(survivor, recipe = recipeCatalog[0]) {
+  return Math.max(1, Math.floor((recipe.meals || 1) * (1 + residentLevel(survivor) * 0.5)));
 }
 
 function randomChoice(list) {
@@ -1833,7 +2365,6 @@ function foodProcessSeconds(prep = buildings.foodPrep) {
     config.minProcessSeconds,
     config.baseProcessSeconds
       - prep.level * config.levelReductionSeconds
-      - playerStatBonus("cooking") * config.playerCookingReductionSeconds
   );
 }
 
@@ -1845,7 +2376,7 @@ function cookExpertProcessSeconds(survivor, prep = buildings.foodPrep) {
     config.minProcessSeconds,
     config.baseProcessSeconds
       - prep.level * config.levelReductionSeconds
-      - playerUpgradeEquivalent * config.playerCookingReductionSeconds
+      - playerUpgradeEquivalent * config.levelReductionSeconds
   );
 }
 
@@ -1862,6 +2393,18 @@ function cabinHungerGainPerSecond() {
 
 function furnaceFuelDrainPerSecond() {
   return furnaceFuelDrainForLevel(buildings.furnace.level);
+}
+
+function generatorPowered() {
+  return buildings.furnace.fuel > 0;
+}
+
+function generatorProductivityMultiplier() {
+  return generatorPowered() ? 1 : (gameConfig.furnace.outageProductivityMultiplier || 0.25);
+}
+
+function hungerProtestActive() {
+  return buildings.cabin.hunger >= buildings.cabin.maxHunger;
 }
 
 function furnaceDrainUpgradeCount(level) {
@@ -1890,7 +2433,6 @@ function treeChopSeconds() {
     config.minChopSeconds,
     config.chopSeconds
       - specialtyCount("lumberjack") * config.lumberjackReductionSeconds
-      - playerStatBonus("lumber") * config.playerLumberReductionSeconds
   );
 }
 
@@ -1953,6 +2495,7 @@ function startWoodChopMiniGame(tree, chopTime) {
   const config = chopMiniGameConfig();
   woodChopMiniGame = {
     treeId: tree.id,
+    kind: tree.type === "berryBush" ? "berry" : "wood",
     ...createWoodChopProblem(),
     totalTime: chopTime,
     choices: [],
@@ -1970,7 +2513,9 @@ function activateWoodChopMiniGame() {
   woodChopReturnZoom = null;
   setCameraZoom(Number.isFinite(config.zoom) ? config.zoom : 1);
   refreshWoodChopLogChoices();
-  setMessage(`Chop challenge: split the log with the answer to ${woodChopProblemText()}.`, 4);
+  setMessage(woodChopMiniGame.kind === "berry"
+    ? `Berry challenge: pick the basket with the answer to ${woodChopProblemText()}.`
+    : `Chop challenge: split the log with the answer to ${woodChopProblemText()}.`, 4);
 }
 
 function stopWoodChopMiniGame() {
@@ -2030,13 +2575,21 @@ function handleWoodChopBubbleClick(point) {
     return false;
   }
   const config = chopMiniGameConfig();
-  const total = woodChopMiniGame.totalTime || treeChopSeconds();
+  const total = woodChopMiniGame.totalTime || (tree.type === "berryBush" ? (gameConfig.trees.berryGatherSeconds || 3) : treeChopSeconds());
   const choice = segment.choice;
   const problem = woodChopProblemText();
   if (choice.correct) {
     tree.progress = clamp(tree.progress + total * (config.correctBonusFraction || 0.25), 0, total);
+    const berryPick = woodChopMiniGame.kind === "berry";
+    const bonusType = berryPick ? (tree.berryType || "blueberries") : "wood";
+    const bonus = berryPick ? (config.correctBerryBonus || 2) : (config.correctWoodBonus || 2);
+    for (let index = 0; index < bonus; index += 1) {
+      spawnResource(bonusType, tree.x - 30 + Math.random() * 60, tree.y + 12 + Math.random() * 32, 1);
+    }
     addBurst(segment.x, segment.y, "#73df9b", 8);
-    setMessage(`${problem} = ${choice.value}. The log splits faster.`, 3);
+    setMessage(berryPick
+      ? `${problem} = ${choice.value}. The thicket gives ${bonus} bonus berries.`
+      : `${problem} = ${choice.value}. The log splits faster and drops ${bonus} bonus wood.`, 3);
     playSound("success");
     setWoodChopProblem();
     refreshWoodChopLogChoices();
@@ -2044,7 +2597,9 @@ function handleWoodChopBubbleClick(point) {
     tree.progress = clamp(tree.progress - total * (config.wrongPenaltyFraction || 0.1), 0, total);
     choice.flash = 0.45;
     addBurst(segment.x, segment.y, "#ff5d66", 8);
-    setMessage(`${problem} is not ${choice.value}. The cut slips back.`, 3);
+    setMessage(woodChopMiniGame.kind === "berry"
+      ? `${problem} is not ${choice.value}. The berry search slips back.`
+      : `${problem} is not ${choice.value}. The cut slips back.`, 3);
     playSound("fail");
   }
   return true;
@@ -2071,8 +2626,228 @@ function woodChopSegmentAt(point) {
   return null;
 }
 
+function cookingMiniGameConfig() {
+  return gameConfig.foodPrep.cookingMiniGame || defaultGameConfig.foodPrep.cookingMiniGame;
+}
+
+function cookingBoard() {
+  const boards = cookingMiniGameConfig().boards || [];
+  return clone(randomChoice(boards.length ? boards : [{ letters: "STEAMROASTPLATEK", words: ["steam", "meat", "roast", "plate"] }]));
+}
+
+function cookingWordBank() {
+  const config = cookingMiniGameConfig();
+  return new Set([
+    ...(config.wordBank || []),
+    ...((config.boards || []).flatMap((board) => board.words || []))
+  ].map((word) => String(word).trim().toLowerCase()).filter(Boolean));
+}
+
+function cookingWordKnown(word) {
+  return word.length >= (cookingMiniGameConfig().minimumWordLength || 3) && cookingWordBank().has(word);
+}
+
+function cookingWordEnteredThisSession(word) {
+  return Boolean(cookingMiniGame?.foundWords.includes(word));
+}
+
+function cookingRoundSeconds() {
+  return cookingMiniGameConfig().roundSeconds || 6;
+}
+
+function loadCookingSpeedBoard(game = cookingMiniGame) {
+  if (!game) return;
+  const board = cookingBoard();
+  game.letters = board.letters.slice(0, 16).padEnd(16, "X").split("");
+  game.words = (board.words || []).map((word) => word.toLowerCase());
+  game.usedWords = [];
+  game.selected = [];
+  game.typed = "";
+  game.roundTimeLeft = cookingRoundSeconds();
+  game.round = (game.round || 0) + 1;
+  game.boardPulse = 0.32;
+}
+
+function startCookingMiniGame(prep, recipe, totalTime) {
+  const prepId = foodPrepId(prep);
+  if (cookingMiniGame?.prepId === prepId && cookingMiniGame.recipeId === recipe.id) {
+    cookingMiniGame.totalTime = totalTime;
+    return;
+  }
+  cookingMiniGame = {
+    prepId,
+    recipeId: recipe.id,
+    foundWords: [],
+    score: 0,
+    streak: 0,
+    round: 0,
+    flash: 0,
+    boardPulse: 0,
+    totalTime
+  };
+  loadCookingSpeedBoard();
+  setMessage(`Speed Boggle: trace fast cooking words while ${recipe.name} simmers.`, 4);
+}
+
+function stopCookingMiniGame(celebrate = false) {
+  if (celebrate && cookingMiniGame) addBurst(state.player.x, state.player.y - 108, "#ffcb72", 8);
+  cookingMiniGame = null;
+  cookingTracePointer = null;
+}
+
+function updateCookingMiniGame(dt) {
+  if (!cookingMiniGame) return;
+  cookingMiniGame.flash = Math.max(0, (cookingMiniGame.flash || 0) - dt);
+  cookingMiniGame.boardPulse = Math.max(0, (cookingMiniGame.boardPulse || 0) - dt);
+  cookingMiniGame.roundTimeLeft = Math.max(0, (cookingMiniGame.roundTimeLeft || 0) - dt);
+  if (cookingMiniGame.roundTimeLeft > 0) return;
+  cookingMiniGame.streak = 0;
+  loadCookingSpeedBoard();
+  setMessage("The pan flips to a fresh Speed Boggle board.", 2.5);
+}
+
+function cookingMiniGamePanel() {
+  return { x: state.player.x - 184, y: state.player.y - 492, w: 368, h: 326 };
+}
+
+function cookingLetterRect(index) {
+  const panel = cookingMiniGamePanel();
+  const col = index % 4;
+  const row = Math.floor(index / 4);
+  return { x: panel.x + 32 + col * 58, y: panel.y + 92 + row * 43, w: 48, h: 36 };
+}
+
+function cookingActionRect(action) {
+  const panel = cookingMiniGamePanel();
+  return action === "clear"
+    ? { x: panel.x + 248, y: panel.y + 278, w: 88, h: 34 }
+    : { x: panel.x + 118, y: panel.y + 278, w: 118, h: 34 };
+}
+
+function cookingLetterIndexAt(point) {
+  if (!cookingMiniGame) return -1;
+  return cookingMiniGame.letters.findIndex((letter, index) => (
+    !cookingMiniGame.selected.includes(index) && pointInRect(point, cookingLetterRect(index), 5)
+  ));
+}
+
+function cookingMiniGameAt(point) {
+  if (!cookingMiniGame) return null;
+  const letterIndex = cookingLetterIndexAt(point);
+  if (letterIndex >= 0) return { type: "letter", index: letterIndex };
+  if (pointInRect(point, cookingActionRect("serve"), 5)) return { type: "serve" };
+  if (pointInRect(point, cookingActionRect("clear"), 5)) return { type: "clear" };
+  return pointInRect(point, cookingMiniGamePanel(), 8) ? { type: "panel" } : null;
+}
+
+function resetCookingSelection() {
+  if (!cookingMiniGame) return;
+  cookingMiniGame.selected = [];
+  cookingMiniGame.typed = "";
+}
+
+function selectCookingLetter(index) {
+  if (!cookingMiniGame || index < 0 || cookingMiniGame.selected.includes(index)) return false;
+  const lastIndex = cookingMiniGame.selected[cookingMiniGame.selected.length - 1];
+  if (Number.isFinite(lastIndex) && !cookingBoggleAdjacent(lastIndex, index)) {
+    cookingMiniGame.flash = 0.24;
+    setMessage("Speed Boggle letters must touch.", 2.2);
+    playSound("fail");
+    return false;
+  }
+  cookingMiniGame.selected.push(index);
+  cookingMiniGame.typed += cookingMiniGame.letters[index];
+  playSound("pickup");
+  if (cookingWordKnown(cookingMiniGame.typed) && !cookingWordEnteredThisSession(cookingMiniGame.typed)) {
+    submitCookingWord();
+  }
+  return true;
+}
+
+function cookingSpeedWordBonusFraction(word) {
+  const config = cookingMiniGameConfig();
+  const timeRatio = clamp((cookingMiniGame.roundTimeLeft || 0) / cookingRoundSeconds(), 0, 1);
+  const streakBonus = Math.min(config.maxStreakBonusFraction || 0.04, Math.max(0, (cookingMiniGame.streak - 1) * (config.streakBonusFraction || 0.01)));
+  return (config.baseWordBonusFraction || 0.055)
+    + word.length * (config.letterBonusFraction || 0.012)
+    + timeRatio * (config.speedBonusFraction || 0.045)
+    + streakBonus;
+}
+
+function submitCookingWord() {
+  if (!cookingMiniGame) return false;
+  const word = cookingMiniGame.typed.toLowerCase();
+  const prep = foodPreps().find((item) => foodPrepId(item) === cookingMiniGame.prepId);
+  const config = cookingMiniGameConfig();
+  if (!prep || word.length < (config.minimumWordLength || 3)) {
+    setMessage(`Trace a ${config.minimumWordLength || 3}+ letter cooking word first.`, 2.5);
+    return false;
+  }
+  if (!cookingWordKnown(word) || cookingWordEnteredThisSession(word)) {
+    cookingMiniGame.flash = 0.42;
+    cookingMiniGame.streak = 0;
+    cookingMiniGame.roundTimeLeft = Math.max(0, cookingMiniGame.roundTimeLeft - (config.wrongTimePenaltySeconds || 1.1));
+    setMessage(cookingWordEnteredThisSession(word) ? `${word.toUpperCase()} already added a meal this cooking session.` : `${word.toUpperCase()} is not in the cooking word bank.`, 2.8);
+    playSound("fail");
+  } else {
+    cookingMiniGame.usedWords.push(word);
+    cookingMiniGame.foundWords.push(word);
+    prep.wordMealBonus = (prep.wordMealBonus || 0) + 1;
+    cookingMiniGame.streak += 1;
+    cookingMiniGame.score += Math.max(1, Math.round(word.length * (1 + cookingMiniGame.streak * 0.2)));
+    const bonus = foodProcessSeconds(prep) * cookingSpeedWordBonusFraction(word);
+    prep.processProgress = clamp(prep.processProgress + bonus, 0, foodProcessSeconds(prep));
+    cookingMiniGame.roundTimeLeft = Math.min(cookingRoundSeconds(), cookingMiniGame.roundTimeLeft + (config.correctTimeGainSeconds || 0.55));
+    addBurst(state.player.x, state.player.y - 186, "#73df9b", 8);
+    setMessage(`${word.toUpperCase()} adds 1 meal and speeds the dish.`, 2.6);
+    playSound("success");
+    if (cookingMiniGame.usedWords.length >= cookingMiniGame.words.length) {
+      prep.processProgress = clamp(prep.processProgress + foodProcessSeconds(prep) * (config.clearBoardBonusFraction || 0.08), 0, foodProcessSeconds(prep));
+      addBurst(state.player.x, state.player.y - 208, "#ffcb72", 10);
+      setMessage("Board cleared. A fresh pan hits the stove.", 2.8);
+      loadCookingSpeedBoard();
+      return true;
+    }
+  }
+  resetCookingSelection();
+  return true;
+}
+
+function handleCookingMiniGameClick(point) {
+  if (!cookingMiniGame || buildMode || moveMode || removeMode || repairMode) return false;
+  const action = cookingMiniGameAt(point);
+  if (!action) return false;
+  if (action.type === "letter") return selectCookingLetter(action.index) || true;
+  if (action.type === "clear") {
+    resetCookingSelection();
+    return true;
+  }
+  if (action.type === "serve") {
+    submitCookingWord();
+    return true;
+  }
+  return true;
+}
+
+function cookingBoggleAdjacent(a, b) {
+  const colA = a % 4;
+  const rowA = Math.floor(a / 4);
+  const colB = b % 4;
+  const rowB = Math.floor(b / 4);
+  return Math.max(Math.abs(colA - colB), Math.abs(rowA - rowB)) === 1;
+}
+
 function playerLevel() {
   return state.playerLevel || 1;
+}
+
+function gainPlayerLevel(reason = "Camp tech advanced") {
+  state.playerLevel = playerLevel() + 1;
+  pushNotification({
+    id: `player-level-${state.playerLevel}`,
+    title: `Player Level ${state.playerLevel}`,
+    copy: reason
+  });
 }
 
 function extraCabinLimit() {
@@ -2089,7 +2864,10 @@ function structureDisplayName(type) {
     iceTrap: "Ice Trap",
     cabin: "Cabin",
     storageShed: "Storage Shed",
-    foodPrep: "Food Prep",
+    rootCellar: "Root Cellar",
+    medicalTent: "Medical Tent",
+    blacksmith: "Blacksmith",
+    foodPrep: "Kitchen Hall",
     farm: "Farm",
     welcomeCenter: "Welcome Center",
     house: "House",
@@ -2116,6 +2894,9 @@ function structureCost(type) {
     iceTrap: build.iceTrapCost,
     cabin: build.cabinCost,
     storageShed: build.storageShedCost,
+    rootCellar: build.rootCellarCost,
+    medicalTent: build.medicalTentCost,
+    blacksmith: build.blacksmithCost,
     foodPrep: build.foodPrepCost,
     farm: build.farmCost,
     welcomeCenter: build.welcomeCenterCost,
@@ -2142,21 +2923,31 @@ function buildCatalog() {
     { type: "fence", unlocked: true, note: "Blocks attackers and absorbs damage." },
     { type: "gate", unlocked: true, note: "Friendly units pass through. Enemies still have to break it." },
     { type: "outpost", unlocked: true, note: "Basic arrow tower. Can station Experts." },
+    { type: "medicalTent", unlocked: playerLevel() >= build.medicalTentPlayerLevel, note: `Unlocks at player level ${build.medicalTentPlayerLevel}. Hurt NPCs recover here.` },
+    { type: "blacksmith", unlocked: playerLevel() >= build.blacksmithPlayerLevel, note: `Unlocks at player level ${build.blacksmithPlayerLevel}. Spend learning points on baskets and weapons.` },
     { type: "house", unlocked: true, note: `Adds ${gameConfig.city.houseCapacity || 5} Resident housing spaces.` },
     { type: "fountain", unlocked: true, note: "A small attraction for the center of town." },
     { type: "hunterPost", unlocked: playerLevel() >= build.advancedTowerPlayerLevel, note: `Unlocks at player level ${build.advancedTowerPlayerLevel}. Stronger arrows.` },
     { type: "signalTower", unlocked: playerLevel() >= build.signalTowerPlayerLevel, note: `Unlocks at player level ${build.signalTowerPlayerLevel}. Nets animals in place.` },
     { type: "storageShed", unlocked: playerLevel() >= build.storageShedPlayerLevel, note: `Unlocks at player level ${build.storageShedPlayerLevel}. Shared wood storage.` },
+    { type: "rootCellar", unlocked: true, note: "Shared raw food storage for recipe ingredients." },
     { type: "iceTrap", unlocked: playerLevel() >= build.iceTrapPlayerLevel, note: `Unlocks at player level ${build.iceTrapPlayerLevel}. Heavy slow, low damage.` },
-    { type: "foodPrep", unlocked: playerLevel() >= build.foodPrepPlayerLevel, note: `Unlocks at player level ${build.foodPrepPlayerLevel}. Cooks can work here.` },
+    { type: "foodPrep", unlocked: playerLevel() >= build.foodPrepPlayerLevel, note: `Unlocks at player level ${build.foodPrepPlayerLevel}. Chefs can work here.` },
     { type: "garden", unlocked: true, note: "A larger attraction and gathering spot." },
     { type: "statue", unlocked: true, note: "A landmark attraction for the settlement." },
     { type: "largeFountain", unlocked: true, note: "A large attraction for future city appeal systems." },
-    { type: "farm", unlocked: maxFoodPrepLevel() >= 3, note: "Unlocks when Food Prep reaches level 3." },
+    { type: "farm", unlocked: maxFoodPrepLevel() >= 3, note: "Unlocks when Kitchen Hall reaches level 3." },
     { type: "welcomeCenter", unlocked: playerLevel() >= build.welcomeCenterPlayerLevel, note: `Unlocks at player level ${build.welcomeCenterPlayerLevel}. Lets visitors enter and become Residents.` },
     { type: "cabin", unlocked: playerLevel() >= build.cabinPlayerLevel, note: `Unlocks at player level ${build.cabinPlayerLevel}. Adds Expert capacity.` }
   ];
 }
+
+const buildCatalogGroups = [
+  { id: "defense", label: "Defense", types: ["fence", "gate", "outpost", "hunterPost", "signalTower", "iceTrap"] },
+  { id: "survival", label: "Survival", types: ["medicalTent", "blacksmith", "storageShed", "rootCellar", "foodPrep", "farm", "cabin"] },
+  { id: "settlement", label: "Settlement", types: ["house", "welcomeCenter"] },
+  { id: "decor", label: "Paths & Decor", types: ["path", "torch", "shrub", "bench", "fountain", "garden", "statue", "largeFountain"] }
+];
 
 function isTowerType(type) {
   return ["outpost", "hunterPost", "signalTower", "iceTrap"].includes(type);
@@ -2168,6 +2959,18 @@ function isBarrierType(type) {
 
 function isDecorationType(type) {
   return ["shrub", "torch", "path", "fountain", "bench", "largeFountain", "statue", "garden"].includes(type);
+}
+
+function isCabinLinkedStructure(type) {
+  return isBarrierType(type) || isDecorationType(type);
+}
+
+function cabinLinkedLevel() {
+  return Math.max(1, buildings?.cabin?.level || state.fortLevel || 1);
+}
+
+function decorationMaxHealth(level = cabinLinkedLevel()) {
+  return 40 + Math.max(0, level - 1) * 35;
 }
 
 function isLargeDecorationType(type) {
@@ -2253,6 +3056,7 @@ function loadSprites() {
     const deerImage = spriteImages.deer;
     const deerReady = deerImage && (deerImage.naturalWidth || deerImage.width);
     if (!deerReady) createGeneratedDeerSpriteSheet();
+    createGeneratedPtarmiganSpriteSheet();
     spritesReady = true;
   });
 }
@@ -2322,6 +3126,62 @@ function createGeneratedDeerSpriteSheet() {
   spriteImages.deer = sheet;
 }
 
+function createGeneratedPtarmiganSpriteSheet() {
+  if (spriteImages.ptarmigan) return;
+  const frames = spriteFrameCount("ptarmigan");
+  const frameW = 92;
+  const frameH = 72;
+  const sheet = document.createElement("canvas");
+  sheet.width = frameW * frames;
+  sheet.height = frameH;
+  const sheetCtx = sheet.getContext("2d");
+  for (let frame = 0; frame < frames; frame += 1) {
+    const x = frame * frameW + frameW / 2;
+    const y = frameH / 2 + 6;
+    const flap = Math.sin((frame / frames) * Math.PI * 2);
+    sheetCtx.save();
+    sheetCtx.translate(x, y);
+    sheetCtx.fillStyle = "rgba(0,0,0,0.16)";
+    sheetCtx.beginPath();
+    sheetCtx.ellipse(-2, 24, 28, 7, 0, 0, Math.PI * 2);
+    sheetCtx.fill();
+    sheetCtx.fillStyle = "#efe9dc";
+    sheetCtx.beginPath();
+    sheetCtx.ellipse(-2, 0, 24, 14, -0.08, 0, Math.PI * 2);
+    sheetCtx.fill();
+    sheetCtx.fillStyle = "#d6c5ad";
+    sheetCtx.beginPath();
+    sheetCtx.ellipse(-12, -8 + flap * 7, 27, 8, -0.52, 0, Math.PI * 2);
+    sheetCtx.ellipse(4, 6 - flap * 5, 26, 7, 0.48, 0, Math.PI * 2);
+    sheetCtx.fill();
+    sheetCtx.fillStyle = "#f7f3e9";
+    sheetCtx.beginPath();
+    sheetCtx.arc(22, -8, 9, 0, Math.PI * 2);
+    sheetCtx.fill();
+    sheetCtx.fillStyle = "#2f261f";
+    sheetCtx.beginPath();
+    sheetCtx.arc(25, -10, 2, 0, Math.PI * 2);
+    sheetCtx.fill();
+    sheetCtx.fillStyle = "#7a5831";
+    sheetCtx.beginPath();
+    sheetCtx.moveTo(31, -8);
+    sheetCtx.lineTo(40, -4);
+    sheetCtx.lineTo(31, -1);
+    sheetCtx.closePath();
+    sheetCtx.fill();
+    sheetCtx.strokeStyle = "#9b7850";
+    sheetCtx.lineWidth = 2;
+    sheetCtx.beginPath();
+    sheetCtx.moveTo(-3, 11);
+    sheetCtx.lineTo(1, 22);
+    sheetCtx.moveTo(6, 10);
+    sheetCtx.lineTo(10, 22);
+    sheetCtx.stroke();
+    sheetCtx.restore();
+  }
+  spriteImages.ptarmigan = sheet;
+}
+
 function loadClothingAssets() {
   const catalog = outfitCatalog();
   const entries = outfitCategories.flatMap((category) => catalog[category.id]);
@@ -2348,7 +3208,7 @@ function spriteRowCount(name) {
 }
 
 function spriteDefaultFps(name) {
-  if (["furnace", "cabin", "diningHall", "foodPrep", "storageShed", "house", "welcomeCenter", "tower", "outpost", "hunterPost", "signalTower", "iceTrap", "farm", "tree", "fortWall"].includes(name)) return gameConfig.animation.buildingFps || 2.6;
+  if (["furnace", "cabin", "foodPrep", "storageShed", "house", "welcomeCenter", "tower", "outpost", "hunterPost", "signalTower", "iceTrap", "farm", "tree", "fortWall"].includes(name)) return gameConfig.animation.buildingFps || 2.6;
   return gameConfig.animation.spriteFps || 7;
 }
 
@@ -2555,6 +3415,496 @@ function awardLearningPoints(task) {
   playSound("success");
 }
 
+function recipeSiteNear(point) {
+  return recipeSites.find((site) => !recipeUnlocked(site.recipeId) && dist(point, site) < 72) || null;
+}
+
+function machineSiteNear(point) {
+  return machineSites.find((site) => machineSiteReady(site) && dist(point, site) < 84) || null;
+}
+
+function machineSiteUnderPlayer() {
+  return machineSites.find((site) => machineSiteReady(site) && dist(state.player, site) < 92) || null;
+}
+
+function updateMachineSiteEntry() {
+  const site = machineSiteUnderPlayer();
+  if (!site) {
+    enteredMachineSiteId = null;
+    return false;
+  }
+  if (enteredMachineSiteId === site.id || modalOpen || variableFlowGame || buildMode || moveMode || removeMode || repairMode) return false;
+  enteredMachineSiteId = site.id;
+  beginVariableFlowRepair(site);
+  return true;
+}
+
+function beginRecipeChallenge(site) {
+  const recipe = recipeById(site.recipeId);
+  if (dist(state.player, site) > 132) {
+    showCenterMessage("Move closer to the recipe cache.");
+    setMessage("A recipe cache is waiting out there. Walk close before opening it.", 4);
+    return;
+  }
+  activeTask = selectLearningTask(Math.min(5, Math.max(1, recipe.ingredients.length + 1)));
+  activeTaskContext = { kind: "recipe", recipeId: recipe.id, siteId: site.id };
+  setMessage(`Solve the field note challenge to learn ${recipe.name}.`, 4);
+  renderLearningTask(activeTask, activeTaskContext);
+}
+
+const variableFlowDirections = [
+  { id: 0, dx: 0, dy: -1 },
+  { id: 1, dx: 1, dy: 0 },
+  { id: 2, dx: 0, dy: 1 },
+  { id: 3, dx: -1, dy: 0 }
+];
+
+const variableFlowTemplates = [
+  {
+    source: [0, 2],
+    receiver: [4, 2],
+    path: [[0, 2], [1, 2], [2, 2], [3, 2], [4, 2]],
+    operationSlots: [1, 2, 3]
+  },
+  {
+    source: [0, 1],
+    receiver: [4, 3],
+    path: [[0, 1], [1, 1], [1, 2], [2, 2], [3, 2], [3, 3], [4, 3]],
+    operationSlots: [1, 3, 5]
+  },
+  {
+    source: [0, 3],
+    receiver: [4, 1],
+    path: [[0, 3], [1, 3], [2, 3], [2, 2], [2, 1], [3, 1], [4, 1]],
+    operationSlots: [1, 3, 5]
+  },
+  {
+    source: [0, 2],
+    receiver: [4, 1],
+    path: [[0, 2], [1, 2], [1, 3], [2, 3], [3, 3], [3, 2], [3, 1], [4, 1]],
+    operationSlots: [2, 4, 6]
+  }
+];
+
+const variableFlowOperationSets = [
+  { xValue: 3, operations: [{ kind: "add", amount: 4 }, { kind: "multiply", amount: 2 }, { kind: "subtract", amount: 3 }] },
+  { xValue: 5, operations: [{ kind: "multiply", amount: 3 }, { kind: "subtract", amount: 4 }, { kind: "add", amount: 6 }] },
+  { xValue: 8, operations: [{ kind: "divide", amount: 2 }, { kind: "add", amount: 5 }, { kind: "multiply", amount: 3 }] },
+  { xValue: 6, operations: [{ kind: "add", amount: 6 }, { kind: "divide", amount: 3 }, { kind: "multiply", amount: 4 }] },
+  { xValue: 4, operations: [{ kind: "multiply", amount: 2 }, { kind: "add", amount: 3 }, { kind: "subtract", amount: 5 }] },
+  { xValue: 2, operations: [{ kind: "add", amount: 7 }, { kind: "multiply", amount: 4 }, { kind: "subtract", amount: 5 }] },
+  { xValue: 12, operations: [{ kind: "divide", amount: 3 }, { kind: "multiply", amount: 4 }, { kind: "add", amount: 7 }] },
+  { xValue: 9, operations: [{ kind: "add", amount: 3 }, { kind: "divide", amount: 2 }, { kind: "multiply", amount: 5 }] },
+  { xValue: 10, operations: [{ kind: "subtract", amount: 4 }, { kind: "divide", amount: 2 }, { kind: "multiply", amount: 3 }] },
+  { xValue: 7, operations: [{ kind: "multiply", amount: 3 }, { kind: "subtract", amount: 6 }, { kind: "divide", amount: 3 }] },
+  { xValue: 15, operations: [{ kind: "subtract", amount: 5 }, { kind: "divide", amount: 2 }, { kind: "add", amount: 9 }] },
+  { xValue: 2, operations: [{ kind: "add", amount: 1 }, { kind: "square" }, { kind: "subtract", amount: 4 }] },
+  { xValue: 3, operations: [{ kind: "square" }, { kind: "add", amount: 5 }, { kind: "divide", amount: 2 }] },
+  { xValue: 4, operations: [{ kind: "negate" }, { kind: "add", amount: 10 }, { kind: "multiply", amount: 2 }] },
+  { xValue: 6, operations: [{ kind: "subtract", amount: 8 }, { kind: "negate" }, { kind: "multiply", amount: 3 }] }
+];
+
+const variableFlowDecoyOperationAmounts = {
+  add: [1, 2, 3, 4, 5, 6, 8, 9],
+  subtract: [1, 2, 3, 4, 5, 6, 7],
+  multiply: [2, 3, 4, 5],
+  divide: [2, 3, 4, 5]
+};
+
+function variableFlowOperationLabel(operation) {
+  if (operation.kind === "multiply") return `x${operation.amount}`;
+  if (operation.kind === "divide") return `/${operation.amount}`;
+  if (operation.kind === "square") return "x^2";
+  if (operation.kind === "negate") return "-x";
+  return `${operation.kind === "add" ? "+" : "-"}${operation.amount}`;
+}
+
+function variableFlowOperationKey(operation) {
+  return `${operation.kind}:${operation.amount}`;
+}
+
+function variableFlowDecoyOperation(rng, solutionOperations = []) {
+  const solutionKeys = new Set(solutionOperations.map(variableFlowOperationKey));
+  const kinds = [...Object.keys(variableFlowDecoyOperationAmounts), "square", "negate"];
+  for (let attempt = 0; attempt < 12; attempt += 1) {
+    const kind = kinds[Math.floor(rng() * kinds.length)];
+    const amounts = variableFlowDecoyOperationAmounts[kind];
+    const operation = amounts
+      ? { kind, amount: amounts[Math.floor(rng() * amounts.length)] }
+      : { kind };
+    if (!solutionKeys.has(variableFlowOperationKey(operation))) return operation;
+  }
+  return { kind: "add", amount: 1 };
+}
+
+function variableFlowApply(value, operation) {
+  if (operation.kind === "add") return value + operation.amount;
+  if (operation.kind === "subtract") return value - operation.amount;
+  if (operation.kind === "multiply") return value * operation.amount;
+  if (operation.kind === "square") return value ** 2;
+  if (operation.kind === "negate") return -value;
+  return value / operation.amount;
+}
+
+function variableFlowExpression(expression, operation) {
+  if (operation.kind === "add") return `${expression} + ${operation.amount}`;
+  if (operation.kind === "subtract") return `${expression} - ${operation.amount}`;
+  if (operation.kind === "multiply") return `${operation.amount}(${expression})`;
+  if (operation.kind === "square") return `(${expression})^2`;
+  if (operation.kind === "negate") return `-(${expression})`;
+  return `(${expression}) / ${operation.amount}`;
+}
+
+function variableFlowCellIndex(x, y) {
+  return y * 5 + x;
+}
+
+function variableFlowCellPoint(index) {
+  return { x: index % 5, y: Math.floor(index / 5) };
+}
+
+function variableFlowDirectionBetween(from, to) {
+  const dx = to[0] - from[0];
+  const dy = to[1] - from[1];
+  return variableFlowDirections.find((direction) => direction.dx === dx && direction.dy === dy)?.id ?? 1;
+}
+
+function variableFlowRotatedPorts(ports, rotation = 0) {
+  return ports.map((port) => (port + rotation) % 4).sort((a, b) => a - b);
+}
+
+function variableFlowPortsKey(ports) {
+  return [...ports].sort((a, b) => a - b).join("-");
+}
+
+function variableFlowBasePorts(kind) {
+  if (kind === "straight") return [0, 2];
+  if (kind === "elbow") return [0, 1];
+  if (kind === "tee") return [0, 1, 2];
+  if (kind === "cross") return [0, 1, 2, 3];
+  return [];
+}
+
+function variableFlowPipeForPorts(requiredPorts) {
+  const required = variableFlowPortsKey(requiredPorts);
+  const kinds = requiredPorts.length === 2 ? ["straight", "elbow"] : ["tee", "cross"];
+  for (const kind of kinds) {
+    for (let rotation = 0; rotation < 4; rotation += 1) {
+      if (variableFlowPortsKey(variableFlowRotatedPorts(variableFlowBasePorts(kind), rotation)) === required) {
+        return { kind, solutionRotation: rotation };
+      }
+    }
+  }
+  return { kind: "straight", solutionRotation: 1 };
+}
+
+function variableFlowTransformCell(cell, rotation = 0, mirror = false) {
+  let [x, y] = mirror ? [4 - cell[0], cell[1]] : cell;
+  for (let turn = 0; turn < rotation; turn += 1) {
+    [x, y] = [4 - y, x];
+  }
+  return [x, y];
+}
+
+function variableFlowTemplateVariant(template, rotation = 0, mirror = false) {
+  const path = template.path.map((cell) => variableFlowTransformCell(cell, rotation, mirror));
+  return {
+    ...template,
+    source: path[0],
+    receiver: path[path.length - 1],
+    path
+  };
+}
+
+function createVariableFlowPuzzle(site) {
+  const rng = createSeededRandom(`${state.worldSeed || "flow"}:${site.puzzleSeed}:${worldDayNumber()}:${state.wave.number}`);
+  const template = variableFlowTemplateVariant(
+    variableFlowTemplates[Math.floor(rng() * variableFlowTemplates.length)],
+    Math.floor(rng() * 4),
+    rng() < 0.5
+  );
+  const operationSet = variableFlowOperationSets[Math.floor(rng() * variableFlowOperationSets.length)];
+  const board = Array.from({ length: 25 }, () => null);
+  const operations = operationSet.operations.map((operation) => ({ ...operation }));
+  const operationBySlot = new Map(template.operationSlots.map((slot, index) => [slot, operations[index]]));
+  template.path.forEach((cell, pathIndex) => {
+    const index = variableFlowCellIndex(cell[0], cell[1]);
+    const previous = template.path[pathIndex - 1];
+    const next = template.path[pathIndex + 1];
+    if (!previous) {
+      board[index] = { kind: "source", ports: [variableFlowDirectionBetween(cell, next)], rotatable: false };
+      return;
+    }
+    if (!next) {
+      board[index] = { kind: "receiver", ports: [variableFlowDirectionBetween(cell, previous)], rotatable: false };
+      return;
+    }
+    const ports = [variableFlowDirectionBetween(cell, previous), variableFlowDirectionBetween(cell, next)];
+    const pipe = variableFlowPipeForPorts(ports);
+    board[index] = {
+      ...pipe,
+      rotation: (pipe.solutionRotation + 1 + Math.floor(rng() * 3)) % 4,
+      rotatable: true,
+      operation: operationBySlot.get(pathIndex) || null,
+      onSolutionPath: true
+    };
+  });
+  board.forEach((tile, index) => {
+    if (tile) return;
+    const distractionKinds = ["straight", "elbow", "elbow", "tee", "tee", "cross"];
+    const kind = distractionKinds[Math.floor(rng() * distractionKinds.length)];
+    board[index] = {
+      kind,
+      rotation: Math.floor(rng() * 4),
+      rotatable: true,
+      distraction: true,
+      operation: rng() < 0.88 ? variableFlowDecoyOperation(rng, operations) : null
+    };
+  });
+  const target = operations.reduce((value, operation) => variableFlowApply(value, operation), operationSet.xValue);
+  return {
+    board,
+    sourceIndex: variableFlowCellIndex(template.source[0], template.source[1]),
+    receiverIndex: variableFlowCellIndex(template.receiver[0], template.receiver[1]),
+    operations,
+    xValue: operationSet.xValue,
+    target,
+    reward: gameConfig.variableFlow.baseLearningPointReward || defaultGameConfig.variableFlow.baseLearningPointReward || 6
+  };
+}
+
+function variableFlowTilePorts(tile) {
+  if (!tile) return [];
+  if (tile.kind === "source" || tile.kind === "receiver") return tile.ports || [];
+  return variableFlowRotatedPorts(variableFlowBasePorts(tile.kind), tile.rotation || 0);
+}
+
+function variableFlowNeighborIndex(index, directionId) {
+  const point = variableFlowCellPoint(index);
+  const direction = variableFlowDirections[directionId];
+  const x = point.x + direction.dx;
+  const y = point.y + direction.dy;
+  return x < 0 || x >= 5 || y < 0 || y >= 5 ? -1 : variableFlowCellIndex(x, y);
+}
+
+function variableFlowConnectedPaths(game, maxPaths = 64) {
+  const paths = [];
+  const findPath = (index, path, visited) => {
+    if (paths.length >= maxPaths) return;
+    if (index === game.puzzle.receiverIndex) {
+      paths.push([...path]);
+      return;
+    }
+    const tile = game.puzzle.board[index];
+    const options = variableFlowTilePorts(tile)
+      .map((port) => {
+        const nextIndex = variableFlowNeighborIndex(index, port);
+        const next = game.puzzle.board[nextIndex];
+        return { port, nextIndex, next };
+      })
+      .filter(({ port, nextIndex, next }) => nextIndex >= 0
+        && !visited.has(nextIndex)
+        && variableFlowTilePorts(next).includes((port + 2) % 4))
+      .sort((left, right) => Number(Boolean(right.next?.onSolutionPath)) - Number(Boolean(left.next?.onSolutionPath)));
+    options.forEach(({ nextIndex }) => {
+      if (paths.length >= maxPaths) return;
+      visited.add(nextIndex);
+      path.push(nextIndex);
+      findPath(nextIndex, path, visited);
+      path.pop();
+      visited.delete(nextIndex);
+    });
+  };
+  findPath(game.puzzle.sourceIndex, [game.puzzle.sourceIndex], new Set([game.puzzle.sourceIndex]));
+  return paths;
+}
+
+function variableFlowTraceForPath(game, path) {
+  let value = game.puzzle.xValue;
+  let expression = "x";
+  const steps = [{ expression, value }];
+  path.forEach((index) => {
+    const operation = game.puzzle.board[index]?.operation;
+    if (!operation) return;
+    expression = variableFlowExpression(expression, operation);
+    value = variableFlowApply(value, operation);
+    steps.push({ expression, value, operation });
+  });
+  return steps;
+}
+
+function beginVariableFlowRepair(site) {
+  if (dist(state.player, site) > 148) {
+    showCenterMessage("Move closer to the broken machine.");
+    setMessage("A generator repair machine is sparking nearby. Step onto it to route its flow.", 5);
+    return;
+  }
+  enteredMachineSiteId = site.id;
+  variableFlowGame = {
+    siteId: site.id,
+    puzzle: createVariableFlowPuzzle(site),
+    status: "Rotate brass pipe pieces, then send algebra steam to the target receiver.",
+    outcome: "",
+    path: [],
+    trace: [],
+    rewarded: false
+  };
+  setMessage("Broken machine opened. Stabilize its Variable Flow Network for learning points.", 5);
+  renderVariableFlowRepair();
+}
+
+function variableFlowTileMarkup(tile, index, activePath, puzzle) {
+  if (!tile) return '<span class="flow-cell flow-empty" aria-hidden="true"></span>';
+  const active = activePath.includes(index) ? " flow-active" : "";
+  if (tile.kind === "source") {
+    return `
+      <span class="flow-cell flow-terminal flow-source${active}">
+        <small>Source</small>
+        <strong>x=${puzzle.xValue}</strong>
+      </span>
+    `;
+  }
+  if (tile.kind === "receiver") {
+    return `
+      <span class="flow-cell flow-terminal flow-receiver${active}">
+        <small>Target</small>
+        <strong>${puzzle.target}</strong>
+      </span>
+    `;
+  }
+  return `
+    <button class="flow-cell flow-pipe flow-${tile.kind}${active} ${tile.operation ? "flow-operation" : ""}" style="--pipe-turn:${tile.rotation || 0}" data-flow-rotate="${index}" type="button" ${variableFlowGame?.rewarded ? "disabled" : ""} aria-label="Rotate pipe">
+      <i class="flow-pipe-shape" aria-hidden="true"></i>
+      ${tile.operation ? `<strong>${variableFlowOperationLabel(tile.operation)}</strong>` : ""}
+    </button>
+  `;
+}
+
+function renderVariableFlowRepair() {
+  if (!variableFlowGame) return;
+  const game = variableFlowGame;
+  const trace = game.trace.length
+    ? game.trace.map((step, index) => `<span>${index ? step.expression : "x"} = ${Number.isInteger(step.value) ? step.value : step.value.toFixed(2)}</span>`).join("")
+    : '<span>Current equation waits inside the source crystal.</span>';
+  hud.modalEyebrow.textContent = "Broken Machine";
+  hud.modalTitle.textContent = "Variable Flow Network";
+  hud.modalBody.innerHTML = `
+    <section class="variable-flow-console ${game.outcome}">
+      <p class="flow-status">${game.status}</p>
+      <section class="flow-equation-panel">
+        <small>Algebra Flow</small>
+        <div class="flow-equation-trace" aria-live="polite">${trace}</div>
+      </section>
+      <div class="variable-flow-grid" aria-label="Variable Flow pipe grid">
+        ${game.puzzle.board.map((tile, index) => variableFlowTileMarkup(tile, index, game.path, game.puzzle)).join("")}
+      </div>
+      <div class="modal-actions flow-actions">
+        <button id="flowSimulate" class="primary" type="button" ${game.rewarded ? "disabled" : ""}>Send Steam</button>
+        <button id="flowClose" type="button">${game.rewarded ? "Return To Camp" : "Leave Machine"}</button>
+      </div>
+    </section>
+  `;
+  openModal();
+  document.querySelectorAll("[data-flow-rotate]").forEach((button) => {
+    button.addEventListener("click", () => rotateVariableFlowPipe(Number(button.dataset.flowRotate)));
+  });
+  document.querySelector("#flowSimulate")?.addEventListener("click", simulateVariableFlowRepair);
+  document.querySelector("#flowClose")?.addEventListener("click", () => {
+    variableFlowGame = null;
+    closeModal(true);
+  });
+}
+
+function rotateVariableFlowPipe(index) {
+  const tile = variableFlowGame?.puzzle.board[index];
+  if (!tile?.rotatable || variableFlowGame.rewarded) return;
+  tile.rotation = ((tile.rotation || 0) + 1) % 4;
+  variableFlowGame.path = [];
+  variableFlowGame.trace = [];
+  variableFlowGame.outcome = "";
+  variableFlowGame.status = tile.operation
+    ? `${variableFlowOperationLabel(tile.operation)} regulator turned. Recheck the pressure path.`
+    : "Pipe ring turned. Send steam when the network looks continuous.";
+  playSound("pickup");
+  renderVariableFlowRepair();
+}
+
+function rewardVariableFlowRepair(game) {
+  if (game.rewarded) return;
+  const reward = game.puzzle.reward;
+  game.rewarded = true;
+  state.learningPoints += reward;
+  state.machineCooldowns = state.machineCooldowns || {};
+  state.machineCooldowns[game.siteId] = variableFlowRepairCooldownSeconds();
+  pushNotification({
+    id: `flow-repair-${game.siteId}-${Date.now()}`,
+    title: "Machine Stabilized",
+    copy: `Variable Flow repair complete. +${reward} learning points.`
+  });
+  setMessage(`Variable Flow repair stabilized. +${reward} learning points. The machine will fail again in five in-game days.`, 7);
+  playSound("upgrade");
+  saveState();
+}
+
+function simulateVariableFlowRepair() {
+  if (!variableFlowGame || variableFlowGame.rewarded) return;
+  const paths = variableFlowConnectedPaths(variableFlowGame);
+  if (!paths.length) {
+    variableFlowGame.path = [];
+    variableFlowGame.trace = [];
+    variableFlowGame.outcome = "failed";
+    variableFlowGame.status = "Pressure sputters before the receiver. Rotate disconnected pipes and retry.";
+    playSound("fail");
+    renderVariableFlowRepair();
+    return;
+  }
+  const flows = paths.map((path) => {
+    const trace = variableFlowTraceForPath(variableFlowGame, path);
+    return { path, trace, result: trace[trace.length - 1]?.value };
+  });
+  const stableFlow = flows.find((flow) => Math.abs(flow.result - variableFlowGame.puzzle.target) <= 0.001);
+  const visibleFlow = stableFlow || flows[0];
+  variableFlowGame.path = visibleFlow.path;
+  variableFlowGame.trace = visibleFlow.trace;
+  if (!stableFlow) {
+    variableFlowGame.outcome = "failed";
+    variableFlowGame.status = `Pressure overload: the receiver measured ${visibleFlow.result}, not ${variableFlowGame.puzzle.target}.`;
+    playSound("fail");
+    renderVariableFlowRepair();
+    return;
+  }
+  variableFlowGame.outcome = "success";
+  variableFlowGame.status = "Generator stabilized. Brass pipes glow and the receiver holds steady.";
+  rewardVariableFlowRepair(variableFlowGame);
+  renderVariableFlowRepair();
+}
+
+function unlockRecipe(recipeId) {
+  const recipe = recipeById(recipeId);
+  state.unlockedRecipes = Array.from(new Set([...(state.unlockedRecipes || []), recipe.id]));
+  activeTask = null;
+  activeTaskContext = null;
+  setMessage(`${recipe.name} unlocked. Select it at the Kitchen Hall when its Root Cellar ingredients are ready.`, 6);
+  playSound("upgrade");
+  saveState();
+  closeModal(true);
+}
+
+function unlockIngredientRecipe(ingredientType) {
+  const recipe = recipeCatalog.find((entry) => entry.unlockOnIngredient === ingredientType);
+  if (!recipe || recipeUnlocked(recipe.id)) return false;
+  state.unlockedRecipes = Array.from(new Set([...(state.unlockedRecipes || []), recipe.id]));
+  pushNotification({
+    id: `recipe-${recipe.id}`,
+    title: "Recipe Learned",
+    copy: `${recipe.name} unlocked from your first ${resourceMeta[ingredientType]?.label || "ingredient"}.`
+  });
+  setMessage(`${recipe.name} unlocked. Select it at the Kitchen Hall.`, 6);
+  playSound("success");
+  saveState();
+  return true;
+}
+
 function groundSpawnBlocked(point, padding = 24) {
   if (pointInLake(point, padding)) return true;
   const rect = { x: point.x - padding, y: point.y - padding, w: padding * 2, h: padding * 2 };
@@ -2663,6 +4013,7 @@ function pickupResource(resource) {
   addFly(resource.type, resource, playerHeadPoint(), () => {
     completeCarryReservation(amount);
     state.carry[resource.type] += amount;
+    unlockIngredientRecipe(resource.type);
     setMessage(`${resourceMeta[resource.type].label} stacked above your head.`);
     playSound("pickup");
   });
@@ -2681,20 +4032,6 @@ function transferCarry(type, amount, destination, onDone) {
   return true;
 }
 
-function transferStoredMealToCarry() {
-  const prep = closestFoodPrep(state.player, true);
-  if (!prep || prep.meals <= 0 || availableCarrySpace() <= 0) return;
-  const amount = reserveCarrySpace(1);
-  if (amount <= 0) return;
-  prep.meals -= 1;
-  addFly("meal", foodPrepMealDropoff(prep), playerHeadPoint(), () => {
-    completeCarryReservation(amount);
-    state.carry.meal += amount;
-    setMessage("Meal picked up. Bring it to the dining hall window.");
-    playSound("pickup");
-  });
-}
-
 function updateDropoffs() {
   const p = state.player;
   const transferConfig = gameConfig.transfers;
@@ -2706,84 +4043,82 @@ function updateDropoffs() {
     });
   }
 
-  const foodPrep = closestFoodPrep(p);
-  const foodDropoff = foodPrepRawDropoff(foodPrep);
-  if (dist(p, foodDropoff) < transferConfig.foodDropDistance) {
-    if (state.carry.lettuce > 0) {
-      transferCarry("lettuce", 1, foodDropoff, (amount) => {
-        foodPrep.raw += amount;
-        setMessage("Lettuce delivered to food prep.");
-      });
-    } else if (state.carry.berries > 0) {
-      transferCarry("berries", 1, foodDropoff, (amount) => {
-        foodPrep.raw += amount;
-        setMessage("Berries delivered to food prep.");
-      });
-    } else if (state.carry.meat > 0) {
-      transferCarry("meat", 1, foodDropoff, (amount) => {
-        foodPrep.raw += amount;
-        setMessage("Meat delivered to food prep.");
-      });
-    }
+  const foodDropoff = closestRootCellarDropoff(p);
+  const carriedFood = rawFoodTypes.find((type) => (state.carry[type] || 0) > 0);
+  if (carriedFood && dist(p, foodDropoff) < transferConfig.foodDropDistance) {
+    transferCarry(carriedFood, 1, foodDropoff, (amount) => {
+      state.stored[carriedFood] = (state.stored[carriedFood] || 0) + amount;
+      setMessage(`${resourceMeta[carriedFood].label} stored in the Root Cellar.`);
+    });
   }
 
-  const mealPrep = closestFoodPrep(p, true);
-  if (mealPrep && dist(p, foodPrepMealDropoff(mealPrep)) < transferConfig.mealPickupDistance && state.carry.meal === 0) {
-    transferStoredMealToCarry();
-  }
-
-  if (dist(p, dropoffs.dining) < transferConfig.diningDropDistance && state.carry.meal > 0) {
-    transferCarry("meal", 1, dropoffs.dining, (amount) => {
-      buildings.diningHall.meals += amount;
-      setMessage("Meal delivered to the dining hall serving window.");
+  const mealPrep = closestFoodPrep(p);
+  if (mealPrep && dist(p, foodPrepMealDropoff(mealPrep)) < transferConfig.diningDropDistance && state.carry.meal > 0) {
+    transferCarry("meal", 1, foodPrepMealDropoff(mealPrep), (amount) => {
+      mealPrep.meals += amount;
+      setMessage("Meal added to the Kitchen Hall serving counter.");
     });
   }
 }
 
 function updateFoodPrep(dt) {
+  const workDt = dt * generatorProductivityMultiplier();
   foodPreps().forEach((prep) => {
     const rect = foodPrepRect(prep);
-    if (prep.raw <= 0) {
+    const recipe = currentPrepRecipe(prep);
+    const playerCooking = pointInRect(state.player, rect, 20);
+    if (!recipeHasIngredients(recipe)) {
       prep.processProgress = 0;
+      prep.wordMealBonus = 0;
+      if (cookingMiniGame?.prepId === foodPrepId(prep)) stopCookingMiniGame();
       return;
     }
-    if (!pointInRect(state.player, rect, 20)) return;
+    if (!playerCooking) {
+      if (cookingMiniGame?.prepId === foodPrepId(prep)) stopCookingMiniGame();
+      return;
+    }
     const timeNeeded = foodProcessSeconds(prep);
-    prep.processProgress += dt;
+    startCookingMiniGame(prep, recipe, timeNeeded);
+    prep.processProgress += workDt;
     if (prep.processProgress >= timeNeeded) {
-      prep.raw -= 1;
-      prep.meals += 1;
+      if (!consumeRecipeIngredients(recipe)) {
+        prep.processProgress = 0;
+        stopCookingMiniGame();
+        return;
+      }
+      const meals = (recipe.meals || 1) + (prep.wordMealBonus || 0);
+      prep.meals += meals;
       prep.processProgress = 0;
+      prep.wordMealBonus = 0;
+      stopCookingMiniGame(true);
       const mealPoint = foodPrepMealDropoff(prep);
       addBurst(mealPoint.x, mealPoint.y, resourceMeta.meal.color, 8);
-      setMessage("Food processed into a meal stack.");
+      setMessage(`${recipe.name} added ${meals} meal${meals === 1 ? "" : "s"} to the Kitchen Hall counter.`);
       playSound("cook");
     }
   });
 }
 
 function updateDiningHall(dt) {
-  const dining = buildings.diningHall;
-  if (!dining) return;
-  dining.servedPulse = Math.max(0, (dining.servedPulse || 0) - dt);
-  const cabin = buildings.cabin;
-  if (dining.meals <= 0) {
-    dining.serveProgress = 0;
-    return;
-  }
   const populationBonus = 1 + Math.max(0, mealServingDemand() - 1) * (gameConfig.cabin.mealPopulationSpeedBonus || 0.18);
-  const serveSeconds = Math.max(2.2, (gameConfig.cabin.diningServeSeconds - Math.max(0, dining.level - 1) * 1.25) / populationBonus);
-  dining.serveProgress += dt;
-  if (dining.serveProgress >= serveSeconds) {
-    dining.serveProgress = 0;
-    const servings = Math.min(dining.meals, mealServingDemand());
-    dining.meals = Math.max(0, dining.meals - servings);
-    dining.servedPulse = 0.9;
+  foodPreps().forEach((prep) => {
+    prep.servedPulse = Math.max(0, (prep.servedPulse || 0) - dt);
+    if (prep.meals <= 0) {
+      prep.serveProgress = 0;
+      return;
+    }
+    const serveSeconds = Math.max(2.2, (gameConfig.cabin.diningServeSeconds - Math.max(0, prep.level - 1) * 1.25) / populationBonus);
+    prep.serveProgress += dt * generatorProductivityMultiplier();
+    if (prep.serveProgress < serveSeconds) return;
+    prep.serveProgress = 0;
+    const servings = Math.min(prep.meals, mealServingDemand());
+    prep.meals = Math.max(0, prep.meals - servings);
+    prep.servedPulse = 0.9;
     const relief = servings * gameConfig.cabin.mealHungerRelief;
     buildings.cabin.hunger = clamp(buildings.cabin.hunger - relief, 0, buildings.cabin.maxHunger);
-    setMessage(`The chef served ${servings} meal${servings === 1 ? "" : "s"} through the dining hall window.`);
+    setMessage(`The Kitchen Hall served ${servings} meal${servings === 1 ? "" : "s"}.`);
     playSound("cook");
-  }
+  });
 }
 
 function mealServingDemand() {
@@ -2796,7 +4131,7 @@ function updateFarm(dt) {
   if (!buildings.farm) return;
   const farm = buildings.farm;
   const period = farmProduceSeconds();
-  farm.produceProgress += dt;
+  farm.produceProgress += dt * generatorProductivityMultiplier();
   if (farm.produceProgress >= period) {
     farm.produceProgress = 0;
     const offsetX = -54 + Math.random() * 108;
@@ -2810,7 +4145,7 @@ function updateFarm(dt) {
 function updatePlacedFarms(dt) {
   const period = farmProduceSeconds() * 1.25;
   state.structures.filter((structure) => structure.type === "farm").forEach((farm) => {
-    farm.produceProgress = (farm.produceProgress || 0) + dt;
+    farm.produceProgress = (farm.produceProgress || 0) + dt * generatorProductivityMultiplier();
     if (farm.produceProgress >= period) {
       farm.produceProgress = 0;
       spawnResource("lettuce", farm.x - 36 + Math.random() * 72, farm.y + 10 + Math.random() * 46, 1);
@@ -2827,7 +4162,7 @@ function updateFurnace(dt) {
 
 function updateCabin(dt) {
   const cabin = buildings.cabin;
-  if (buildings.diningHall && buildings.diningHall.meals > 0) {
+  if (totalPreparedMeals() > 0) {
     cabin.mealUseProgress = 0;
     return;
   }
@@ -2839,7 +4174,7 @@ function updateTrees(dt) {
   const activeTree = trees
     .filter((tree) => tree.alive && dist(state.player, tree) < 58)
     .sort((a, b) => dist(state.player, a) - dist(state.player, b))[0] || null;
-  if (activeTree && activeTree.type !== "berryBush") updateWoodChopMiniGame(activeTree, treeChopSeconds(), dt);
+  if (activeTree) updateWoodChopMiniGame(activeTree, activeTree.type === "berryBush" ? (gameConfig.trees.berryGatherSeconds || 3) : treeChopSeconds(), dt);
   else stopWoodChopMiniGame();
   trees.forEach((tree) => {
     if (!tree.alive) {
@@ -2856,21 +4191,21 @@ function updateTrees(dt) {
     }
     const isBush = tree.type === "berryBush";
     const chopTime = isBush ? (gameConfig.trees.berryGatherSeconds || 3) : treeChopSeconds();
-    if (!isBush && !(woodChopMiniGame?.treeId === tree.id && woodChopMiniGame.active)) return;
+    if (!(woodChopMiniGame?.treeId === tree.id && woodChopMiniGame.active)) return;
     tree.progress += dt;
     tree.shake = 0.15;
     if (tree.progress >= chopTime) {
       tree.alive = false;
       tree.respawn = isBush ? (gameConfig.trees.berryRespawnSeconds || gameConfig.trees.respawnSeconds) : gameConfig.trees.respawnSeconds;
       tree.progress = 0;
-      const dropType = isBush ? "berries" : "wood";
+      const dropType = isBush ? (tree.berryType || "blueberries") : "wood";
       const dropCount = isBush ? (gameConfig.trees.berryDrops || 3) : gameConfig.trees.woodDrops;
       addBurst(tree.x, tree.y, resourceMeta[dropType].color, isBush ? 10 : 16);
       for (let i = 0; i < dropCount; i += 1) {
         spawnResource(dropType, tree.x - 45 + Math.random() * 90, tree.y + 15 + Math.random() * 52, 1);
       }
-      setMessage(isBush ? "The berry bush drops food. Pick berries up and bring them to food prep." : "The tree bursts into wood. Pick it up and bring it to a Storage Shed.");
-      if (!isBush && woodChopMiniGame?.treeId === tree.id) stopWoodChopMiniGame();
+      setMessage(isBush ? `${berryBushStyles[dropType]?.label || "Berry bush"} drops food. Carry it to a Root Cellar.` : "The tree bursts into wood. Pick it up and bring it to a Storage Shed.");
+      if (woodChopMiniGame?.treeId === tree.id) stopWoodChopMiniGame();
     }
   });
 }
@@ -3017,7 +4352,12 @@ function moveActor(actor, target, speed, dt) {
   const finalGap = dist(actor, target);
   if (!actor.pathNudge && finalGap <= gameConfig.residents.workDistance) {
     actor.stuckTimer = 0;
+    clearFriendlyRoute(actor);
     return true;
+  }
+  const routedWaypoint = friendlyRouteWaypoint(actor, target);
+  if (!actor.pathNudge && routedWaypoint) {
+    actor.pathNudge = routedWaypoint;
   }
   const gateRoute = barrierRoutePoint(actor, target);
   if (!actor.pathNudge && gateRoute) {
@@ -3025,7 +4365,7 @@ function moveActor(actor, target, speed, dt) {
   }
   const pathRoute = !actor.pathNudge ? pathRoutePoint(actor, target) : null;
   if (pathRoute) actor.pathNudge = pathRoute;
-  if (actor.pathNudge && (dist(actor, actor.pathNudge) <= gameConfig.residents.workDistance || pointBlockedByBarriers(actor.pathNudge, true))) {
+  if (actor.pathNudge && (dist(actor, actor.pathNudge) <= gameConfig.residents.workDistance || friendlyNavigationPointBlocked(actor.pathNudge))) {
     actor.pathNudge = null;
   }
   const routeTarget = actor.pathNudge || target;
@@ -3041,7 +4381,8 @@ function moveActor(actor, target, speed, dt) {
   const mx = (dx / gap) * step;
   const my = (dy / gap) * step;
   const next = pathBiasedNext(actor, { x: actor.x + mx, y: actor.y + my });
-  if (pointBlockedByBarriers(next, true)) {
+  if (friendlyNavigationPointBlocked(next)) {
+    clearFriendlyRoute(actor);
     const gate = nearestGate(actor, target);
     const gatePoint = gateTransitPoint(actor, target, gate);
     if (gatePoint && dist(actor, gatePoint) > gameConfig.residents.workDistance * 0.55) {
@@ -3076,6 +4417,8 @@ function nearestPathStructure(point, maxDistance = gridSize()) {
 function pathBiasedNext(actor, next) {
   const size = gridSize();
   if (!actorUsesPathRouting(actor)) return next;
+  const route = friendlyRouteCache.get(actor);
+  if (route && route.index < route.points.length) return next;
   const nearbyPath = nearestPathStructure(next, size * 0.7) || nearestPathStructure(actor, size * 0.95);
   if (!nearbyPath) return next;
   const pull = actor.role === "visitor" || actor.role === "resident" ? 0.34 : 0.24;
@@ -3087,6 +4430,349 @@ function pathBiasedNext(actor, next) {
 
 function actorUsesPathRouting(actor) {
   return Boolean(actor && (actor.role === "visitor" || actor.role === "resident" || actor.specialty));
+}
+
+function friendlyNavigationPointBlocked(point) {
+  return pointInLake(point, 18) || pointBlockedByBarriers(point, true);
+}
+
+function friendlyRouteState(actor) {
+  if (!friendlyRouteCache.has(actor)) {
+    friendlyRouteCache.set(actor, { targetKey: "", points: [], index: 0, retryAt: 0 });
+  }
+  return friendlyRouteCache.get(actor);
+}
+
+function clearFriendlyRoute(actor) {
+  const route = friendlyRouteCache.get(actor);
+  if (!route) return;
+  route.points = [];
+  route.index = 0;
+  route.retryAt = 0;
+}
+
+function friendlyRouteWaypoint(actor, target) {
+  const route = friendlyRouteState(actor);
+  const targetCell = navigationCell(target);
+  const targetKey = navigationCellKey(targetCell);
+  if (route.targetKey !== targetKey) {
+    route.targetKey = targetKey;
+    route.points = [];
+    route.index = 0;
+    route.retryAt = 0;
+    actor.pathNudge = null;
+  }
+
+  while (route.index < route.points.length && dist(actor, route.points[route.index]) <= gameConfig.residents.workDistance * 0.82) {
+    route.index += 1;
+  }
+  const waypoint = route.points[route.index];
+  if (waypoint && !friendlyNavigationPointBlocked(waypoint)) return waypoint;
+  if (waypoint) clearFriendlyRoute(actor);
+
+  if (navigationCellKey(navigationCell(actor)) === targetKey) return null;
+  if (route.retryAt > performance.now()) return null;
+  route.retryAt = performance.now() + (gameConfig.residents.routeRefreshSeconds || 1.2) * 1000;
+  route.points = findFriendlyRoute(actor, target);
+  route.index = 0;
+  return route.points[0] || null;
+}
+
+function navigationGridBounds() {
+  const size = gridSize();
+  return {
+    minCol: Math.ceil((120 - size / 2) / size),
+    maxCol: Math.floor((world.width - 120 - size / 2) / size),
+    minRow: Math.ceil((90 - size / 2) / size),
+    maxRow: Math.floor((world.height - 70 - size / 2) / size)
+  };
+}
+
+function navigationCell(point) {
+  const size = gridSize();
+  const bounds = navigationGridBounds();
+  return {
+    col: clamp(Math.floor(point.x / size), bounds.minCol, bounds.maxCol),
+    row: clamp(Math.floor(point.y / size), bounds.minRow, bounds.maxRow)
+  };
+}
+
+function navigationCellKey(cell) {
+  return `${cell.col}:${cell.row}`;
+}
+
+function navigationCellPoint(cell) {
+  const size = gridSize();
+  return {
+    x: cell.col * size + size / 2,
+    y: cell.row * size + size / 2
+  };
+}
+
+function navigationCellBlocked(cell, startKey, targetKey, fenceKeys) {
+  const key = navigationCellKey(cell);
+  if (key === startKey || key === targetKey) return false;
+  if (fenceKeys.has(key)) return true;
+  return pointInLake(navigationCellPoint(cell), 18);
+}
+
+function pathCellKeys() {
+  return new Set(pathStructures().map((path) => navigationCellKey(navigationCell(path))));
+}
+
+function fenceCellKeys() {
+  return new Set(state.structures
+    .filter((structure) => structure.type === "fence" && structure.health > 0)
+    .map((fence) => navigationCellKey(navigationCell(fence))));
+}
+
+function groundBarrierCellKeys() {
+  return new Set(state.structures
+    .filter((structure) => isBarrierType(structure.type) && structure.health > 0)
+    .map((barrier) => navigationCellKey(navigationCell(barrier))));
+}
+
+function findFriendlyRoute(actor, target) {
+  const start = navigationCell(actor);
+  const finish = navigationCell(target);
+  const startKey = navigationCellKey(start);
+  const targetKey = navigationCellKey(finish);
+  if (startKey === targetKey) return [];
+
+  const bounds = navigationGridBounds();
+  const pathKeys = actorUsesPathRouting(actor) ? pathCellKeys() : new Set();
+  const fenceKeys = fenceCellKeys();
+  const pathCost = clamp(gameConfig.residents.pathMoveCost || 0.58, 0.35, 1);
+  const minStepCost = pathKeys.size ? pathCost : 1;
+  const searchLimit = gameConfig.residents.routeSearchCells || 10000;
+  const open = [];
+  const closed = new Set();
+  const cameFrom = new Map();
+  const cells = new Map([[startKey, start]]);
+  const scores = new Map([[startKey, 0]]);
+  routeHeapPush(open, {
+    key: startKey,
+    cell: start,
+    g: 0,
+    f: navigationHeuristic(start, finish) * minStepCost
+  });
+
+  const directions = [
+    { col: 1, row: 0, cost: 1 },
+    { col: -1, row: 0, cost: 1 },
+    { col: 0, row: 1, cost: 1 },
+    { col: 0, row: -1, cost: 1 },
+    { col: 1, row: 1, cost: Math.SQRT2 },
+    { col: 1, row: -1, cost: Math.SQRT2 },
+    { col: -1, row: 1, cost: Math.SQRT2 },
+    { col: -1, row: -1, cost: Math.SQRT2 }
+  ];
+
+  let searched = 0;
+  while (open.length && searched < searchLimit) {
+    const current = routeHeapPop(open);
+    if (!current || closed.has(current.key)) continue;
+    if (current.key === targetKey) return routePointsFromCells(cameFrom, cells, targetKey, target);
+    closed.add(current.key);
+    searched += 1;
+
+    directions.forEach((direction) => {
+      const cell = { col: current.cell.col + direction.col, row: current.cell.row + direction.row };
+      if (cell.col < bounds.minCol || cell.col > bounds.maxCol || cell.row < bounds.minRow || cell.row > bounds.maxRow) return;
+      const key = navigationCellKey(cell);
+      if (closed.has(key) || navigationCellBlocked(cell, startKey, targetKey, fenceKeys)) return;
+      if (direction.col && direction.row) {
+        const xCell = { col: current.cell.col + direction.col, row: current.cell.row };
+        const yCell = { col: current.cell.col, row: current.cell.row + direction.row };
+        if (navigationCellBlocked(xCell, startKey, targetKey, fenceKeys) || navigationCellBlocked(yCell, startKey, targetKey, fenceKeys)) return;
+      }
+      const tileCost = pathKeys.has(key) ? pathCost : 1;
+      const nextScore = current.g + direction.cost * tileCost;
+      if (nextScore >= (scores.get(key) ?? Infinity)) return;
+      cameFrom.set(key, current.key);
+      cells.set(key, cell);
+      scores.set(key, nextScore);
+      routeHeapPush(open, {
+        key,
+        cell,
+        g: nextScore,
+        f: nextScore + navigationHeuristic(cell, finish) * minStepCost
+      });
+    });
+  }
+  return [];
+}
+
+function groundEnemyPointBlocked(point) {
+  return pointInLake(point, 22) || pointBlockedByBarriers(point, false);
+}
+
+function groundEnemyRouteState(enemy) {
+  if (!groundEnemyRouteCache.has(enemy)) {
+    groundEnemyRouteCache.set(enemy, { targetKey: "", points: [], index: 0, retryAt: 0, reachable: false });
+  }
+  return groundEnemyRouteCache.get(enemy);
+}
+
+function clearGroundEnemyRoute(enemy) {
+  const route = groundEnemyRouteCache.get(enemy);
+  if (!route) return;
+  route.points = [];
+  route.index = 0;
+  route.retryAt = 0;
+  route.reachable = false;
+}
+
+function groundEnemyTargetKey(target) {
+  const cell = navigationCell(target);
+  const id = target.actor?.id
+    || (target.actor === state.player ? "player" : "")
+    || target.building?.id
+    || target.structure?.id
+    || target.kind;
+  return `${id}:${navigationCellKey(cell)}`;
+}
+
+function prepareGroundEnemyRoute(enemy, target) {
+  const route = groundEnemyRouteState(enemy);
+  const targetKey = groundEnemyTargetKey(target);
+  if (route.targetKey !== targetKey) {
+    route.targetKey = targetKey;
+    route.points = [];
+    route.index = 0;
+    route.retryAt = 0;
+    route.reachable = false;
+  }
+
+  while (route.index < route.points.length && dist(enemy, route.points[route.index]) <= gameConfig.residents.workDistance * 0.82) {
+    route.index += 1;
+  }
+  const waypoint = route.points[route.index];
+  if (waypoint && groundEnemyPointBlocked(waypoint)) clearGroundEnemyRoute(enemy);
+  if (route.reachable && (route.points[route.index] || navigationCellKey(navigationCell(enemy)) === navigationCellKey(navigationCell(target)))) {
+    return route;
+  }
+  if (route.retryAt > performance.now()) return route;
+
+  route.retryAt = performance.now() + (gameConfig.residents.routeRefreshSeconds || 1.2) * 1000;
+  const points = findGroundEnemyRoute(enemy, target);
+  route.reachable = points !== null;
+  route.points = points || [];
+  route.index = 0;
+  return route;
+}
+
+function groundEnemyRoutePoint(enemy, target) {
+  const route = prepareGroundEnemyRoute(enemy, target);
+  return route.reachable ? route.points[route.index] || target : target;
+}
+
+function findGroundEnemyRoute(enemy, target) {
+  const start = navigationCell(enemy);
+  const finish = navigationCell(target);
+  const startKey = navigationCellKey(start);
+  const targetKey = navigationCellKey(finish);
+  if (startKey === targetKey) return [];
+
+  const bounds = navigationGridBounds();
+  const barrierKeys = groundBarrierCellKeys();
+  const searchLimit = gameConfig.residents.routeSearchCells || 10000;
+  const open = [];
+  const closed = new Set();
+  const cameFrom = new Map();
+  const cells = new Map([[startKey, start]]);
+  const scores = new Map([[startKey, 0]]);
+  routeHeapPush(open, { key: startKey, cell: start, g: 0, f: navigationHeuristic(start, finish) });
+
+  const directions = [
+    { col: 1, row: 0, cost: 1 },
+    { col: -1, row: 0, cost: 1 },
+    { col: 0, row: 1, cost: 1 },
+    { col: 0, row: -1, cost: 1 },
+    { col: 1, row: 1, cost: Math.SQRT2 },
+    { col: 1, row: -1, cost: Math.SQRT2 },
+    { col: -1, row: 1, cost: Math.SQRT2 },
+    { col: -1, row: -1, cost: Math.SQRT2 }
+  ];
+
+  let searched = 0;
+  while (open.length && searched < searchLimit) {
+    const current = routeHeapPop(open);
+    if (!current || closed.has(current.key)) continue;
+    if (current.key === targetKey) return routePointsFromCells(cameFrom, cells, targetKey, target);
+    closed.add(current.key);
+    searched += 1;
+
+    directions.forEach((direction) => {
+      const cell = { col: current.cell.col + direction.col, row: current.cell.row + direction.row };
+      if (cell.col < bounds.minCol || cell.col > bounds.maxCol || cell.row < bounds.minRow || cell.row > bounds.maxRow) return;
+      const key = navigationCellKey(cell);
+      if (closed.has(key) || navigationCellBlocked(cell, startKey, targetKey, barrierKeys)) return;
+      if (direction.col && direction.row) {
+        const xCell = { col: current.cell.col + direction.col, row: current.cell.row };
+        const yCell = { col: current.cell.col, row: current.cell.row + direction.row };
+        if (navigationCellBlocked(xCell, startKey, targetKey, barrierKeys) || navigationCellBlocked(yCell, startKey, targetKey, barrierKeys)) return;
+      }
+      const nextScore = current.g + direction.cost;
+      if (nextScore >= (scores.get(key) ?? Infinity)) return;
+      cameFrom.set(key, current.key);
+      cells.set(key, cell);
+      scores.set(key, nextScore);
+      routeHeapPush(open, {
+        key,
+        cell,
+        g: nextScore,
+        f: nextScore + navigationHeuristic(cell, finish)
+      });
+    });
+  }
+  return null;
+}
+
+function navigationHeuristic(a, b) {
+  return Math.hypot(a.col - b.col, a.row - b.row);
+}
+
+function routePointsFromCells(cameFrom, cells, targetKey, target) {
+  const route = [];
+  let key = targetKey;
+  while (cameFrom.has(key)) {
+    route.push(navigationCellPoint(cells.get(key)));
+    key = cameFrom.get(key);
+  }
+  route.reverse();
+  if (route.length) route[route.length - 1] = { x: target.x, y: target.y };
+  return route;
+}
+
+function routeHeapPush(heap, node) {
+  heap.push(node);
+  let index = heap.length - 1;
+  while (index > 0) {
+    const parent = Math.floor((index - 1) / 2);
+    if (heap[parent].f <= node.f) break;
+    heap[index] = heap[parent];
+    heap[parent] = node;
+    index = parent;
+  }
+}
+
+function routeHeapPop(heap) {
+  if (!heap.length) return null;
+  const first = heap[0];
+  const last = heap.pop();
+  if (!heap.length) return first;
+  heap[0] = last;
+  let index = 0;
+  while (index < heap.length) {
+    let child = index * 2 + 1;
+    if (child >= heap.length) break;
+    if (child + 1 < heap.length && heap[child + 1].f < heap[child].f) child += 1;
+    if (heap[index].f <= heap[child].f) break;
+    [heap[index], heap[child]] = [heap[child], heap[index]];
+    index = child;
+  }
+  return first;
 }
 
 function pathRoutePoint(actor, target) {
@@ -3129,6 +4815,7 @@ function updateActorStuckState(actor, target, before, moved, dt) {
     actor.stuckTimer = Math.max(0, (actor.stuckTimer || 0) - dt * 2);
   }
   if (actor.stuckTimer < (gameConfig.residents.stuckSeconds || 1.15)) return;
+  clearFriendlyRoute(actor);
   const waypoint = escapeWaypoint(actor, target);
   if (waypoint) actor.pathNudge = waypoint;
   actor.stuckTimer = 0;
@@ -3161,7 +4848,7 @@ function escapeWaypoint(actor, target) {
         y: clamp(actor.y + (direction.y / length) * distance, 90, world.height - 70)
       };
     })
-    .filter((point) => !pointBlockedByBarriers(point, true))
+    .filter((point) => !friendlyNavigationPointBlocked(point))
     .sort((a, b) => dist(a, target) - dist(b, target))[0] || null;
 }
 
@@ -3181,14 +4868,23 @@ function updateResidents(dt) {
   state.survivors = state.survivors.map((survivor, index) => normalizeSurvivor(survivor, index)).filter((survivor) => survivor.health > 0);
   state.survivors.forEach((survivor, index) => {
     const speed = residentMoveSpeed(survivor);
+    if (updatePatientRoute(survivor, dt, speed)) return;
+    if (hungerProtestActive()) {
+      survivor.workTimer = 0;
+      moveActor(survivor, expertProtestPoint(index), speed, dt);
+      return;
+    }
     const station = stationForResident(survivor.id);
     if (station) {
       moveActor(survivor, station, speed, dt);
     } else if (survivor.specialty === "lumberjack") updateLumberjack(survivor, dt);
     else if (survivor.specialty === "farmer") updateFarmer(survivor, dt);
+    else if (survivor.specialty === "forager") updateForager(survivor, dt);
     else if (survivor.specialty === "cook") updateCook(survivor, dt);
+    else if (survivor.specialty === "courier") updateCourier(survivor, dt);
     else if (survivor.specialty === "engineer") updateEngineer(survivor, dt);
-    else if (survivor.specialty === "hunter") updateResidentArcher(survivor, dt, hunterDefaultPost(), residentCooldown(survivor, gameConfig.residents.hunterArrowCooldown), gameConfig.residents.hunterArrowDamage);
+    else if (survivor.specialty === "hunter") updateHunter(survivor, dt);
+    else if (survivor.specialty === "doctor") updateDoctor(survivor, dt);
     else if (survivor.specialty === "guard") updateGuard(survivor, dt);
     else moveActor(survivor, survivorPosition(index), speed, dt);
   });
@@ -3235,6 +4931,7 @@ function createCityVisitor() {
 
 function updateCityVisitors(dt) {
   state.cityVisitors.forEach((visitor) => {
+    if (updatePatientRoute(visitor, dt, gameConfig.city.visitorSpeed || gameConfig.movement.visitorSpeed)) return;
     const welcome = welcomeCenters()[0];
     if (!welcome) {
       visitor.target = { x: fort.entrance.x, y: fort.entrance.y + 180 };
@@ -3277,6 +4974,7 @@ function cityHouseOccupants(houseId) {
 
 function updateCityResidentRoaming(dt) {
   state.cityResidents.forEach((resident, index) => {
+    if (updatePatientRoute(resident, dt, gameConfig.city.residentSpeed || gameConfig.movement.residentSpeed * 0.82)) return;
     resident.chatTimer = Math.max(0, (resident.chatTimer || 0) - dt);
     if (resident.interactTimer > 0 && resident.target && dist(resident, resident.target) <= gameConfig.residents.workDistance * 1.2) {
       resident.interactTimer = Math.max(0, resident.interactTimer - dt);
@@ -3308,9 +5006,27 @@ function randomCityDestination(resident, index = 0) {
   }
   const base = randomChoice(destinations);
   const spread = gameConfig.city.roamRadius || 260;
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    const candidate = {
+      x: clamp(base.x + (Math.random() - 0.5) * spread * 0.5, 90, world.width - 90),
+      y: clamp(base.y + (Math.random() - 0.5) * spread * 0.35, 90, world.height - 90)
+    };
+    if (!friendlyNavigationPointBlocked(candidate)) return candidate;
+  }
+  return friendlyNavigationPointBlocked(base) ? randomWalkableRoamPoint(index) : base;
+}
+
+function randomWalkableRoamPoint(index = 0) {
+  for (let attempt = 0; attempt < 12; attempt += 1) {
+    const candidate = {
+      x: clamp(fort.x + fort.w / 2 + (Math.random() - 0.5) * (gameConfig.city.roamRadius || 260) * 1.6, 120, world.width - 120),
+      y: clamp(fort.y + fort.h / 2 + (Math.random() - 0.5) * (gameConfig.city.roamRadius || 260) * 1.25, 90, world.height - 70)
+    };
+    if (!friendlyNavigationPointBlocked(candidate)) return candidate;
+  }
   return {
-    x: clamp(base.x + (Math.random() - 0.5) * spread * 0.5, 90, world.width - 90),
-    y: clamp(base.y + (Math.random() - 0.5) * spread * 0.35, 90, world.height - 90)
+    x: fort.x + 120 + ((index % 5) * 42),
+    y: fort.y + fort.h + 90 + Math.floor(index / 5) * 38
   };
 }
 
@@ -3424,9 +5140,9 @@ function updateLumberjack(survivor, dt) {
 function updateFarmer(survivor, dt) {
   const speed = residentMoveSpeed(survivor);
   if (survivor.carrying === "lettuce") {
-    const prep = closestFoodPrep(survivor);
-    if (moveActor(survivor, foodPrepRawDropoff(prep), speed, dt)) {
-      prep.raw += gameConfig.residents.farmerFoodAmount;
+    const cellarDropoff = closestRootCellarDropoff(survivor);
+    if (moveActor(survivor, cellarDropoff, speed, dt)) {
+      state.stored.lettuce += gameConfig.residents.farmerFoodAmount;
       survivor.carrying = null;
       survivor.workTimer = 0;
       playSound("drop");
@@ -3436,7 +5152,7 @@ function updateFarmer(survivor, dt) {
   const placedFarm = state.structures.find((structure) => structure.type === "farm");
   const target = placedFarm ? { x: placedFarm.x, y: placedFarm.y } : { x: fort.x - 140, y: fort.y + fort.h + 180 };
   if (moveActor(survivor, target, speed, dt)) {
-    survivor.workTimer += dt;
+    survivor.workTimer += dt * generatorProductivityMultiplier();
     if (survivor.workTimer >= residentWorkSeconds(survivor, gameConfig.residents.farmerWorkSeconds)) {
       survivor.workTimer = 0;
       survivor.carrying = "lettuce";
@@ -3445,22 +5161,210 @@ function updateFarmer(survivor, dt) {
   }
 }
 
+function expertDeliverFood(survivor, dt) {
+  if (!rawFoodTypes.includes(survivor.carrying)) return false;
+  const cellarDropoff = closestRootCellarDropoff(survivor);
+  if (moveActor(survivor, cellarDropoff, residentMoveSpeed(survivor), dt)) {
+    state.stored[survivor.carrying] = (state.stored[survivor.carrying] || 0) + (survivor.carryAmount || 1);
+    unlockIngredientRecipe(survivor.carrying);
+    survivor.carrying = null;
+    survivor.carryAmount = 0;
+    survivor.workTimer = 0;
+    playSound("drop");
+  }
+  return true;
+}
+
+function nearestBerryBush(point) {
+  return trees
+    .filter((tree) => tree.alive && tree.type === "berryBush")
+    .sort((a, b) => dist(point, a) - dist(point, b))[0] || null;
+}
+
+function harvestBerryBush(bush) {
+  bush.alive = false;
+  bush.progress = 0;
+  bush.respawn = gameConfig.trees.berryRespawnSeconds;
+  bush.shake = 0.25;
+  addBurst(bush.x, bush.y, resourceMeta[bush.berryType].color, 6);
+}
+
+function updateForager(survivor, dt) {
+  if (expertDeliverFood(survivor, dt)) return;
+  if (state.wave.active) {
+    returnExpertToCabin(survivor, dt);
+    return;
+  }
+  const bush = nearestBerryBush(survivor);
+  if (!bush) {
+    moveActor(survivor, survivorPosition(state.survivors.indexOf(survivor)), residentMoveSpeed(survivor), dt);
+    return;
+  }
+  if (moveActor(survivor, bush, residentMoveSpeed(survivor), dt)) {
+    survivor.workTimer += dt * generatorProductivityMultiplier();
+    bush.shake = 0.15;
+    if (survivor.workTimer >= residentWorkSeconds(survivor, gameConfig.residents.foragerWorkSeconds || 6)) {
+      survivor.workTimer = 0;
+      survivor.carrying = bush.berryType;
+      survivor.carryAmount = gameConfig.residents.foragerBerryAmount || gameConfig.trees.berryDrops || 3;
+      harvestBerryBush(bush);
+      playSound("pickup");
+    }
+  }
+}
+
+function nearestExpertMeatResource(point) {
+  return resources
+    .filter((resource) => meatFoodTypes.includes(resource.type) && !resource.expiring && !resource.pickupLock)
+    .sort((a, b) => dist(point, a) - dist(point, b))[0] || null;
+}
+
+function nearestCourierResource(point) {
+  return resources
+    .filter((resource) => (
+      (resource.type === "wood" || resource.type === "meal" || rawFoodTypes.includes(resource.type))
+      && !resource.expiring
+      && !resource.pickupLock
+    ))
+    .sort((a, b) => dist(point, a) - dist(point, b))[0] || null;
+}
+
+function expertPickupGroundResource(survivor, resource) {
+  if (!resource || resource.amount <= 0) return false;
+  survivor.carrying = resource.type;
+  survivor.carryAmount = 1;
+  resource.amount -= 1;
+  if (resource.amount <= 0) resources = resources.filter((item) => item !== resource);
+  addBurst(resource.x, resource.y, resourceMeta[resource.type].color, 4);
+  playSound("pickup");
+  return true;
+}
+
+function expertDeliverCourierLoad(survivor, dt) {
+  if (expertDeliverFood(survivor, dt)) return true;
+  const speed = residentMoveSpeed(survivor);
+  if (survivor.carrying === "wood") {
+    const shedDropoff = closestStorageShedDropoff(survivor);
+    if (moveActor(survivor, shedDropoff, speed, dt)) {
+      state.stored.wood += survivor.carryAmount || 1;
+      survivor.carrying = null;
+      survivor.carryAmount = 0;
+      survivor.workTimer = 0;
+      playSound("drop");
+    }
+    return true;
+  }
+  if (survivor.carrying === "meal") {
+    const prep = closestFoodPrep(survivor);
+    const mealDropoff = foodPrepMealDropoff(prep);
+    if (moveActor(survivor, mealDropoff, speed, dt)) {
+      prep.meals += survivor.carryAmount || 1;
+      survivor.carrying = null;
+      survivor.carryAmount = 0;
+      survivor.workTimer = 0;
+      playSound("drop");
+    }
+    return true;
+  }
+  return false;
+}
+
+function updateCourier(survivor, dt) {
+  if (expertDeliverCourierLoad(survivor, dt)) return;
+  const resource = nearestCourierResource(survivor);
+  if (!resource) {
+    returnExpertToCabin(survivor, dt);
+    return;
+  }
+  if (moveActor(survivor, resource, residentMoveSpeed(survivor), dt)) {
+    expertPickupGroundResource(survivor, resource);
+  }
+}
+
+function returnExpertToCabin(survivor, dt) {
+  survivor.workTimer = 0;
+  moveActor(survivor, survivorPosition(state.survivors.indexOf(survivor)), residentMoveSpeed(survivor), dt);
+}
+
+function updateHunter(survivor, dt) {
+  if (expertDeliverFood(survivor, dt)) return;
+  if (state.wave.active) {
+    returnExpertToCabin(survivor, dt);
+    return;
+  }
+  if (wolves.length) {
+    updateResidentArcher(survivor, dt, hunterDefaultPost(), residentCooldown(survivor, gameConfig.residents.hunterArrowCooldown), gameConfig.residents.hunterArrowDamage);
+    return;
+  }
+  const meat = nearestExpertMeatResource(survivor);
+  if (meat) {
+    if (moveActor(survivor, meat, residentMoveSpeed(survivor), dt)) expertPickupGroundResource(survivor, meat);
+    return;
+  }
+  const prey = [...deer, ...ptarmigans]
+    .filter((animal) => animal.hp > 0)
+    .sort((a, b) => dist(survivor, a) - dist(survivor, b))[0];
+  if (!prey) {
+    moveActor(survivor, hunterDefaultPost(), residentMoveSpeed(survivor), dt);
+    return;
+  }
+  survivor.arrowCooldown = Math.max(0, (survivor.arrowCooldown || 0) - dt);
+  const huntRange = gameConfig.combat.baseRange * 0.72;
+  if (dist(survivor, prey) > huntRange * 0.64) moveActor(survivor, prey, residentMoveSpeed(survivor), dt);
+  if (dist(survivor, prey) <= huntRange && survivor.arrowCooldown <= 0) {
+    survivor.arrowCooldown = residentCooldown(survivor, gameConfig.residents.hunterArrowCooldown);
+    fireArrowFrom({ x: survivor.x, y: survivor.y - 44 }, prey, gameConfig.residents.hunterArrowDamage * residentLevelMultiplier(survivor));
+  }
+}
+
+function updateDoctor(survivor, dt) {
+  const speed = residentMoveSpeed(survivor);
+  const tent = closestMedicalTent(survivor);
+  const healRate = (gameConfig.medical.doctorHealPerSecond || 2.5) * residentLevelMultiplier(survivor);
+  if (state.wave.active) {
+    if (!tent) {
+      moveActor(survivor, survivorPosition(state.survivors.indexOf(survivor)), speed, dt);
+      return;
+    }
+    const target = medicalTentCarePoint(tent);
+    if (moveActor(survivor, target, speed, dt) || pointInRect(survivor, structureRect(tent), 32)) {
+      doctorPatients()
+        .filter((patient) => pointInRect(patient, structureRect(tent), 46))
+        .forEach((patient) => healActor(patient, healRate * dt));
+    }
+    return;
+  }
+  const patient = doctorPatients().sort((a, b) => dist(survivor, a) - dist(survivor, b))[0];
+  if (!patient) {
+    moveActor(survivor, tent ? medicalTentCarePoint(tent) : survivorPosition(state.survivors.indexOf(survivor)), speed, dt);
+    return;
+  }
+  if (moveActor(survivor, patient, speed, dt) || dist(survivor, patient) <= (gameConfig.medical.fieldHealRange || 34)) {
+    healActor(patient, healRate * dt);
+    if (Math.random() < dt * 0.5) addBurst(patient.x, patient.y - 22, "#73df9b", 2);
+  }
+}
+
 function updateCook(survivor, dt) {
   const prep = assignedCookFoodPrep(survivor);
+  const recipe = currentPrepRecipe(prep);
   const speed = residentMoveSpeed(survivor);
   const cookSeconds = cookExpertProcessSeconds(survivor, prep) * (gameConfig.residents.cookWorkSecondsMultiplier || 1);
   const center = foodPrepCenter(prep);
   const rect = foodPrepRect(prep);
   if (moveActor(survivor, center, speed, dt) || pointInRect(survivor, rect, 24)) {
-    if (prep.raw <= 0) return;
-    survivor.workTimer += dt;
+    if (!recipeHasIngredients(recipe)) return;
+    survivor.workTimer += dt * generatorProductivityMultiplier();
     prep.processProgress = Math.max(prep.processProgress, (survivor.workTimer / cookSeconds) * foodProcessSeconds(prep));
     if (survivor.workTimer >= cookSeconds) {
       survivor.workTimer = 0;
-      prep.raw -= 1;
-      prep.meals += 1;
+      if (!consumeRecipeIngredients(recipe)) return;
+      const meals = chefMealYield(survivor, recipe) + (prep.wordMealBonus || 0);
+      prep.meals += meals;
+      prep.wordMealBonus = 0;
       const mealPoint = foodPrepMealDropoff(prep);
       addBurst(mealPoint.x, mealPoint.y, resourceMeta.meal.color, 8);
+      setMessage(`${survivor.name} cooked ${meals} meal${meals === 1 ? "" : "s"} from ${recipe.name}.`, 4);
       playSound("cook");
     }
   }
@@ -3478,7 +5382,7 @@ function updateEngineer(survivor, dt) {
     y: target.y + Math.cos(performance.now() / 800 + survivor.id.length) * 32
   };
   if (moveActor(survivor, offset, residentMoveSpeed(survivor), dt)) {
-    job.remaining = Math.max(0, job.remaining - gameConfig.residents.engineerBuildReductionPerSecond * residentLevelMultiplier(survivor) * dt);
+    job.remaining = Math.max(0, job.remaining - gameConfig.residents.engineerBuildReductionPerSecond * residentLevelMultiplier(survivor) * dt * generatorProductivityMultiplier());
   }
 }
 
@@ -3501,6 +5405,7 @@ function updateResidentArcher(survivor, dt, post, cooldown, damage) {
 }
 
 function updateOutposts(dt) {
+  if (!generatorPowered()) return;
   state.structures.filter((structure) => isTowerType(structure.type)).forEach((structure) => {
     structure.cooldown = Math.max(0, (structure.cooldown || 0) - dt);
     if (structure.cooldown <= 0) structure.cooldown = fireTowerLike(structure);
@@ -3528,6 +5433,7 @@ function fireTowerLike(structure, cooldownOverride = null) {
 }
 
 function towerSlowMultiplier(wolf) {
+  if (!generatorPowered()) return 1;
   let slow = 1;
   state.structures.filter((structure) => isTowerType(structure.type)).forEach((structure) => {
     const stats = towerStats(structure);
@@ -3575,33 +5481,14 @@ function enemyTarget(enemy) {
   if (enemy.type === "eagle") {
     return nearestPersonTarget(enemy, true, true) || cabinAttackPoint();
   }
-  const gate = nearestGate(enemy) || nearestFenceTarget(enemy);
-  const directFence = directFenceOnPath(enemy, gate);
-  const gateDistance = dist(enemy, gate);
-  if (directFence) {
-    const destroyTime = (directFence.health / Math.max(1, enemy.damage)) * (enemy.attackSeconds || gameConfig.combat.wolfAttackSeconds);
-    const moveTime = gateDistance / Math.max(1, enemy.speed);
-    if (destroyTime < moveTime) {
-      return { kind: "barrier", structure: directFence, x: directFence.x, y: directFence.y, distance: dist(enemy, directFence) };
-    }
-  }
   const cabinTarget = cabinAttackPoint();
-  const barrierTarget = isBarrierType(gate.type) ? { kind: "barrier", structure: gate, x: gate.x, y: gate.y, distance: gateDistance } : { ...cabinTarget, distance: dist(enemy, cabinTarget) };
   const person = nearestPersonTarget(enemy, true);
-  if (person && person.distance + 18 < barrierTarget.distance) return person;
-  return barrierTarget;
-}
+  const prey = person && person.distance + 18 < dist(enemy, cabinTarget) ? person : { ...cabinTarget, distance: dist(enemy, cabinTarget) };
+  if (prepareGroundEnemyRoute(enemy, prey).reachable) return prey;
 
-function directFenceOnPath(enemy, gate) {
-  if (!gate) return null;
-  return state.structures
-    .filter((structure) => structure.type === "fence" && structure.health > 0)
-    .map((structure) => {
-      const pathDistance = distanceToSegment(structure, enemy, gate);
-      return { structure, pathDistance, enemyDistance: dist(enemy, structure) };
-    })
-    .filter((item) => item.pathDistance < gridSize() * 0.42)
-    .sort((a, b) => a.enemyDistance - b.enemyDistance)[0]?.structure || null;
+  const barrier = nearestGate(enemy, prey) || nearestFenceTarget(enemy);
+  if (!isBarrierType(barrier.type)) return prey;
+  return { kind: "barrier", structure: barrier, x: barrier.x, y: barrier.y, distance: dist(enemy, barrier) };
 }
 
 function damageFence(target, damage) {
@@ -3709,27 +5596,26 @@ function updateWolves(dt) {
     const attackRange = wolf.type === "eagle" ? 34 : 18;
     if (gap > attackRange) {
       wolf.attacking = false;
+      const routeTarget = wolf.type === "eagle" || target.kind === "barrier"
+        ? target
+        : groundEnemyRoutePoint(wolf, target);
+      const routeGap = Math.max(1, dist(wolf, routeTarget));
       const lightSlow = wolf.type === "wolf" && pointInTorchLight(wolf) ? 0.9 : 1;
       const slow = wolf.type === "eagle" ? 1 : towerSlowMultiplier(wolf) * lightSlow;
-      const step = wolf.speed * slow * dt;
+      const step = Math.min(routeGap, wolf.speed * slow * dt);
       const next = {
-        x: wolf.x + ((target.x - wolf.x) / gap) * step,
-        y: wolf.y + ((target.y - wolf.y) / gap) * step
+        x: wolf.x + ((routeTarget.x - wolf.x) / routeGap) * step,
+        y: wolf.y + ((routeTarget.y - wolf.y) / routeGap) * step
       };
-      if (wolf.type !== "eagle" && pointBlockedByBarriers(next, false) && target.kind !== "barrier") {
-        const barrier = nearestFenceTarget(wolf);
-        const barrierGap = dist(wolf, barrier);
-        if (barrierGap > 1) {
-          wolf.x += ((barrier.x - wolf.x) / barrierGap) * step;
-          wolf.y += ((barrier.y - wolf.y) / barrierGap) * step;
-        }
+      if (wolf.type !== "eagle" && groundEnemyPointBlocked(next) && target.kind !== "barrier") {
+        clearGroundEnemyRoute(wolf);
       } else {
         wolf.x = next.x;
         wolf.y = next.y;
       }
       wolf.walkTime = (wolf.walkTime || 0) + step / gameConfig.movement.walkAnimationDivisor;
-      if (target.x !== wolf.x) wolf.facing = target.x > wolf.x ? 1 : -1;
-      setActorDirection(wolf, target.x - wolf.x, target.y - wolf.y);
+      if (routeTarget.x !== wolf.x) wolf.facing = routeTarget.x > wolf.x ? 1 : -1;
+      setActorDirection(wolf, routeTarget.x - wolf.x, routeTarget.y - wolf.y);
     } else {
       wolf.attacking = true;
       wolf.attackTimer -= dt;
@@ -3748,12 +5634,13 @@ function updateWolves(dt) {
   const targetWolf = wolves
     .filter((wolf) => dist(state.player, wolf) <= range)
     .sort((a, b) => dist(state.player, a) - dist(state.player, b))[0];
-  const targetDeer = targetWolf ? null : deer
+  const daylightPrey = state.wave.active ? [] : [...deer, ...ptarmigans];
+  const targetPrey = targetWolf ? null : daylightPrey
     .filter((animal) => animal.hp > 0 && dist(state.player, animal) <= range)
     .sort((a, b) => dist(state.player, a) - dist(state.player, b))[0];
-  const arrowTarget = targetWolf || targetDeer;
+  const arrowTarget = targetWolf || targetPrey;
   if (arrowTarget && arrowCooldown <= 0) {
-    arrowCooldown = inTower ? gameConfig.combat.towerArrowCooldown : gameConfig.combat.baseArrowCooldown;
+    arrowCooldown = playerWeaponCooldown(inTower ? gameConfig.combat.towerArrowCooldown : gameConfig.combat.baseArrowCooldown);
     fireArrow(arrowTarget);
   }
 
@@ -3761,11 +5648,12 @@ function updateWolves(dt) {
     if (wolf.hp > 0) return true;
     const hunterBonus = specialtyCount("hunter");
     const meatAmount = wolf.type === "eagle" ? 1 : 1 + hunterBonus;
+    const meatType = wolf.type === "eagle" ? "eagleMeat" : "wolfMeat";
     for (let i = 0; i < meatAmount; i += 1) {
-      spawnResource("meat", wolf.x - 22 + Math.random() * 44, wolf.y - 12 + Math.random() * 34, 1);
+      spawnResource(meatType, wolf.x - 22 + Math.random() * 44, wolf.y - 12 + Math.random() * 34, 1);
     }
-    addBurst(wolf.x, wolf.y, resourceMeta.meat.color, 12);
-    setMessage(`${wolf.type === "eagle" ? "An eagle" : "A wolf"} dropped ${meatAmount} meat.`);
+    addBurst(wolf.x, wolf.y, resourceMeta[meatType].color, 12);
+    setMessage(`${wolf.type === "eagle" ? "An eagle" : "A wolf"} dropped ${meatAmount} ${resourceMeta[meatType].label.toLowerCase()}.`);
     playSound("success");
     return false;
   });
@@ -3823,13 +5711,63 @@ function updateDeer(dt) {
     if (animal.hp > 0) return true;
     const drops = config.meatDrops || 2;
     for (let i = 0; i < drops; i += 1) {
-      spawnResource("meat", animal.x - 18 + Math.random() * 36, animal.y - 8 + Math.random() * 24, 1);
+      spawnResource("deerMeat", animal.x - 18 + Math.random() * 36, animal.y - 8 + Math.random() * 24, 1);
     }
-    addBurst(animal.x, animal.y, resourceMeta.meat.color, 12);
-    setMessage(`A deer dropped ${drops} meat.`);
+    addBurst(animal.x, animal.y, resourceMeta.deerMeat.color, 12);
+    setMessage(`A deer dropped ${drops} venison.`);
     playSound("success");
     return false;
   });
+}
+
+function updatePtarmigans(dt) {
+  const config = gameConfig.ptarmigan || defaultGameConfig.ptarmigan;
+  if (state.wave.active) return;
+  ptarmigans.forEach((bird) => {
+    bird.hitFlash = Math.max(0, (bird.hitFlash || 0) - dt);
+    bird.fleeTimer = Math.max(0, (bird.fleeTimer || 0) - dt);
+    if (!bird.target || dist(bird, bird.target) < 34 || pointInLake(bird.target, 28)) {
+      bird.target = bird.fleeTimer > 0 ? ptarmiganFleeTarget(bird) : ptarmiganRoamTarget(bird);
+    }
+    moveActor(bird, bird.target, bird.fleeTimer > 0 ? config.fleeSpeed : config.speed, dt);
+    bird.walkTime = (bird.walkTime || 0) + dt;
+  });
+  ptarmigans = ptarmigans.filter((bird) => {
+    if (bird.hp > 0) return true;
+    const drops = config.meatDrops || 1;
+    for (let index = 0; index < drops; index += 1) {
+      spawnResource("ptarmiganMeat", bird.x - 16 + Math.random() * 32, bird.y - 8 + Math.random() * 18, 1);
+    }
+    addBurst(bird.x, bird.y, resourceMeta.ptarmiganMeat.color, 8);
+    setMessage(`A willow ptarmigan dropped ${drops} ptarmigan meat.`);
+    return false;
+  });
+}
+
+function ptarmiganRoamTarget(bird, rng = Math.random) {
+  const config = gameConfig.ptarmigan || defaultGameConfig.ptarmigan;
+  const origin = bird || fort.entrance;
+  for (let attempt = 0; attempt < 50; attempt += 1) {
+    const angle = rng() * Math.PI * 2;
+    const radius = randomBetween(rng, 120, config.roamRadius || 460);
+    const point = {
+      x: clamp(origin.x + Math.cos(angle) * radius, 100, world.width - 100),
+      y: clamp(origin.y + Math.sin(angle) * radius, 100, world.height - 100)
+    };
+    if (!pointInLake(point, 28)) return point;
+  }
+  return randomFreeWorldPoint(rng, 140);
+}
+
+function ptarmiganFleeTarget(bird) {
+  const dx = bird.x - state.player.x;
+  const dy = bird.y - state.player.y;
+  const gap = Math.hypot(dx, dy) || 1;
+  const point = {
+    x: clamp(bird.x + (dx / gap) * 520, 100, world.width - 100),
+    y: clamp(bird.y + (dy / gap) * 520, 100, world.height - 100)
+  };
+  return pointInLake(point, 28) ? ptarmiganRoamTarget(bird) : point;
 }
 
 function deerRoamTarget(animal) {
@@ -3903,16 +5841,16 @@ function maybeShowNightUpgradeTip() {
   if (state.wave.number === 1) {
     showTutorialTip(
       "furnaceUpgrade",
-      "Upgrade The Furnace",
-      "The first night is over. The next Furnace upgrade slows fuel drain; later upgrades alternate between slower drain and higher fuel capacity.",
-      [{ label: "Open Furnace", action: () => openBuildingMenu(buildings.furnace) }]
+      "Upgrade The Generator",
+      "The first night is over. The next Generator upgrade slows fuel drain; later upgrades alternate between slower drain and higher fuel capacity.",
+      [{ label: "Open Generator", action: () => openBuildingMenu(buildings.furnace) }]
     );
   } else if (state.wave.number === 2) {
     showTutorialTip(
       "foodUpgrade",
       "Upgrade Food Systems",
-      "Food Prep cooks raw food into meals, and the Dining Hall serves those meals to hold hunger down. Upgrading both makes the camp much steadier during longer nights.",
-      [{ label: "Open Food Prep", action: () => openBuildingMenu(buildings.foodPrep) }]
+      "The Kitchen Hall cooks Root Cellar ingredients and serves its finished meals automatically to hold hunger down. Upgrades speed the recipes and serving line up.",
+      [{ label: "Open Kitchen Hall", action: () => openBuildingMenu(buildings.foodPrep) }]
     );
   }
 }
@@ -3936,6 +5874,29 @@ function maybeShowCityUnlockTip() {
     [
       { label: "Open Build", action: openBuildMenu },
       { label: "Upgrades", action: openUpgradeMenu }
+    ]
+  );
+}
+
+function maybeShowBlacksmithUnlockTip() {
+  const unlockLevel = gameConfig.build.blacksmithPlayerLevel || 4;
+  if (playerLevel() < unlockLevel || state.tutorialFlags.blacksmithUnlock) return;
+  showTutorialTip(
+    "blacksmithUnlock",
+    "Build A Blacksmith",
+    "A Blacksmith is ready to join the settlement. Build the workshop to turn learning points into stronger baskets and better weapons.",
+    [{ label: "Open Build", action: openBuildMenu }]
+  );
+}
+
+function maybeShowBasicsTutorial() {
+  showTutorialTip(
+    "basics",
+    "Survive Your First Day",
+    "Gather wood from trees to keep the Generator fueled. Store raw food in the Root Cellar and choose recipes at the Kitchen Hall so meals are cooked and served before hunger slows your Experts. The Build tray adds defenses and support buildings; learning challenges unlock recipes, Experts, and upgrades.",
+    [
+      { label: "Open Build", action: openBuildMenu },
+      { label: "Help", action: openHelpMenu }
     ]
   );
 }
@@ -3998,10 +5959,10 @@ function isPointInsideBarrierLoop(point) {
 function spawnNightAttacker() {
   const config = gameConfig.combat;
   state.wave.nightSpawned = (state.wave.nightSpawned || 0) + 1;
-  const tier = Math.floor((state.wave.number - 1) / 2);
+  const tier = Math.floor((state.wave.number - 1) / Math.max(1, config.waveCountPerTier || 20));
   const count = 1 + (Math.random() < Math.min(0.45, 0.12 + tier * 0.08) ? 1 : 0);
   for (let i = 0; i < count; i += 1) {
-    const elite = state.wave.number >= 4 && Math.random() < 0.22;
+    const elite = tier >= 1 && Math.random() < 0.22;
     const hp = config.wolfBaseHp + tier * config.waveHpPerTier + Math.random() * config.wolfBonusHp + (elite ? 108 : 0);
     const spawn = spawnEnemyPoint("wolf");
     wolves.push({
@@ -4050,7 +6011,7 @@ function fireArrow(wolf) {
   const guardBonus = 1 + specialtyCount("guard") * config.guardDamageMultiplier;
   const towerLevel = towerBoostActive ? nearestBuiltTowerLevel(state.player) : 1;
   const damage = config.baseArrowDamage
-    * damageUpgradeScale(playerStatBonus("attack"))
+    * playerWeaponDamageScale()
     * damageLevelScale(towerLevel)
     * towerBonus
     * guardBonus;
@@ -4074,6 +6035,11 @@ function fireArrowFrom(from, wolf, damage) {
     wolf.fleeTimer = gameConfig.deer.fleeSeconds || 7;
     wolf.hitFlash = 0.28;
     wolf.target = deerFleeTarget(wolf);
+  }
+  if (wolf.type === "ptarmigan" && wolf.hp > 0) {
+    wolf.fleeTimer = Math.max(wolf.fleeTimer || 0, 5);
+    wolf.hitFlash = 0.28;
+    wolf.target = ptarmiganFleeTarget(wolf);
   }
   arrows.push({
     from,
@@ -4181,6 +6147,7 @@ function movePlayer(dx, dy) {
   state.player.y = next.y;
   state.player.walkTime += Math.hypot(dx, dy) / gameConfig.movement.walkAnimationDivisor;
   setActorDirection(state.player, dx, dy);
+  if (updateMachineSiteEntry()) state.player.target = null;
 }
 
 function pointBlockedByBarriers(point, friendly) {
@@ -4329,6 +6296,14 @@ function runHudAction(action) {
   action();
 }
 
+function setMeterAlert(card, label, copy, critical = false, offline = false) {
+  card?.classList.toggle("critical", critical);
+  card?.classList.toggle("offline", offline);
+  if (!label) return;
+  label.textContent = copy;
+  label.classList.toggle("hidden", !copy);
+}
+
 function updateHud(dt) {
   if (messageTimer > 0) messageTimer -= dt;
   if (centerToastTimer > 0) {
@@ -4346,8 +6321,22 @@ function updateHud(dt) {
   if (hud.furnaceFuelMeter) hud.furnaceFuelMeter.style.width = `${fuelPct}%`;
   if (hud.cabinHungerText) hud.cabinHungerText.textContent = `${Math.round(hungerPct)}%`;
   if (hud.cabinHungerMeter) hud.cabinHungerMeter.style.width = `${hungerPct}%`;
+  setMeterAlert(
+    hud.furnaceMeterCard,
+    hud.generatorAlert,
+    fuelPct <= 0 ? "Offline: towers stopped" : fuelPct <= 8 ? "Load wood now" : "",
+    fuelPct <= 8,
+    fuelPct <= 0
+  );
+  setMeterAlert(
+    hud.cabinHungerCard,
+    hud.hungerAlert,
+    hungerProtestActive() ? "Experts protesting" : hungerPct >= 92 ? "Serve meals now" : "",
+    hungerPct >= 92,
+    hungerProtestActive()
+  );
   if (hud.quickWoodText) hud.quickWoodText.textContent = state.stored.wood;
-  if (hud.quickDiningMealText) hud.quickDiningMealText.textContent = buildings.diningHall ? buildings.diningHall.meals : 0;
+  if (hud.quickDiningMealText) hud.quickDiningMealText.textContent = totalPreparedMeals();
   const cityUnlocked = playerLevel() >= (gameConfig.build.welcomeCenterPlayerLevel || 10);
   if (hud.quickVisitorChip) hud.quickVisitorChip.classList.toggle("hidden", !cityUnlocked);
   if (hud.quickResidentChip) hud.quickResidentChip.classList.toggle("hidden", !cityUnlocked);
@@ -4367,7 +6356,7 @@ function updateHud(dt) {
   if (hud.woodCount) hud.woodCount.textContent = state.stored.wood;
   if (hud.lettuceCount) hud.lettuceCount.textContent = totalRawFood();
   if (hud.meatCount) hud.meatCount.textContent = carryTotal();
-  if (hud.mealCount) hud.mealCount.textContent = totalPreparedMeals() + (buildings.diningHall ? buildings.diningHall.meals : 0);
+  if (hud.mealCount) hud.mealCount.textContent = totalPreparedMeals();
   if (hud.survivorCount) hud.survivorCount.textContent = `${state.survivors.length}/${survivorCapacity()}`;
   if (hud.learningPointCount) hud.learningPointCount.textContent = state.learningPoints;
   if (hud.playerLevelCount) hud.playerLevelCount.textContent = playerLevel();
@@ -4382,9 +6371,12 @@ function updateHud(dt) {
   if (hud.pauseBadge) hud.pauseBadge.classList.toggle("hidden", !paused);
   if (hud.buildTray) hud.buildTray.classList.toggle("collapsed", buildTrayCollapsed);
   if (hud.buildTrayToggle) hud.buildTrayToggle.setAttribute("aria-expanded", String(!buildTrayCollapsed));
+  const repairAllCost = totalStructureRepairCost();
+  if (hud.repairAllCost) hud.repairAllCost.textContent = repairAllCost > 0 ? `${repairAllCost} wood` : "All repaired";
+  if (hud.repairAllButton) hud.repairAllButton.disabled = repairAllCost <= 0;
   refreshBuildTrayIfNeeded();
 
-  if (hud.phaseLabel) hud.phaseLabel.textContent = paused ? "Paused" : repairMode ? "Repair Mode" : removeMode ? "Remove Mode" : moveMode ? "Move Buildings" : buildMode ? "Build Mode" : gameOver ? "Camp Lost" : failureLock ? "Emergency" : attackActive ? `Night ${state.wave.number}` : pendingVisitor ? "Visitor Approaching" : state.wave.active ? "Night Watch" : "Daylight Prep";
+  if (hud.phaseLabel) hud.phaseLabel.textContent = paused ? "Paused" : repairMode ? "Repair Mode" : removeMode ? "Remove Mode" : moveMode ? "Move Buildings" : buildMode ? "Build Mode" : attackActive ? `Night ${state.wave.number}` : pendingVisitor ? "Visitor Approaching" : state.wave.active ? "Night Watch" : "Daylight Prep";
   updateCanvasToolCursor();
   updateNotifications(dt);
 }
@@ -4417,48 +6409,18 @@ function updateNotifications(dt = 0) {
     .map((notice) => ({ ...notice, timer: notice.timer - dt }))
     .filter((notice) => notice.timer > 0)
     .slice(-3);
-  const upgrade = affordablePlayerUpgrade();
+  const upgrade = affordableBlacksmithTech();
   if (upgrade && dismissedUpgradeNoticeAt !== state.learningPoints) {
     pushNotification({
       id: `upgrade-${state.learningPoints}-${upgrade.id}`,
-      title: "Player Upgrade Ready",
+      title: "Blacksmith Tech Ready",
       copy: `You have ${state.learningPoints} points. ${upgrade.name} costs ${upgrade.cost}.`,
       actions: [
-        { action: "open-player", label: "Open Upgrades", primary: true },
+        { action: "open-blacksmith", label: "Open Blacksmith", primary: true },
         { action: "dismiss-upgrade", label: "Dismiss" }
       ]
     });
   }
-
-  const dangerChecks = [
-    {
-      id: "furnace",
-      active: buildings.furnace.fuel > 0 && buildings.furnace.fuel <= buildings.furnace.maxFuel * 0.08,
-      title: "Furnace Critical",
-      copy: "Fuel is almost gone. Gather wood, drop it at a Storage Shed, then load the furnace or upgrade it so fuel lasts longer."
-    },
-    {
-      id: "hunger",
-      active: buildings.cabin.hunger < buildings.cabin.maxHunger && buildings.cabin.hunger >= buildings.cabin.maxHunger * 0.92,
-      title: "Cabin Hunger Critical",
-      copy: "Hunger is nearly full. Gather berries, lettuce, or meat, process food at Food Prep, then deliver meals to the Dining Hall."
-    }
-  ];
-  dangerChecks.forEach((warning) => {
-    if (warning.active && !warningState[warning.id]) {
-      playSound("alarm");
-      setMessage(warning.copy, 5);
-    }
-    warningState[warning.id] = warning.active;
-    if (warning.active) {
-      pushNotification({
-        id: `warning-${warning.id}`,
-        title: warning.title,
-        copy: warning.copy,
-        warning: true
-      });
-    }
-  });
 
   const markup = notifications.map(renderNoticeCard).join("");
   if (markup === notificationMarkup) return;
@@ -4466,7 +6428,7 @@ function updateNotifications(dt = 0) {
   hud.notificationStack.innerHTML = markup;
   hud.notificationStack.querySelectorAll("[data-notice-action]").forEach((button) => {
     button.addEventListener("click", () => {
-      if (button.dataset.noticeAction === "open-player") openPlayerMenu();
+      if (button.dataset.noticeAction === "open-blacksmith") openBlacksmithTechMenu();
       if (button.dataset.noticeAction === "dismiss-upgrade") {
         dismissedUpgradeNoticeAt = state.learningPoints;
         notifications = notifications.filter((notice) => notice.id !== button.dataset.noticeId);
@@ -4476,80 +6438,6 @@ function updateNotifications(dt = 0) {
   });
 }
 
-function selectHardLearningTask() {
-  const config = gameConfig.failure;
-  const pool = learningTasks.filter((task) => (task.grade || 0) >= config.minHardGrade || (task.minLevel || 1) >= config.minHardLevel);
-  const candidates = (pool.length ? pool : learningTasks).filter((task) => !recentLearningTaskIds.includes(task.id));
-  const task = randomChoice(candidates.length ? candidates : (pool.length ? pool : learningTasks));
-  if (task && task.id) {
-    recentLearningTaskIds.push(task.id);
-    recentLearningTaskIds = recentLearningTaskIds.slice(-24);
-  }
-  return task;
-}
-
-function checkFailureStates() {
-  if (gameOver || failureLock || activeTaskContext) return;
-  if (buildings.furnace.fuel <= 0) {
-    beginFailureChallenge("furnace");
-  } else if (buildings.cabin.hunger >= buildings.cabin.maxHunger) {
-    beginFailureChallenge("hunger");
-  }
-}
-
-function beginFailureChallenge(type) {
-  failureLock = type;
-  activeTask = selectHardLearningTask();
-  activeTaskContext = { kind: "failure", failureType: type };
-  const labels = {
-    furnace: "The furnace has gone dark.",
-    hunger: "The cabin is starving."
-  };
-  setMessage(`${labels[type]} Solve the emergency challenge to keep the camp alive.`, 6);
-  playSound("alarm");
-  renderLearningTask(activeTask, activeTaskContext);
-}
-
-function resolveFailureChallenge(type) {
-  const config = gameConfig.failure;
-  if (type === "furnace") {
-    buildings.furnace.fuel = Math.max(buildings.furnace.fuel, buildings.furnace.maxFuel * (config.furnaceRestorePercent / 100));
-    setMessage("Emergency answer accepted. The furnace catches again.", 6);
-  } else if (type === "hunger") {
-    buildings.cabin.hunger = clamp(buildings.cabin.hunger - buildings.cabin.maxHunger * (config.hungerReliefPercent / 100), 0, buildings.cabin.maxHunger);
-    buildings.cabin.meals = Math.max(buildings.cabin.meals, 1);
-    setMessage("Emergency answer accepted. The cabin gets enough food to hold on.", 6);
-  }
-  failureLock = null;
-  activeTask = null;
-  activeTaskContext = null;
-  playSound("success");
-  saveState();
-  closeModal(true);
-}
-
-function showGameOver(type) {
-  gameOver = true;
-  activeTask = null;
-  activeTaskContext = null;
-  const copy = {
-    furnace: "The furnace died and the cold took the camp.",
-    hunger: "The cabin ran out of food and morale collapsed."
-  };
-  hud.modalEyebrow.textContent = "Game Over";
-  hud.modalTitle.textContent = "The Frontier Claims The Camp";
-  hud.modalBody.innerHTML = `
-    <p>${copy[type] || "The camp could not survive the disaster."}</p>
-    <p>Retry from the beginning and rebuild stronger.</p>
-    <div class="modal-actions">
-      <button id="retryGame" class="primary" type="button">Retry</button>
-    </div>
-  `;
-  playSound("fail");
-  openModal();
-  document.querySelector("#retryGame").addEventListener("click", resetGame);
-}
-
 function resetGame() {
   localStorage.removeItem(storageKey);
   state = clone(defaultState);
@@ -4557,6 +6445,7 @@ function resetGame() {
   buildings = hydrateBuildings();
   snapAllBuildingsToGrid();
   state.structures = createInitialDefenseStructures();
+  syncCabinLinkedUpgrades(buildings.cabin.level);
   state.worldSeed = "";
   state.seedChosen = false;
   state.cityResidents = [];
@@ -4577,15 +6466,15 @@ function resetGame() {
   replacementRecruit = null;
   woodChopMiniGame = null;
   woodChopReturnZoom = null;
+  cookingMiniGame = null;
+  variableFlowGame = null;
+  enteredMachineSiteId = null;
   state.visitor = null;
   activeTask = null;
   activeTaskContext = null;
-  failureLock = null;
-  gameOver = false;
   dismissedUpgradeNoticeAt = -1;
   notificationMarkup = "";
   notifications = [];
-  warningState = { furnace: false, hunger: false };
   pendingCarry = 0;
   residentDeathNotices = [];
   buildMode = false;
@@ -4618,19 +6507,16 @@ function resetGame() {
 function update(dt) {
   saveTimer += dt;
   updateWoodChopZoomRestore(dt);
-  if (gameOver) {
-    updateHud(dt);
-    return;
-  }
-  if (activeTaskContext && activeTaskContext.kind === "failure") {
-    updateHud(dt);
-    return;
-  }
   if (paused) {
     updateHud(dt);
     return;
   }
   updatePlayer(dt);
+  if (paused || updateMachineSiteEntry()) {
+    updateCamera(dt);
+    updateHud(dt);
+    return;
+  }
   updateCamera(dt);
   updateFarm(dt);
   updatePlacedFarms(dt);
@@ -4638,21 +6524,24 @@ function update(dt) {
   updateDiningHall(dt);
   updateCabin(dt);
   updateFoodPrep(dt);
+  updateCookingMiniGame(dt);
   updateUpgradeJobs(dt);
   updateResidents(dt);
   updateCityResidents(dt);
   updateTrees(dt);
+  updateMachineCooldowns(dt);
   updateGroundResources(dt);
   updateResourcePickup();
   updateDropoffs();
   updateOutposts(dt);
   updateDeer(dt);
+  updatePtarmigans(dt);
   updateWolves(dt);
   updateVisitor(dt);
   updateArrows(dt);
   updateFlies(dt);
   updateParticles(dt);
-  checkFailureStates();
+  maybeShowBlacksmithUnlockTip();
   maybeShowCityUnlockTip();
   updateHud(dt);
   if (saveTimer >= gameConfig.timers.autosaveInterval) {
@@ -4669,6 +6558,7 @@ function draw() {
   drawWorld();
   ctx.restore();
   drawDangerAura();
+  drawCabinDirectionIndicator();
 }
 
 function drawWorld() {
@@ -4682,15 +6572,20 @@ function drawWorld() {
   drawDropoffs();
   drawFoodProcessingAnimation();
   drawDiningServiceAnimation();
+  drawBlacksmithWorkAnimation();
+  drawRecipeSites();
+  drawBrokenMachineSites();
   drawTrees();
   drawResources();
   drawResidents();
   drawCityResidents();
   drawVisitor();
   drawDeer();
+  drawPtarmigans();
   drawWolves();
   drawPlayer();
   drawWoodChopMiniGame();
+  drawCookingMiniGame();
   drawArrows();
   drawFlies();
   drawParticles();
@@ -4838,6 +6733,9 @@ function drawStructures() {
     else if (structure.type === "cabin") drawPlacedCabin(structure);
     else if (structure.type === "foodPrep") drawPlacedFoodPrep(structure);
     else if (structure.type === "storageShed") drawPlacedStorageShed(structure);
+    else if (structure.type === "rootCellar") drawPlacedRootCellar(structure);
+    else if (structure.type === "medicalTent") drawPlacedMedicalTent(structure);
+    else if (structure.type === "blacksmith") drawPlacedBlacksmith(structure);
     else if (structure.type === "farm") drawPlacedFarm(structure);
     else if (isCityBuildingType(structure.type) || isDecorationType(structure.type)) drawCityStructure(structure);
     else drawOutpostStructure(structure);
@@ -4956,7 +6854,7 @@ function drawPlacedCabin(structure) {
 function drawPlacedFoodPrep(structure) {
   const rect = structureRect(structure);
   drawSprite("foodPrep", rect.x - 18, rect.y - 44, rect.w + 36, rect.h + 58, { row: levelSpriteRow(structure.level, "foodPrep") });
-  drawStructureLabel(structure, "Food Prep");
+  drawStructureLabel(structure, "Kitchen Hall");
 }
 
 function drawPlacedStorageShed(structure) {
@@ -4967,6 +6865,91 @@ function drawPlacedStorageShed(structure) {
   }
   drawStorageShed({ ...structure, ...rect, id: structure.id, level: structure.level || 1 });
   drawStructureLabel(structure, "Storage");
+}
+
+function drawPlacedRootCellar(structure) {
+  const rect = structureRect(structure);
+  drawRootCellar({ ...structure, ...rect, id: structure.id, level: structure.level || 1 });
+  drawStructureLabel(structure, "Root Cellar");
+}
+
+function drawPlacedMedicalTent(structure) {
+  const rect = structureRect(structure);
+  const theme = levelTheme(structure.level || 1);
+  ctx.save();
+  ctx.fillStyle = "rgba(0,0,0,0.2)";
+  ctx.beginPath();
+  ctx.ellipse(structure.x, structure.y + 48, 92, 18, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "#dce7da";
+  ctx.beginPath();
+  ctx.moveTo(rect.x + 12, rect.y + rect.h - 14);
+  ctx.lineTo(structure.x, rect.y + 14);
+  ctx.lineTo(rect.x + rect.w - 12, rect.y + rect.h - 14);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = theme.roof;
+  ctx.beginPath();
+  ctx.moveTo(structure.x, rect.y + 14);
+  ctx.lineTo(structure.x, rect.y + rect.h - 14);
+  ctx.lineTo(rect.x + rect.w - 12, rect.y + rect.h - 14);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = "#b23b42";
+  roundRect(structure.x - 11, rect.y + 44, 22, 56, 4);
+  roundRect(structure.x - 28, rect.y + 61, 56, 22, 4);
+  ctx.fillStyle = "#243528";
+  roundRect(rect.x + 67, rect.y + 84, 38, 27, 5);
+  ctx.fill();
+  ctx.restore();
+  drawStructureLabel(structure, "Medical Tent");
+}
+
+function drawPlacedBlacksmith(structure) {
+  const rect = structureRect(structure);
+  const theme = levelTheme(structure.level || 1);
+  ctx.save();
+  ctx.fillStyle = "rgba(0,0,0,0.24)";
+  ctx.beginPath();
+  ctx.ellipse(structure.x + 4, structure.y + 58, 112, 24, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = theme.wall;
+  roundRect(rect.x + 14, rect.y + 44, rect.w - 28, rect.h - 48, 10);
+  ctx.fill();
+  ctx.fillStyle = "#222c32";
+  ctx.beginPath();
+  ctx.moveTo(rect.x + 2, rect.y + 56);
+  ctx.lineTo(structure.x - 4, rect.y + 8);
+  ctx.lineTo(rect.x + rect.w - 4, rect.y + 56);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = theme.trim;
+  ctx.lineWidth = 5;
+  ctx.beginPath();
+  ctx.moveTo(rect.x + 12, rect.y + 56);
+  ctx.lineTo(structure.x - 4, rect.y + 16);
+  ctx.lineTo(rect.x + rect.w - 12, rect.y + 56);
+  ctx.stroke();
+  ctx.fillStyle = "#1d252c";
+  roundRect(rect.x + 30, rect.y + 74, 78, 48, 7);
+  ctx.fill();
+  ctx.fillStyle = "rgba(255, 132, 42, 0.78)";
+  roundRect(rect.x + 40, rect.y + 84, 58, 22, 8);
+  ctx.fill();
+  ctx.fillStyle = "#28343d";
+  roundRect(rect.x + 124, rect.y + 70, 42, 56, 7);
+  ctx.fill();
+  ctx.fillStyle = theme.accent;
+  roundRect(rect.x + 128, rect.y + 78, 34, 12, 5);
+  ctx.fill();
+  ctx.fillStyle = "#20202a";
+  roundRect(rect.x + rect.w - 40, rect.y - 8, 22, 66, 7);
+  ctx.fill();
+  ctx.fillStyle = theme.trim;
+  roundRect(rect.x + 28, rect.y + 119, rect.w - 54, 9, 5);
+  ctx.fill();
+  ctx.restore();
+  drawStructureLabel(structure, "Blacksmith");
 }
 
 function drawPlacedFarm(structure) {
@@ -5139,7 +7122,7 @@ function drawOutpostStructure(structure) {
   const rect = structureRect(structure);
   const sprite = towerSpriteName(structure.type);
   drawSprite(sprite, rect.x - 22, rect.y - 48, rect.w + 44, rect.h + 58, { row: levelSpriteRow(structure.level, sprite) });
-  if (buildMode || structure.stationedResidentId) {
+  if (structure.stationedResidentId) {
     ctx.save();
     ctx.globalAlpha = 0.12;
     ctx.fillStyle = structure.stationedResidentId ? "#73df9b" : "#ffb35c";
@@ -5230,6 +7213,7 @@ function drawBuildPreview() {
   const placement = canPlaceStructure(selectedBuildType, buildPreview);
   drawPlacementCells(selectedBuildType, buildPreview, placement);
   const fake = createStructure(selectedBuildType, buildPreview.x, buildPreview.y);
+  if (isTowerType(fake.type)) drawTowerRangePreview(fake, placement.ok);
   ctx.save();
   ctx.globalAlpha = placement.ok ? 0.65 : 0.34;
   drawStructuresForPreview(fake);
@@ -5242,6 +7226,8 @@ function drawMovePreview() {
   const rect = moveTargetRect(selectedMoveTarget, movePreview);
   if (!rect) return;
   drawMovePlacementCells(rect, placement);
+  const tower = moveTowerPreview(selectedMoveTarget, movePreview);
+  if (tower) drawTowerRangePreview(tower, placement.ok);
   ctx.save();
   ctx.globalAlpha = placement.ok ? 0.42 : 0.22;
   ctx.fillStyle = placement.ok ? "#73df9b" : "#ff5d66";
@@ -5249,6 +7235,34 @@ function drawMovePreview() {
   ctx.strokeStyle = placement.ok ? "rgba(115, 223, 155, 0.95)" : "rgba(255, 93, 102, 0.95)";
   ctx.lineWidth = 4;
   ctx.stroke();
+  ctx.restore();
+}
+
+function moveTowerPreview(target, point) {
+  if (!target || target.kind !== "structure") return null;
+  const structure = state.structures.find((item) => item.id === target.id);
+  return structure && isTowerType(structure.type) ? { ...structure, x: point.x, y: point.y } : null;
+}
+
+function drawTowerRangePreview(tower, allowed) {
+  const stats = towerStats(tower);
+  ctx.save();
+  ctx.fillStyle = allowed ? "rgba(115, 223, 155, 0.1)" : "rgba(255, 93, 102, 0.09)";
+  ctx.strokeStyle = allowed ? "rgba(115, 223, 155, 0.92)" : "rgba(255, 93, 102, 0.92)";
+  ctx.lineWidth = Math.max(3, 2 / camera.zoom);
+  ctx.setLineDash([14, 9]);
+  ctx.beginPath();
+  ctx.arc(tower.x, tower.y, stats.range, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = "rgba(3, 12, 22, 0.76)";
+  roundRect(tower.x - 48, tower.y - stats.range - 34, 96, 24, 7);
+  ctx.fill();
+  ctx.fillStyle = allowed ? "#dff7ff" : "#ffd0d6";
+  ctx.font = "900 12px Inter, system-ui, sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText(`Range ${stats.range}`, tower.x, tower.y - stats.range - 17, 88);
   ctx.restore();
 }
 
@@ -5312,6 +7326,11 @@ function placementCells(type, point, placement) {
 function drawStructuresForPreview(structure) {
   if (isBarrierType(structure.type)) drawFenceSegment(structure);
   else if (structure.type === "cabin") drawPlacedCabin(structure);
+  else if (structure.type === "foodPrep") drawPlacedFoodPrep(structure);
+  else if (structure.type === "storageShed") drawPlacedStorageShed(structure);
+  else if (structure.type === "rootCellar") drawPlacedRootCellar(structure);
+  else if (structure.type === "medicalTent") drawPlacedMedicalTent(structure);
+  else if (structure.type === "blacksmith") drawPlacedBlacksmith(structure);
   else if (structure.type === "farm") drawPlacedFarm(structure);
   else if (isCityBuildingType(structure.type) || isDecorationType(structure.type)) drawCityStructure(structure);
   else drawOutpostStructure(structure);
@@ -5395,6 +7414,11 @@ function drawBuildings() {
       if (!drawSprite("storageShed", building.x - 38, building.y - 58, building.w + 76, building.h + 84, { row: levelSpriteRow(building.level, "storageShed") })) {
         drawStorageShed(building);
       }
+      drawBuildingLabel(building);
+      return;
+    }
+    if (building.id === "rootCellar") {
+      drawRootCellar(building);
       drawBuildingLabel(building);
       return;
     }
@@ -5515,6 +7539,42 @@ function drawStorageShed(shed) {
   for (let i = 0; i < Math.min(10, state.stored.wood); i += 1) {
     drawResourceSprite("wood", shed.x + 48 + (i % 5) * 14, shed.y + 100 - Math.floor(i / 5) * 13, 18);
   }
+  ctx.restore();
+}
+
+function drawRootCellar(cellar) {
+  const theme = levelTheme(cellar.level || 1);
+  const inventory = rawFoodTypes.reduce((sum, type) => sum + (state.stored[type] || 0), 0);
+  ctx.save();
+  ctx.fillStyle = "rgba(0,0,0,0.24)";
+  ctx.beginPath();
+  ctx.ellipse(cellar.x + cellar.w / 2, cellar.y + cellar.h / 2 + 45, cellar.w / 2 + 28, cellar.h / 2 + 16, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "#355446";
+  ctx.beginPath();
+  ctx.ellipse(cellar.x + cellar.w / 2, cellar.y + cellar.h / 2 + 22, cellar.w / 2 + 14, cellar.h / 2 + 14, 0, Math.PI, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = theme.roof;
+  ctx.beginPath();
+  ctx.moveTo(cellar.x + 20, cellar.y + 72);
+  ctx.lineTo(cellar.x + cellar.w / 2, cellar.y + 20);
+  ctx.lineTo(cellar.x + cellar.w - 20, cellar.y + 72);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = "#5a3926";
+  roundRect(cellar.x + cellar.w / 2 - 32, cellar.y + 58, 64, 56, 8);
+  ctx.fillStyle = "#261915";
+  roundRect(cellar.x + cellar.w / 2 - 23, cellar.y + 68, 46, 39, 6);
+  ctx.fillStyle = theme.accent;
+  roundRect(cellar.x + cellar.w / 2 - 36, cellar.y + 50, 72, 9, 5);
+  const foods = rawFoodTypes.filter((type) => (state.stored[type] || 0) > 0).slice(0, 6);
+  foods.forEach((type, index) => drawResourceSprite(type, cellar.x + 24 + index * 18, cellar.y + cellar.h - 8 - (index % 2) * 12, 18));
+  ctx.fillStyle = "rgba(3, 12, 22, 0.72)";
+  roundRect(cellar.x + cellar.w - 50, cellar.y + 18, 42, 20, 6);
+  ctx.fillStyle = "#dff7ff";
+  ctx.font = "900 11px Inter, system-ui, sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText(String(inventory), cellar.x + cellar.w - 29, cellar.y + 32);
   ctx.restore();
 }
 
@@ -5705,11 +7765,13 @@ function drawBuildingLabel(building) {
 
 function drawDropoffs() {
   storageSheds().forEach((shed) => drawStack(storageShedDropoff(shed), "wood", Math.min(8, state.stored.wood), "Wood"));
+  rootCellars().forEach((cellar) => {
+    const foodType = rawFoodTypes.find((type) => (state.stored[type] || 0) > 0) || "lettuce";
+    drawStack(rootCellarDropoff(cellar), foodType, Math.min(6, totalRawFood()), "Food");
+  });
   foodPreps().forEach((prep) => {
-    drawStack(foodPrepRawDropoff(prep), "lettuce", Math.min(6, prep.raw || 0), "Raw");
     drawStack(foodPrepMealDropoff(prep), "meal", Math.min(6, prep.meals || 0), "Meals");
   });
-  drawStack(dropoffs.dining, "meal", Math.min(6, buildings.diningHall ? buildings.diningHall.meals : 0), "Dining");
 }
 
 function drawStack(point, type, count, label) {
@@ -5735,7 +7797,8 @@ function drawFoodProcessingAnimation() {
   const time = performance.now() / 1000;
   foodPreps().forEach((prep) => {
     const rect = foodPrepRect(prep);
-    if (prep.raw <= 0 || prep.processProgress <= 0 || !pointInRect(state.player, rect, 20)) return;
+    const recipe = currentPrepRecipe(prep);
+    if (!recipeHasIngredients(recipe) || prep.processProgress <= 0 || !pointInRect(state.player, rect, 20)) return;
     const cx = rect.x + rect.w / 2;
     const cy = rect.y + rect.h / 2 + 12;
     const progress = clamp(prep.processProgress / foodProcessSeconds(prep), 0, 1);
@@ -5746,7 +7809,9 @@ function drawFoodProcessingAnimation() {
       const radius = 32 + Math.sin(time * 5 + i) * 8;
       const x = cx + Math.cos(angle) * radius;
       const y = cy + Math.sin(angle) * 12 - 30;
-      drawResourceSprite(i % 2 ? "meat" : "lettuce", x, y, 18);
+      const ingredient = recipe.ingredients[i % recipe.ingredients.length];
+      const type = ingredient.type === "wildBerry" ? "blueberries" : ingredient.type;
+      drawResourceSprite(type, x, y, 18);
     }
     ctx.strokeStyle = "rgba(255, 203, 114, 0.95)";
     ctx.lineWidth = 7;
@@ -5764,41 +7829,95 @@ function drawFoodProcessingAnimation() {
 }
 
 function drawDiningServiceAnimation() {
-  const dining = buildings.diningHall;
-  if (!dining) return;
-  const cx = dining.x + dining.w / 2;
-  const cy = dining.y + 64;
   const time = performance.now() / 1000;
-  const serving = dining.meals > 0 || dining.servedPulse > 0;
-  ctx.save();
-  ctx.fillStyle = "rgba(3, 12, 22, 0.68)";
-  roundRect(dining.x + 38, dining.y + 58, dining.w - 76, 34, 7);
-  ctx.fillStyle = "#ffcb72";
-  roundRect(dining.x + dining.w - 58, dining.y + 64, 34, 14, 5);
-  ctx.fillStyle = "#dff7ff";
-  ctx.font = "900 10px Inter, system-ui, sans-serif";
-  ctx.textAlign = "center";
-  ctx.fillText("ORDER", dining.x + dining.w - 41, dining.y + 75);
-  if (serving) {
-    const t = (dining.serveProgress / Math.max(1, gameConfig.cabin.diningServeSeconds));
-    const chefX = dining.x + 56 + Math.sin(time * 2.2) * 6;
-    ctx.fillStyle = "#f4f9ff";
-    ctx.beginPath();
-    ctx.arc(chefX, cy - 12, 11, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = "#ff9f43";
-    roundRect(chefX - 12, cy, 24, 24, 8);
-    const mealX = dining.x + 58 + clamp(t, 0, 1) * (dining.w - 104);
-    drawResourceSprite("meal", mealX, dining.y + 104 - Math.sin(time * 8) * 4, 20);
-    if (dining.servedPulse > 0) {
-      ctx.globalAlpha = dining.servedPulse;
-      ctx.fillStyle = "#73df9b";
+  foodPreps().forEach((prep) => {
+    const dining = foodPrepRect(prep);
+    const cy = dining.y + dining.h * 0.52;
+    const serving = prep.meals > 0 || prep.servedPulse > 0;
+    ctx.save();
+    ctx.fillStyle = "rgba(3, 12, 22, 0.68)";
+    roundRect(dining.x + 34, dining.y + dining.h * 0.42, dining.w - 68, 34, 7);
+    ctx.fillStyle = "#ffcb72";
+    roundRect(dining.x + dining.w - 60, dining.y + dining.h * 0.47, 36, 14, 5);
+    ctx.fillStyle = "#dff7ff";
+    ctx.font = "900 10px Inter, system-ui, sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("ORDER", dining.x + dining.w - 42, dining.y + dining.h * 0.47 + 11);
+    if (serving) {
+      const t = (prep.serveProgress / Math.max(1, gameConfig.cabin.diningServeSeconds));
+      const chefX = dining.x + 52 + Math.sin(time * 2.2 + dining.x * 0.01) * 6;
+      ctx.fillStyle = "#f4f9ff";
       ctx.beginPath();
-      ctx.ellipse(dining.x + dining.w - 42, dining.y + 98, 32, 12, 0, 0, Math.PI * 2);
+      ctx.arc(chefX, cy - 12, 11, 0, Math.PI * 2);
       ctx.fill();
+      ctx.fillStyle = "#ff9f43";
+      roundRect(chefX - 12, cy, 24, 24, 8);
+      const mealX = dining.x + 54 + clamp(t, 0, 1) * (dining.w - 106);
+      drawResourceSprite("meal", mealX, dining.y + dining.h * 0.77 - Math.sin(time * 8) * 4, 20);
+      if (prep.servedPulse > 0) {
+        ctx.globalAlpha = prep.servedPulse;
+        ctx.fillStyle = "#73df9b";
+        ctx.beginPath();
+        ctx.ellipse(dining.x + dining.w - 44, dining.y + dining.h * 0.74, 32, 12, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
     }
-  }
-  ctx.restore();
+    ctx.restore();
+  });
+}
+
+function drawBlacksmithWorkAnimation() {
+  const time = performance.now() / 1000;
+  blacksmithStructures().forEach((structure) => {
+    const rect = structureRect(structure);
+    const hammerLift = Math.max(0, Math.sin(time * 4.8 + structure.x * 0.01));
+    const spark = Math.max(0, Math.sin(time * 4.8 + structure.x * 0.01 - 0.36));
+    const workerX = rect.x + rect.w * 0.68;
+    const workerY = rect.y + rect.h * 0.62;
+    ctx.save();
+    ctx.fillStyle = "rgba(3,12,22,0.62)";
+    roundRect(workerX - 40, workerY - 38, 80, 62, 8);
+    ctx.fillStyle = "#f0b17b";
+    ctx.beginPath();
+    ctx.arc(workerX - 8, workerY - 18, 10, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#35424b";
+    roundRect(workerX - 19, workerY - 8, 25, 31, 7);
+    ctx.fillStyle = "#b46a32";
+    roundRect(workerX - 6, workerY + 4, 40, 14, 4);
+    ctx.fillStyle = "#79858c";
+    ctx.beginPath();
+    ctx.moveTo(workerX + 16, workerY + 2);
+    ctx.lineTo(workerX + 34, workerY - 8);
+    ctx.lineTo(workerX + 42, workerY + 4);
+    ctx.lineTo(workerX + 24, workerY + 14);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = "#5d3b25";
+    ctx.lineWidth = 6;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(workerX - 2, workerY);
+    ctx.lineTo(workerX + 19, workerY - 24 - hammerLift * 23);
+    ctx.stroke();
+    ctx.strokeStyle = "#9aa6ae";
+    ctx.lineWidth = 9;
+    ctx.beginPath();
+    ctx.moveTo(workerX + 13, workerY - 30 - hammerLift * 23);
+    ctx.lineTo(workerX + 29, workerY - 21 - hammerLift * 23);
+    ctx.stroke();
+    if (spark > 0.78) {
+      ctx.strokeStyle = `rgba(255, 203, 114, ${(spark - 0.78) * 4.2})`;
+      ctx.lineWidth = 2;
+      for (let index = 0; index < 4; index += 1) {
+        ctx.beginPath();
+        ctx.moveTo(workerX + 28, workerY + 4);
+        ctx.lineTo(workerX + 34 + index * 7, workerY - 10 + index * 7);
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
+  });
 }
 
 function drawTrees() {
@@ -5863,31 +7982,152 @@ function drawTrees() {
   });
 }
 
+function drawRecipeSites() {
+  recipeSites.forEach((site) => {
+    if (recipeUnlocked(site.recipeId)) return;
+    const bob = Math.sin(performance.now() / 450 + site.bob) * 5;
+    ctx.save();
+    ctx.translate(site.x, site.y + bob);
+    ctx.fillStyle = "rgba(0,0,0,0.2)";
+    ctx.beginPath();
+    ctx.ellipse(0, 30, 40, 12, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#6d4327";
+    roundRect(-34, -20, 68, 52, 8);
+    ctx.fillStyle = "#d7a35c";
+    roundRect(-40, -28, 80, 18, 6);
+    ctx.strokeStyle = "#362317";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(-20, 0);
+    ctx.lineTo(20, 0);
+    ctx.stroke();
+    ctx.fillStyle = "#ffe4a8";
+    roundRect(-13, -9, 26, 29, 5);
+    ctx.strokeStyle = "#b67a32";
+    ctx.beginPath();
+    ctx.moveTo(-7, -2);
+    ctx.lineTo(7, -2);
+    ctx.moveTo(-7, 5);
+    ctx.lineTo(7, 5);
+    ctx.moveTo(-7, 12);
+    ctx.lineTo(4, 12);
+    ctx.stroke();
+    if (dist(state.player, site) < 132) {
+      ctx.fillStyle = "rgba(3,12,22,0.76)";
+      roundRect(-54, -62, 108, 24, 7);
+      ctx.fillStyle = "#ffcb72";
+      ctx.font = "900 11px Inter, system-ui, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("RECIPE CHALLENGE", 0, -46);
+    }
+    ctx.restore();
+  });
+}
+
+function drawBrokenMachineSites() {
+  machineSites.forEach((site) => {
+    if (!machineSiteReady(site)) return;
+    const pulse = Math.sin(performance.now() / 220 + site.bob);
+    ctx.save();
+    ctx.translate(site.x, site.y + pulse * 3);
+    ctx.fillStyle = "rgba(0, 0, 0, 0.24)";
+    ctx.beginPath();
+    ctx.ellipse(0, 42, 62, 17, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#26313a";
+    roundRect(-52, -25, 104, 62, 12);
+    ctx.strokeStyle = "#bf7e38";
+    ctx.lineWidth = 4;
+    ctx.strokeRect(-44, -18, 88, 48);
+    ctx.fillStyle = "#c69244";
+    ctx.beginPath();
+    ctx.arc(-23, 4, 18, 0, Math.PI * 2);
+    ctx.arc(24, -2, 15, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#13222a";
+    ctx.beginPath();
+    ctx.arc(-23, 4, 9, 0, Math.PI * 2);
+    ctx.arc(24, -2, 7, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = "#8b582c";
+    ctx.lineWidth = 8;
+    ctx.beginPath();
+    ctx.moveTo(-48, -9);
+    ctx.lineTo(-72, -28);
+    ctx.moveTo(40, 18);
+    ctx.lineTo(70, 2);
+    ctx.stroke();
+    ctx.strokeStyle = "#6be9ce";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(-11, -13);
+    ctx.lineTo(3, 5);
+    ctx.lineTo(12, -12);
+    ctx.stroke();
+    ctx.fillStyle = `rgba(118, 255, 226, ${0.45 + Math.max(0, pulse) * 0.35})`;
+    ctx.beginPath();
+    ctx.arc(3, 5, 10 + Math.max(0, pulse) * 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#ffd166";
+    [[-58, -36], [58, -22], [49, -45]].forEach(([x, y], index) => {
+      const spark = Math.max(0, Math.sin(performance.now() / 120 + site.bob + index * 1.7));
+      ctx.globalAlpha = spark;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(x + 10, y - 8);
+      ctx.lineTo(x + 5, y + 5);
+      ctx.closePath();
+      ctx.fill();
+    });
+    ctx.globalAlpha = 1;
+    if (dist(state.player, site) < 142) {
+      ctx.fillStyle = "rgba(3, 12, 22, 0.8)";
+      roundRect(-70, -80, 140, 26, 7);
+      ctx.fillStyle = "#7af5db";
+      ctx.font = "900 11px Inter, system-ui, sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText("STEP ON TO REPAIR", 0, -62);
+    }
+    ctx.restore();
+  });
+}
+
 function drawBerryBush(bush, shake = 0) {
+  const style = berryBushStyles[bush.berryType] || berryBushStyles.blueberries;
   ctx.save();
   ctx.translate(bush.x + shake, bush.y);
   ctx.fillStyle = "rgba(0,0,0,0.2)";
   ctx.beginPath();
   ctx.ellipse(0, 36, 42, 16, 0, 0, Math.PI * 2);
   ctx.fill();
-  ctx.fillStyle = "#284831";
+  ctx.fillStyle = style.foliage;
   ctx.beginPath();
   ctx.ellipse(-18, 10, 36, 46, -0.35, 0, Math.PI * 2);
   ctx.ellipse(18, 10, 36, 46, 0.35, 0, Math.PI * 2);
   ctx.ellipse(0, -2, 42, 50, 0, 0, Math.PI * 2);
   ctx.fill();
-  ctx.fillStyle = "#d94c7c";
+  ctx.fillStyle = style.bright;
+  ctx.beginPath();
+  ctx.ellipse(-18, 20, 22, 18, -0.25, 0, Math.PI * 2);
+  ctx.ellipse(20, 18, 24, 19, 0.22, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = style.berry;
   for (let i = 0; i < 9; i += 1) {
     const angle = i * 1.7;
     ctx.beginPath();
-    ctx.arc(Math.cos(angle) * 22, -4 + Math.sin(angle) * 22, 5, 0, Math.PI * 2);
+    const berryX = Math.cos(angle) * 22;
+    const berryY = -4 + Math.sin(angle) * 22;
+    if (style.berryShape === "oval") ctx.ellipse(berryX, berryY, 6, 4, angle, 0, Math.PI * 2);
+    else if (style.berryShape === "cluster") ctx.ellipse(berryX, berryY, 5, 6, angle * 0.2, 0, Math.PI * 2);
+    else ctx.arc(berryX, berryY, 5, 0, Math.PI * 2);
     ctx.fill();
   }
   if (bush.progress > 0) {
     const duration = gameConfig.trees.berryGatherSeconds || 3;
     ctx.fillStyle = "rgba(3, 12, 22, 0.66)";
     roundRect(-38, 52, 76, 9, 5);
-    ctx.fillStyle = "#d94c7c";
+    ctx.fillStyle = style.berry;
     roundRect(-38, 52, 76 * clamp(bush.progress / duration, 0, 1), 9, 5);
   }
   ctx.restore();
@@ -6006,6 +8246,49 @@ function drawDeer() {
   });
 }
 
+function drawPtarmigans() {
+  if (state.wave.active) return;
+  ptarmigans.forEach((bird) => {
+    const flap = Math.sin((bird.walkTime || 0) * 9) * 5;
+    const bob = Math.sin((bird.walkTime || 0) * 4 + bird.x * 0.01) * 6;
+    const frame = Math.floor((bird.walkTime || 0) * 8) % spriteFrameCount("ptarmigan");
+    if (drawSprite("ptarmigan", bird.x - 42, bird.y - (bird.altitude || 28) - 43 + bob, 84, 66, { frame, flip: bird.facing < 0, trim: true, trimPadding: 4 })) {
+      if (bird.hp < bird.maxHp) drawAnimalHealth(bird, bird.y - (bird.altitude || 28) - 38);
+      return;
+    }
+    ctx.save();
+    ctx.translate(bird.x, bird.y - (bird.altitude || 28) + bob);
+    ctx.scale(bird.facing < 0 ? -1 : 1, 1);
+    ctx.fillStyle = "rgba(0,0,0,0.15)";
+    ctx.beginPath();
+    ctx.ellipse(0, (bird.altitude || 28), 26, 7, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = bird.hitFlash > 0 ? "#fff2b0" : "#efe9dc";
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 24, 13, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#d6c5ad";
+    ctx.beginPath();
+    ctx.ellipse(-12, -6 + flap, 26, 7, -0.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#f7f3e9";
+    ctx.beginPath();
+    ctx.arc(21, -7, 8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    if (bird.hp < bird.maxHp) drawAnimalHealth(bird, bird.y - (bird.altitude || 28) - 36);
+  });
+}
+
+function drawAnimalHealth(animal, y) {
+  ctx.save();
+  ctx.fillStyle = "rgba(3, 12, 22, 0.66)";
+  roundRect(animal.x - 28, y, 56, 6, 4);
+  ctx.fillStyle = "#ff5d66";
+  roundRect(animal.x - 28, y, 56 * clamp(animal.hp / animal.maxHp, 0, 1), 6, 4);
+  ctx.restore();
+}
+
 function drawWolves() {
   wolves.forEach((wolf) => {
     ctx.save();
@@ -6116,6 +8399,7 @@ function drawPlayer() {
 function drawWoodChopMiniGame() {
   if (!woodChopMiniGame) return;
   const time = performance.now() / 1000;
+  const berryPick = woodChopMiniGame.kind === "berry";
   ctx.save();
   if (!woodChopMiniGame.active) {
     const pct = 1 - clamp(woodChopMiniGame.startDelay / Math.max(0.1, chopMiniGameConfig().startDelaySeconds || 1), 0, 1);
@@ -6126,7 +8410,7 @@ function drawWoodChopMiniGame() {
     ctx.fillStyle = "#f4f9ff";
     ctx.font = "800 10px Inter, system-ui, sans-serif";
     ctx.textAlign = "center";
-    ctx.fillText("READY AXE", state.player.x, state.player.y - 210);
+    ctx.fillText(berryPick ? "READY BASKET" : "READY AXE", state.player.x, state.player.y - 210);
     ctx.restore();
     return;
   }
@@ -6134,20 +8418,20 @@ function drawWoodChopMiniGame() {
   const factors = [woodChopMiniGame.factorA, woodChopMiniGame.factorB];
   ctx.fillStyle = "rgba(0, 0, 0, 0.24)";
   roundRect(targetPoint.x - 86, targetPoint.y - 34, 172, 66, 16);
-  ctx.fillStyle = "#6d4327";
+  ctx.fillStyle = berryPick ? "#31523b" : "#6d4327";
   roundRect(targetPoint.x - 82, targetPoint.y - 38, 164, 58, 16);
-  ctx.fillStyle = "rgba(255, 221, 160, 0.16)";
+  ctx.fillStyle = berryPick ? "rgba(115, 223, 155, 0.18)" : "rgba(255, 221, 160, 0.16)";
   roundRect(targetPoint.x - 72, targetPoint.y - 30, 144, 9, 5);
-  ctx.strokeStyle = "#3f2a1c";
+  ctx.strokeStyle = berryPick ? "#183227" : "#3f2a1c";
   ctx.lineWidth = 3;
   ctx.strokeRect(targetPoint.x - 78, targetPoint.y - 34, 156, 50);
   factors.forEach((factor, index) => {
     const x = targetPoint.x + (index === 0 ? -38 : 38);
-    ctx.fillStyle = "#b77742";
+    ctx.fillStyle = berryPick ? (index ? "#ff8b6b" : "#5078e7") : "#b77742";
     ctx.beginPath();
     ctx.ellipse(x, targetPoint.y - 7, 24, 20, 0, 0, Math.PI * 2);
     ctx.fill();
-    ctx.strokeStyle = "rgba(61, 36, 20, 0.62)";
+    ctx.strokeStyle = berryPick ? "rgba(26, 57, 42, 0.82)" : "rgba(61, 36, 20, 0.62)";
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.ellipse(x, targetPoint.y - 7, 14, 11, 0, 0, Math.PI * 2);
@@ -6157,7 +8441,7 @@ function drawWoodChopMiniGame() {
     ctx.textAlign = "center";
     ctx.fillText(String(factor), x, targetPoint.y + 1);
   });
-  ctx.strokeStyle = "#d9edf7";
+  ctx.strokeStyle = berryPick ? "#fff1c8" : "#d9edf7";
   ctx.lineWidth = 3;
   ctx.beginPath();
   ctx.moveTo(targetPoint.x - 10, targetPoint.y - 22);
@@ -6168,7 +8452,7 @@ function drawWoodChopMiniGame() {
   ctx.fillStyle = "rgba(244,249,255,0.92)";
   ctx.font = "800 10px Inter, system-ui, sans-serif";
   ctx.textAlign = "center";
-  ctx.fillText("SPLIT TOTAL", targetPoint.x, targetPoint.y + 28);
+  ctx.fillText(berryPick ? "BERRY TOTAL" : "SPLIT TOTAL", targetPoint.x, targetPoint.y + 28);
   const layout = woodChopLogLayout();
   ctx.fillStyle = "rgba(0,0,0,0.22)";
   ctx.beginPath();
@@ -6179,22 +8463,38 @@ function drawWoodChopMiniGame() {
     const wobble = choice.flash > 0 ? Math.sin(time * 36) * 4 : 0;
     ctx.save();
     ctx.translate(wobble, 0);
-    const end = index === 0 || index === woodChopMiniGame.choices.length - 1;
     const flash = choice.flash > 0;
-    ctx.fillStyle = flash ? "#7b3d35" : (index % 2 ? "#9b6337" : "#b77742");
-    roundRect(rect.x, rect.y, rect.w, rect.h, end ? 18 : 8);
-    ctx.fillStyle = "rgba(255, 221, 160, 0.2)";
-    roundRect(rect.x + 8, rect.y + 7, rect.w - 16, 8, 4);
-    ctx.strokeStyle = "#5b3b2e";
-    ctx.lineWidth = 3;
-    ctx.strokeRect(rect.x + 2, rect.y + 2, rect.w - 4, rect.h - 4);
-    if (end) {
-      ctx.strokeStyle = "rgba(61, 36, 20, 0.55)";
-      ctx.lineWidth = 2;
+    if (berryPick) {
+      ctx.fillStyle = flash ? "#7b3d35" : (index % 2 ? "#6d4327" : "#7f5838");
+      roundRect(rect.x + 5, rect.y + 16, rect.w - 10, rect.h - 12, 15);
+      ctx.strokeStyle = "#c58b53";
+      ctx.lineWidth = 4;
       ctx.beginPath();
-      ctx.ellipse(rect.x + rect.w / 2, rect.y + rect.h / 2, rect.w * 0.32, rect.h * 0.32, 0, 0, Math.PI * 2);
-      ctx.ellipse(rect.x + rect.w / 2, rect.y + rect.h / 2, rect.w * 0.2, rect.h * 0.2, 0, 0, Math.PI * 2);
+      ctx.arc(rect.x + rect.w / 2, rect.y + 23, rect.w * 0.28, Math.PI, Math.PI * 2);
       ctx.stroke();
+      ["#5078e7", "#ff8b6b", "#9266d9"].forEach((color, berryIndex) => {
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(rect.x + 17 + berryIndex * 15, rect.y + 20 + (berryIndex % 2) * 4, 7, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    } else {
+      const end = index === 0 || index === woodChopMiniGame.choices.length - 1;
+      ctx.fillStyle = flash ? "#7b3d35" : (index % 2 ? "#9b6337" : "#b77742");
+      roundRect(rect.x, rect.y, rect.w, rect.h, end ? 18 : 8);
+      ctx.fillStyle = "rgba(255, 221, 160, 0.2)";
+      roundRect(rect.x + 8, rect.y + 7, rect.w - 16, 8, 4);
+      ctx.strokeStyle = "#5b3b2e";
+      ctx.lineWidth = 3;
+      ctx.strokeRect(rect.x + 2, rect.y + 2, rect.w - 4, rect.h - 4);
+      if (end) {
+        ctx.strokeStyle = "rgba(61, 36, 20, 0.55)";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.ellipse(rect.x + rect.w / 2, rect.y + rect.h / 2, rect.w * 0.32, rect.h * 0.32, 0, 0, Math.PI * 2);
+        ctx.ellipse(rect.x + rect.w / 2, rect.y + rect.h / 2, rect.w * 0.2, rect.h * 0.2, 0, 0, Math.PI * 2);
+        ctx.stroke();
+      }
     }
     ctx.fillStyle = "#fff7df";
     ctx.font = choice.value >= 10 ? "900 18px Inter, system-ui, sans-serif" : "900 22px Inter, system-ui, sans-serif";
@@ -6202,6 +8502,82 @@ function drawWoodChopMiniGame() {
     ctx.fillText(String(choice.value), rect.x + rect.w / 2, rect.y + rect.h / 2 + 8);
     ctx.restore();
   });
+  ctx.restore();
+}
+
+function drawCookingMiniGame() {
+  if (!cookingMiniGame) return;
+  const panel = cookingMiniGamePanel();
+  const recipe = recipeById(cookingMiniGame.recipeId);
+  const roundSeconds = cookingRoundSeconds();
+  const timerPct = clamp((cookingMiniGame.roundTimeLeft || 0) / roundSeconds, 0, 1);
+  const urgent = timerPct <= 0.28;
+  ctx.save();
+  ctx.fillStyle = cookingMiniGame.flash ? "rgba(108, 25, 33, 0.92)" : "rgba(38, 25, 18, 0.92)";
+  roundRect(panel.x, panel.y, panel.w, panel.h, 8);
+  if (cookingMiniGame.boardPulse) {
+    ctx.strokeStyle = `rgba(255, 203, 114, ${clamp(cookingMiniGame.boardPulse * 2.2, 0, 0.66)})`;
+    ctx.lineWidth = 5;
+    ctx.strokeRect(panel.x + 3, panel.y + 3, panel.w - 6, panel.h - 6);
+  }
+  ctx.fillStyle = "#ffcb72";
+  roundRect(panel.x + 10, panel.y + 10, 144, 28, 7);
+  ctx.fillStyle = "#412710";
+  ctx.font = "900 12px Inter, system-ui, sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText("SPEED KITCHEN BOGGLE", panel.x + 82, panel.y + 29);
+  ctx.fillStyle = "rgba(255, 244, 213, 0.16)";
+  roundRect(panel.x + 168, panel.y + 13, 146, 20, 10);
+  ctx.fillStyle = urgent ? "#ff7b6e" : "#73df9b";
+  roundRect(panel.x + 168, panel.y + 13, 146 * timerPct, 20, 10);
+  ctx.fillStyle = urgent ? "#fff0dc" : "#11241c";
+  ctx.font = "950 11px Inter, system-ui, sans-serif";
+  ctx.fillText(`${Math.max(0, cookingMiniGame.roundTimeLeft || 0).toFixed(1)}s`, panel.x + 241, panel.y + 27);
+  ctx.fillStyle = "#f4f9ff";
+  ctx.font = "800 12px Inter, system-ui, sans-serif";
+  ctx.textAlign = "left";
+  ctx.fillText(`${recipe.name}: ${cookingMiniGame.typed || "trace fast"}`, panel.x + 18, panel.y + 61);
+  ctx.fillStyle = "#ffddb0";
+  ctx.font = "850 10px Inter, system-ui, sans-serif";
+  ctx.fillText(`Round ${cookingMiniGame.round}  Heat ${cookingMiniGame.score}  Streak ${cookingMiniGame.streak}`, panel.x + 18, panel.y + 78);
+  ["serve", "clear"].forEach((action) => {
+    const rect = cookingActionRect(action);
+    ctx.fillStyle = action === "serve" ? "#73df9b" : "#77544a";
+    roundRect(rect.x, rect.y, rect.w, rect.h, 7);
+    ctx.fillStyle = action === "serve" ? "#0c2b22" : "#fff1e3";
+    ctx.textAlign = "center";
+    ctx.font = "900 11px Inter, system-ui, sans-serif";
+    ctx.fillText(action === "serve" ? "SERVE WORD" : "CLEAR", rect.x + rect.w / 2, rect.y + 22);
+  });
+  ctx.strokeStyle = "rgba(115, 223, 155, 0.68)";
+  ctx.lineWidth = 4;
+  ctx.lineJoin = "round";
+  ctx.beginPath();
+  cookingMiniGame.selected.forEach((index, order) => {
+    const rect = cookingLetterRect(index);
+    const x = rect.x + rect.w / 2;
+    const y = rect.y + rect.h / 2;
+    if (!order) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+  cookingMiniGame.letters.forEach((letter, index) => {
+    const rect = cookingLetterRect(index);
+    const used = cookingMiniGame.selected.includes(index);
+    ctx.fillStyle = used ? "#6f5a43" : "#e0a65d";
+    roundRect(rect.x, rect.y, rect.w, rect.h, 7);
+    ctx.fillStyle = "rgba(255,244,213,0.18)";
+    roundRect(rect.x + 5, rect.y + 5, rect.w - 10, 8, 4);
+    ctx.fillStyle = used ? "#ffe5b8" : "#3d2614";
+    ctx.textAlign = "center";
+    ctx.font = "950 19px Inter, system-ui, sans-serif";
+    ctx.fillText(letter, rect.x + rect.w / 2, rect.y + 24);
+  });
+  ctx.fillStyle = "#e9cfab";
+  ctx.font = "800 10px Inter, system-ui, sans-serif";
+  ctx.textAlign = "left";
+  ctx.fillText("Words fire instantly when the traced letters make a fresh word.", panel.x + 18, panel.y + 263);
+  ctx.fillText(`Words this pan ${cookingMiniGame.usedWords.length}. Session meal bonuses ${cookingMiniGame.foundWords.length}.`, panel.x + 18, panel.y + 304);
   ctx.restore();
 }
 
@@ -6643,7 +9019,8 @@ function drawDangerAura() {
   if (level <= 0) return;
   const width = window.innerWidth;
   const height = window.innerHeight;
-  const alpha = 0.1 + level * 0.24;
+  const pulse = 0.82 + Math.sin(performance.now() / 180) * 0.18;
+  const alpha = (0.12 + level * 0.28) * pulse;
   ctx.save();
   const edge = Math.min(120, Math.max(70, Math.min(width, height) * 0.18));
   const left = ctx.createLinearGradient(0, 0, edge, 0);
@@ -6666,6 +9043,68 @@ function drawDangerAura() {
   bottom.addColorStop(1, "rgba(255, 93, 102, 0)");
   ctx.fillStyle = bottom;
   ctx.fillRect(0, height - edge, width, edge);
+  const frame = 8 + level * 12;
+  ctx.strokeStyle = `rgba(255, 68, 82, ${0.46 + level * 0.38})`;
+  ctx.lineWidth = frame;
+  ctx.strokeRect(frame / 2, frame / 2, width - frame, height - frame);
+  ctx.strokeStyle = `rgba(255, 216, 166, ${0.08 + level * 0.18})`;
+  ctx.lineWidth = Math.max(2, frame * 0.24);
+  ctx.strokeRect(frame * 1.18, frame * 1.18, width - frame * 2.36, height - frame * 2.36);
+  ctx.restore();
+}
+
+function drawCabinDirectionIndicator() {
+  if (!buildings?.cabin) return;
+  const cabin = buildings.cabin;
+  const cabinScreen = worldToScreen(buildingCenter(cabin));
+  const width = window.innerWidth;
+  const height = window.innerHeight;
+  const halfW = cabin.w * camera.zoom * 0.5;
+  const halfH = cabin.h * camera.zoom * 0.5;
+  const cabinVisible = cabinScreen.x + halfW > 0
+    && cabinScreen.x - halfW < width
+    && cabinScreen.y + halfH > 0
+    && cabinScreen.y - halfH < height;
+  if (cabinVisible) return;
+
+  const compact = Math.min(width, height) < 720;
+  const edgeX = compact ? 42 : 54;
+  const edgeTop = compact ? 104 : 90;
+  const edgeBottom = compact ? 110 : 78;
+  const marker = {
+    x: clamp(cabinScreen.x, edgeX, width - edgeX),
+    y: clamp(cabinScreen.y, edgeTop, height - edgeBottom)
+  };
+  const angle = Math.atan2(cabinScreen.y - marker.y, cabinScreen.x - marker.x);
+  const pulse = 0.88 + Math.sin(performance.now() / 280) * 0.12;
+
+  ctx.save();
+  ctx.translate(marker.x, marker.y);
+  ctx.shadowColor = "rgba(122, 245, 219, 0.45)";
+  ctx.shadowBlur = 12;
+  ctx.fillStyle = `rgba(5, 19, 30, ${0.8 + pulse * 0.12})`;
+  ctx.strokeStyle = "rgba(255, 209, 102, 0.68)";
+  ctx.lineWidth = 2;
+  roundRect(-31, -31, 62, 62, 18);
+  ctx.stroke();
+  ctx.rotate(angle);
+  ctx.fillStyle = "#7af5db";
+  ctx.beginPath();
+  ctx.moveTo(24, 0);
+  ctx.lineTo(-8, -15);
+  ctx.lineTo(-2, 0);
+  ctx.lineTo(-8, 15);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+
+  ctx.save();
+  ctx.fillStyle = "rgba(3, 12, 22, 0.8)";
+  roundRect(marker.x - 30, marker.y + 34, 60, 20, 7);
+  ctx.fillStyle = "#ffda9c";
+  ctx.font = "900 10px Inter, system-ui, sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText("CABIN", marker.x, marker.y + 48);
   ctx.restore();
 }
 
@@ -6709,8 +9148,8 @@ function furnaceLoadButtonAmount(building = buildings.furnace) {
 }
 
 function warnFurnaceFull() {
-  showCenterMessage("Furnace is full. Upgrade it to increase capacity.", 2.4);
-  setMessage("The furnace is full. Upgrade it to increase capacity.", 5);
+  showCenterMessage("Generator is full. Upgrade it to increase capacity.", 2.4);
+  setMessage("The generator is full. Upgrade it to increase capacity.", 5);
 }
 
 function loadFurnaceLogs(building, requestedLogs) {
@@ -6729,7 +9168,7 @@ function loadFurnaceLogs(building, requestedLogs) {
   state.stored.wood -= used;
   building.fuel = clamp(building.fuel + Math.min(remainingFuel, used * gameConfig.furnace.fuelPerWood), 0, building.maxFuel);
   building.hatchPulse = 1;
-  setMessage(`Loaded ${used} log${used === 1 ? "" : "s"} from Storage Shed inventory into the furnace.`);
+  setMessage(`Loaded ${used} log${used === 1 ? "" : "s"} from Storage Shed inventory into the generator.`);
   playSound("drop");
   saveState();
   openBuildingMenu(building);
@@ -6741,6 +9180,7 @@ function openBuildingMenu(building) {
   const job = getUpgradeJob("building", building.id);
   const cooldown = getCooldown(`building:${building.id}`);
   const residentSection = building.id === "cabin" ? renderCabinResidents() : building.id === "tower" ? renderStarterTowerStations() : "";
+  const recipeSection = building.id === "foodPrep" ? foodPrepRecipeMarkup(building) : building.id === "rootCellar" ? rawFoodInventoryMarkup() : "";
   const furnaceLoadAmount = building.id === "furnace" ? furnaceLoadButtonAmount(building) : 0;
   const furnaceFillLogs = building.id === "furnace" ? furnaceLogsToFill(building) : 0;
   const meterMarkup = building.id === "cabin" ? "" : `
@@ -6754,13 +9194,14 @@ function openBuildingMenu(building) {
   hud.modalBody.innerHTML = `
     <p>${building.task}</p>
     ${meterMarkup}
+    ${recipeSection}
     ${residentSection}
     ${job ? `<p>Upgrade in progress: ${Math.ceil(job.remaining)}s remaining.</p>` : ""}
     ${cooldown ? `<p class="small-note">Upgrade retry cooldown: ${Math.ceil(cooldown)}s.</p>` : ""}
-    <p>Level ${building.level}. Upgrade cost: ${cost} wood.</p>
+    <p>Level ${building.level}.${canUpgradeBuilding(building) ? ` Upgrade cost: ${cost} wood.` : " Upgrades follow the Group Cabin."}</p>
     <div class="modal-actions">
-      ${building.id === "furnace" ? `<button id="loadFurnace" type="button">${furnaceLoadAmount ? `Load ${furnaceLoadAmount} log${furnaceLoadAmount === 1 ? "" : "s"}` : "Furnace full"}</button><button id="fillFurnace" type="button">Fill furnace${furnaceFillLogs ? ` (${furnaceFillLogs} logs)` : ""}</button>` : ""}
-      <button id="upgradeBuilding" class="primary" type="button">${job ? "Upgrading" : "Upgrade Options"}</button>
+      ${building.id === "furnace" ? `<button id="loadFurnace" type="button">${furnaceLoadAmount ? `Load ${furnaceLoadAmount} log${furnaceLoadAmount === 1 ? "" : "s"}` : "Generator full"}</button><button id="fillFurnace" type="button">Fill generator${furnaceFillLogs ? ` (${furnaceFillLogs} logs)` : ""}</button>` : ""}
+      ${canUpgradeBuilding(building) ? `<button id="upgradeBuilding" class="primary" type="button">${job ? "Upgrading" : "Upgrade Options"}</button>` : ""}
     </div>
   `;
   openModal();
@@ -6772,7 +9213,7 @@ function openBuildingMenu(building) {
   if (fillButton) {
     fillButton.addEventListener("click", () => loadFurnaceLogs(building, furnaceLogsToFill(building)));
   }
-  document.querySelector("#upgradeBuilding").addEventListener("click", () => {
+  document.querySelector("#upgradeBuilding")?.addEventListener("click", () => {
     if (job) {
       setMessage(`${building.name} is already being upgraded.`);
       return;
@@ -6790,6 +9231,7 @@ function openBuildingMenu(building) {
   document.querySelectorAll("[data-train-expert]").forEach((button) => {
     button.addEventListener("click", () => openExpertTrainingMenu(button.dataset.trainExpert));
   });
+  bindFoodPrepRecipeButtons(() => openBuildingMenu(building));
 }
 
 function renderCabinResidents() {
@@ -6941,10 +9383,13 @@ function renderStarterTowerStations() {
 function residentWorkLabel(survivor) {
   const labels = {
     lumberjack: "Hauling wood to Storage Sheds",
-    farmer: "Carrying lettuce to food prep",
-    cook: "Cooking meals at food prep",
+    farmer: "Carrying lettuce to Root Cellars",
+    forager: "Gathering berries for Root Cellars",
+    cook: "Cooking meals at the Kitchen Hall",
+    courier: "Collecting loose resources",
     engineer: "Helping active construction",
-    hunter: "Manning the nearest outpost",
+    hunter: "Hunting deer and daylight birds",
+    doctor: "Treating hurt NPCs",
     guard: "Patrolling the entrance"
   };
   return labels[survivor.specialty] || "Helping around camp";
@@ -6958,15 +9403,15 @@ function getBuildingMeter(building) {
     return { label: "Hunger", pct: (building.hunger / building.maxHunger) * 100 };
   }
   if (building.id === "foodPrep") {
-    const pct = building.raw ? (building.processProgress / foodProcessSeconds(building)) * 100 : 0;
-    return { label: "Cooking", pct: clamp(pct, 0, 100) };
+    const recipe = currentPrepRecipe(building);
+    const pct = recipeHasIngredients(recipe) ? (building.processProgress / foodProcessSeconds(building)) * 100 : 0;
+    return { label: `${recipe.name} cooking (${building.meals || 0} meals ready)`, pct: clamp(pct, 0, 100) };
   }
   if (building.id === "storageShed") {
     return { label: `Shared wood (${state.stored.wood})`, pct: 100 };
   }
-  if (building.id === "diningHall") {
-    const pct = building.meals ? ((building.serveProgress || 0) / Math.max(1, gameConfig.cabin.diningServeSeconds)) * 100 : 0;
-    return { label: `Serving (${building.meals || 0} meals)`, pct: clamp(pct, 0, 100) };
+  if (building.id === "rootCellar") {
+    return { label: `Stored raw food (${totalRawFood()})`, pct: clamp(totalRawFood() * 8, 0, 100) };
   }
   if (building.id === "farm") {
     const pct = (building.produceProgress / farmProduceSeconds()) * 100;
@@ -6978,9 +9423,78 @@ function getBuildingMeter(building) {
   return { label: "Condition", pct: 100 };
 }
 
+function rawFoodInventoryMarkup() {
+  const rows = rawFoodTypes
+    .filter((type) => (state.stored[type] || 0) > 0)
+    .map((type) => `<span>${resourceMeta[type].label}: ${state.stored[type]}</span>`)
+    .join("");
+  return rows ? `<div class="ingredient-list">${rows}</div>` : '<p class="small-note">The Root Cellar has no raw food yet.</p>';
+}
+
+function foodPrepRecipeMarkup(prep) {
+  const current = currentPrepRecipe(prep);
+  const recipeOptions = unlockedRecipes()
+    .map((recipe, index) => ({ recipe, index, ready: recipeHasIngredients(recipe) }));
+  const recipeButton = ({ recipe, ready }) => `
+      <button data-select-recipe="${recipe.id}" data-prep-id="${foodPrepId(prep)}" class="recipe-option ${current.id === recipe.id ? "selected active" : ""} ${ready ? "recipe-ready" : "recipe-missing"}" type="button">
+        <strong>${recipe.name}</strong>
+        <small>${ready ? "Ingredients ready" : "Missing ingredients"}</small><br>
+        ${recipeIngredientsText(recipe)} -> ${recipe.meals} meal${recipe.meals === 1 ? "" : "s"}
+      </button>
+    `;
+  const readyRecipes = recipeOptions.filter((option) => option.ready).sort((a, b) => a.index - b.index);
+  const missingRecipes = recipeOptions.filter((option) => !option.ready).sort((a, b) => a.index - b.index);
+  const readyButtons = readyRecipes.map(recipeButton).join("");
+  const missingButtons = missingRecipes.map(recipeButton).join("");
+  return `
+    <section class="recipe-menu">
+      <h3>Recipe</h3>
+      <p>${current.copy}</p>
+      ${rawFoodInventoryMarkup()}
+      ${readyButtons ? `
+        <section class="recipe-ready-group">
+          <h4>Ready to cook</h4>
+          <div class="option-list">${readyButtons}</div>
+        </section>
+      ` : ""}
+      ${missingButtons ? `
+        <details class="recipe-missing-group" ${readyButtons ? "" : "open"}>
+          <summary>Missing ingredients recipes <strong>${missingRecipes.length}</strong></summary>
+          <div class="option-list">${missingButtons}</div>
+        </details>
+      ` : ""}
+    </section>
+  `;
+}
+
+function bindFoodPrepRecipeButtons(reopen) {
+  document.querySelectorAll("[data-select-recipe]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const prep = foodPreps().find((item) => foodPrepId(item) === button.dataset.prepId);
+      if (!prep) return;
+      prep.selectedRecipeId = button.dataset.selectRecipe;
+      prep.processProgress = 0;
+      prep.wordMealBonus = 0;
+      if (cookingMiniGame?.prepId === foodPrepId(prep)) stopCookingMiniGame();
+      saveState();
+      playSound("success");
+      reopen();
+    });
+  });
+}
+
 function adjustedUpgradeCost(building) {
-  const engineerDiscount = specialtyCount("engineer") * gameConfig.upgrades.engineerCostDiscount;
-  return Math.max(gameConfig.upgrades.minWoodCost, building.upgradeCost - engineerDiscount);
+  const engineerDiscount = specialtyLevelTotal("engineer") * gameConfig.upgrades.engineerCostDiscount;
+  const baseCost = building.id === "cabin" ? building.upgradeCost * 2 : building.upgradeCost;
+  return Math.max(gameConfig.upgrades.minWoodCost, baseCost - engineerDiscount);
+}
+
+function canUpgradeBuilding(building) {
+  return Boolean(building);
+}
+
+function canUpgradeStructure(structure) {
+  return Boolean(structure) && !isBarrierType(structure.type) && !isDecorationType(structure.type);
 }
 
 function getUpgradeJob(kind, id) {
@@ -6997,7 +9511,7 @@ function setCooldown(key, seconds) {
 
 function adjustedUpgradeTime(level) {
   const base = gameConfig.upgrades.baseSeconds + level * gameConfig.upgrades.secondsPerLevel;
-  return Math.max(gameConfig.upgrades.minSeconds, base - specialtyCount("engineer") * gameConfig.upgrades.engineerReductionSeconds);
+  return Math.max(gameConfig.upgrades.minSeconds, base - specialtyLevelTotal("engineer") * gameConfig.upgrades.engineerReductionSeconds);
 }
 
 function upgradeTargetId(kind, target) {
@@ -7042,7 +9556,7 @@ function getUpgradeStats(kind, target) {
       ? [`Health max ${nextHealth}`, nextTower.netSeconds ? `Net hold ${nextTower.netSeconds.toFixed(1)}s` : `Damage ${Math.round(nextTower.damage)}`, `Range ${nextTower.range}`]
       : null;
     const utilityCurrent = structure.type === "foodPrep"
-      ? [`Health ${Math.round(structure.health)}/${structure.maxHealth}`, `Cooking speed level ${level}`, `Raw food ${structure.raw || 0}`]
+      ? [`Health ${Math.round(structure.health)}/${structure.maxHealth}`, `Cooking speed level ${level}`, `Root Cellar ingredients ${totalRawFood()}`]
       : structure.type === "storageShed"
         ? [`Health ${Math.round(structure.health)}/${structure.maxHealth}`, `Shared wood inventory ${state.stored.wood}`]
         : null;
@@ -7077,17 +9591,17 @@ function getUpgradeStats(kind, target) {
       ? [`Fuel drain ${furnaceFuelDrainForLevel(nextLevel).toFixed(2)}/sec`, "Fuel lasts longer before needing wood"]
       : [`Fuel capacity ${building.maxFuel + gameConfig.upgrades.furnaceFuelCapacityBonus}`, "Stores more fuel from each refill run"];
   } else if (building.id === "cabin") {
-    stats.current = [`Expert capacity ${survivorCapacity()}`, `Hunger max ${building.maxHunger}`];
-    stats.next = [`Expert capacity ${survivorCapacity() + 1}`, `Hunger max ${building.maxHunger + gameConfig.upgrades.cabinHungerMaxBonus}`];
+    stats.current = [`Expert capacity ${survivorCapacity()}`, `Hunger max ${building.maxHunger}`, `Town-linked objects level ${building.level}`];
+    stats.next = [`Expert capacity ${survivorCapacity() + 1}`, `Hunger max ${building.maxHunger + gameConfig.upgrades.cabinHungerMaxBonus}`, "Fences, gates, and decorations level up too"];
   } else if (building.id === "foodPrep") {
-    stats.current = [`Cooking speed level ${building.level}`, `Raw food ${building.raw}`];
-    stats.next = ["Faster meal processing", "More efficient prep station"];
+    stats.current = [`Cooking speed level ${building.level}`, `${building.meals || 0} meals ready to serve`, `Root Cellar ingredients ${totalRawFood()}`];
+    stats.next = ["Faster meal processing", "Quicker dining window service"];
   } else if (building.id === "storageShed") {
     stats.current = [`Shared wood inventory ${state.stored.wood}`, `Shed level ${building.level}`];
     stats.next = ["Stronger storage platform", "Clearer shared wood drop point"];
-  } else if (building.id === "diningHall") {
-    stats.current = [`Serving speed level ${building.level}`, `${building.meals || 0} meals waiting`];
-    stats.next = ["Faster meal service", "Better order window flow"];
+  } else if (building.id === "rootCellar") {
+    stats.current = [`Stored recipe ingredients ${totalRawFood()}`, `Cellar level ${building.level}`];
+    stats.next = ["Refined ingredient shelter", "Clearer recipe storage stacks"];
   } else if (building.id === "farm") {
     stats.current = [`Growth speed level ${building.level}`, "Lettuce production"];
     stats.next = ["Faster lettuce growth", "More reliable harvests"];
@@ -7203,7 +9717,7 @@ function updateUpgradeJobs(dt) {
     if (state.cooldowns[key] <= 0) delete state.cooldowns[key];
   });
   state.upgradeJobs.forEach((job) => {
-    job.remaining -= dt;
+    job.remaining -= dt * generatorProductivityMultiplier();
   });
   const completed = state.upgradeJobs.filter((job) => job.remaining <= 0);
   state.upgradeJobs = state.upgradeJobs.filter((job) => job.remaining > 0);
@@ -7227,6 +9741,7 @@ function completeUpgradeJob(job) {
     const structure = state.structures.find((candidate) => candidate.id === job.id);
     if (!structure) return;
     applyStructureUpgrade(structure);
+    gainPlayerLevel(`${structureDisplayName(structure.type)} upgrade complete.`);
     setMessage(`${structureDisplayName(structure.type)} upgrade complete.`, 5);
     playSound("upgrade");
     return;
@@ -7234,6 +9749,7 @@ function completeUpgradeJob(job) {
   const building = buildings[job.id];
   if (!building) return;
   upgradeBuilding(building);
+  gainPlayerLevel(`${building.name} upgrade complete.`);
   setMessage(`${building.name} upgrade complete.`, 5);
   playSound("upgrade");
 }
@@ -7252,20 +9768,41 @@ function upgradeBuilding(building) {
   if (building.id === "cabin") {
     building.maxHunger += gameConfig.upgrades.cabinHungerMaxBonus;
     building.hunger = clamp(building.hunger - gameConfig.upgrades.cabinUpgradeHungerRelief, 0, building.maxHunger);
+    syncCabinLinkedUpgrades(building.level);
   }
   if (building.id === "tower") {
     setMessage("Watch tower upgraded. Arrows hit harder.");
   } else if (building.id === "farm") {
     setMessage("Farm upgraded. Lettuce grows faster.");
   } else if (building.id === "foodPrep") {
-    setMessage("Food prep upgraded. Meals cook faster.");
+    setMessage("Kitchen Hall upgraded. Meals cook and serve faster.");
   } else if (building.id === "storageShed") {
     setMessage("Storage shed upgraded. The shared wood depot is sturdier.");
-  } else if (building.id === "diningHall") {
-    setMessage("Dining hall upgraded. Meals are served faster.");
+  } else if (building.id === "cabin") {
+    setMessage("Group Cabin upgraded. Barriers and decorations grew with it.");
   } else {
     setMessage(`${building.name} upgraded.`);
   }
+}
+
+function syncCabinLinkedUpgrades(level = cabinLinkedLevel()) {
+  const targetLevel = Math.max(1, level);
+  state.fortLevel = targetLevel;
+  state.structures.forEach((structure) => {
+    if (!isCabinLinkedStructure(structure.type)) return;
+    const currentLevel = structure.level || 1;
+    const nextLevel = Math.max(currentLevel, targetLevel);
+    const nextMaxHealth = isBarrierType(structure.type)
+      ? barrierMaxHealth(structure.type, currentLevel)
+      : decorationMaxHealth(currentLevel);
+    structure.level = nextLevel;
+    structure.maxHealth = isBarrierType(structure.type)
+      ? barrierMaxHealth(structure.type, nextLevel)
+      : decorationMaxHealth(nextLevel);
+    structure.health = nextLevel > currentLevel
+      ? structure.maxHealth
+      : clamp(Number.isFinite(structure.health) ? structure.health : nextMaxHealth, 0, structure.maxHealth);
+  });
 }
 
 function applyStructureUpgrade(structure) {
@@ -7277,7 +9814,39 @@ function applyStructureUpgrade(structure) {
 function structureRepairCost(structure) {
   const missing = Math.max(0, structure.maxHealth - structure.health);
   if (!missing) return 0;
-  return Math.ceil(missing / 12) * (gameConfig.upgrades.repairCostMultiplier || 3);
+  const baseCost = Math.ceil(missing / 12) * (gameConfig.upgrades.repairCostMultiplier || 3);
+  return Math.max(1, Math.ceil(baseCost * (1 - engineerRepairDiscount())));
+}
+
+function engineerRepairDiscount() {
+  return Math.min(0.6, specialtyLevelTotal("engineer") * 0.02);
+}
+
+function totalStructureRepairCost() {
+  return state.structures.reduce((sum, structure) => sum + structureRepairCost(structure), 0);
+}
+
+function repairAllStructures() {
+  const cost = totalStructureRepairCost();
+  if (cost <= 0) {
+    showCenterMessage("All built structures are repaired.");
+    setMessage("All built structures are already fully repaired.", 4);
+    return false;
+  }
+  if (state.stored.wood < cost) {
+    showCenterMessage(`Not enough wood. Need ${cost}.`);
+    setMessage(`Repair All needs ${cost} wood.`, 4);
+    return false;
+  }
+  state.stored.wood -= cost;
+  state.structures.forEach((structure) => {
+    structure.health = structure.maxHealth;
+  });
+  setMessage(`Repaired every built structure for ${cost} wood.`, 5);
+  playSound("upgrade");
+  saveState();
+  updateHud(0);
+  return true;
 }
 
 function totalBarrierRepairCost() {
@@ -7311,48 +9880,15 @@ function openFortMenu() {
   setMessage("Use the Repair tool in Build to fix damaged fences and gates.", 5);
 }
 
-function openPlayerMenu() {
-  const upgrades = playerUpgradeOptions();
-  hud.modalEyebrow.textContent = "Player";
-  hud.modalTitle.textContent = "Player Upgrades";
-  hud.modalBody.innerHTML = `
-    <p>Complete learning challenges to earn points, then spend points here for permanent boosts.</p>
-    <p><strong>Player Level ${playerLevel()}.</strong> ${state.learningPoints} learning points available.</p>
-    <div class="upgrade-grid">
-      ${upgrades.map((upgrade) => {
-        const level = playerStatBonus(upgrade.id);
-        const cost = playerUpgradeCost(upgrade.id);
-        return `
-          <button data-player-upgrade="${upgrade.id}" type="button">
-            <strong>${upgrade.name} Lv ${level}</strong><br>
-            ${upgrade.copy}<br>
-            Cost: ${cost} points
-          </button>
-        `;
-      }).join("")}
-      <button id="playerBack" type="button">Player Menu</button>
-    </div>
-  `;
-  openModal();
-  document.querySelectorAll("[data-player-upgrade]").forEach((button) => {
-    button.addEventListener("click", () => upgradePlayer(button.dataset.playerUpgrade));
-  });
-  document.querySelector("#playerBack").addEventListener("click", openPlayerHubMenu);
-}
-
-function upgradePlayer(stat) {
-  const cost = playerUpgradeCost(stat);
-  if (state.learningPoints < cost) {
-    showCenterMessage(`Not enough learning points. Need ${cost}.`);
-    setMessage("Complete more learning tasks to earn upgrade points.");
+function openBlacksmithTechMenu() {
+  const smith = blacksmithStructures().sort((a, b) => dist(state.player, a) - dist(state.player, b))[0];
+  if (smith) {
+    openStructureMenu(smith);
     return;
   }
-  state.learningPoints -= cost;
-  state.playerUpgrades[stat] += 1;
-  state.playerLevel = playerLevel() + 1;
-  setMessage(`Player upgrade purchased. Player level is now ${state.playerLevel}.`);
-  saveState();
-  openPlayerMenu();
+  const unlockLevel = gameConfig.build.blacksmithPlayerLevel || 4;
+  showCenterMessage(playerLevel() >= unlockLevel ? "Build a Blacksmith first." : `Blacksmith unlocks at level ${unlockLevel}.`, 2.6);
+  setMessage("Blacksmith workshops turn learning points into basket and weapon tech.", 5);
 }
 
 function openPlayerHubMenu() {
@@ -7363,18 +9899,18 @@ function openPlayerHubMenu() {
       <img class="large-resident-icon" src="${actorIconDataUrl(state.player, 96)}" alt="">
       <div>
         <p><strong>Player Level ${playerLevel()}.</strong> ${state.learningPoints} learning points available.</p>
-        <p>Customize layered clothing or buy survival upgrades.</p>
+        <p>Customize layered clothing here. Blacksmith workshops handle basket and weapon tech.</p>
       </div>
     </div>
     <div class="modal-actions">
       <button id="openCharacterCreator" class="primary" type="button">Character Creation</button>
-      <button id="openPlayerUpgrades" type="button">Player Upgrades</button>
+      <button id="openBlacksmithTech" type="button">Blacksmith Tech</button>
       <button id="playerHubBack" type="button">Main Menu</button>
     </div>
   `;
   openModal();
   document.querySelector("#openCharacterCreator").addEventListener("click", openCharacterCreator);
-  document.querySelector("#openPlayerUpgrades").addEventListener("click", openPlayerMenu);
+  document.querySelector("#openBlacksmithTech").addEventListener("click", openBlacksmithTechMenu);
   document.querySelector("#playerHubBack").addEventListener("click", openMainMenu);
 }
 
@@ -7439,7 +9975,7 @@ function openCharacterCreator() {
 function openUpgradeMenu() {
   hud.modalEyebrow.textContent = "Upgrade";
   hud.modalTitle.textContent = "Upgrade Menu";
-  const buildingCards = Object.values(buildings).map((building) => {
+  const buildingCards = Object.values(buildings).filter(canUpgradeBuilding).map((building) => {
     const stats = getUpgradeStats("building", building);
     const job = getUpgradeJob("building", building.id);
     return `
@@ -7451,7 +9987,7 @@ function openUpgradeMenu() {
     `;
   }).join("");
   const structureCards = state.structures
-    .filter((structure) => !isBarrierType(structure.type) && !isDecorationType(structure.type))
+    .filter(canUpgradeStructure)
     .map((structure) => {
       const stats = getUpgradeStats("structure", structure);
       const job = getUpgradeJob("structure", structure.id);
@@ -7462,20 +9998,15 @@ function openUpgradeMenu() {
           <button data-upgrade-structure="${structure.id}" type="button">Upgrade</button>
         </div>
       `;
-    }).join("");
+  }).join("");
   hud.modalBody.innerHTML = `
+    <p><strong>Player Level ${playerLevel()}.</strong> Finishing building upgrades and Blacksmith tech raises level unlocks.</p>
     <div class="menu-grid">
-      <div class="menu-card">
-        <h3>Player Lv ${playerLevel()}</h3>
-        <p>${state.learningPoints} learning points available.</p>
-        <button id="upgradePlayerMenu" type="button">Player Upgrades</button>
-      </div>
       ${buildingCards}
       ${structureCards}
     </div>
   `;
   openModal();
-  document.querySelector("#upgradePlayerMenu").addEventListener("click", openPlayerMenu);
   document.querySelectorAll("[data-upgrade-building]").forEach((button) => {
     button.addEventListener("click", () => openUpgradePreview({ kind: "building", target: buildings[button.dataset.upgradeBuilding] }));
   });
@@ -7541,7 +10072,7 @@ function enterRemoveMode() {
   movePreview = null;
   buildTrayCollapsed = false;
   renderBuildTray();
-  setMessage("Remove mode: tap a fence, gate, tower, city building, decoration, cabin, storage shed, food prep, or farm to remove it.", 6);
+  setMessage("Remove mode: tap a fence, gate, tower, city building, decoration, cabin, storage shed, Kitchen Hall, or farm to remove it.", 6);
 }
 
 function enterRepairMode() {
@@ -7555,7 +10086,7 @@ function enterRepairMode() {
   movePreview = null;
   buildTrayCollapsed = false;
   renderBuildTray();
-  setMessage("Repair mode: tap a damaged fence, gate, tower, house, cabin, storage shed, food prep, farm, or decoration to repair it with wood.", 6);
+  setMessage("Repair mode: tap a damaged fence, gate, tower, house, cabin, storage shed, Kitchen Hall, farm, or decoration to repair it with wood.", 6);
 }
 
 function renderBuildTray() {
@@ -7565,7 +10096,15 @@ function renderBuildTray() {
   const moveButton = `<button class="build-token tool-token ${moveMode ? "active" : ""}" data-move-buildings type="button"><span class="tool-icon move-tool-icon"></span><strong>Move</strong><br>Buildings</button>`;
   const removeButton = `<button class="build-token tool-token ${removeMode ? "active" : ""}" data-remove-buildings type="button"><span class="tool-icon remove-tool-icon"></span><strong>Remove</strong><br>Objects</button>`;
   const repairButton = `<button class="build-token tool-token ${repairMode ? "active" : ""}" data-repair-buildings type="button"><span class="tool-icon repair-tool-icon"></span><strong>Repair</strong><br>Objects</button>`;
-  hud.buildTrayBody.innerHTML = stopButton + moveButton + removeButton + repairButton + buildCatalog().map((item) => {
+  const repairAllCost = totalStructureRepairCost();
+  const repairAllButton = `
+    <button class="build-token tool-token repair-all-tool" data-repair-all type="button" ${repairAllCost <= 0 ? "disabled" : ""}>
+      <span class="tool-icon repair-tool-icon"></span>
+      <strong>Repair All</strong>
+      <small data-repair-all-cost>${repairAllCost > 0 ? `${repairAllCost} wood` : "All repaired"}</small>
+    </button>
+  `;
+  const buildToken = (item) => {
     const cost = structureCost(item.type);
     const affordable = state.stored.wood >= cost;
     const locked = !item.unlocked;
@@ -7581,7 +10120,27 @@ function renderBuildTray() {
         <small>${locked ? item.note : affordable ? item.note : `Need ${need} more wood`}</small>
       </button>
     `;
+  };
+  const groupMarkup = (id, label, tokens, count) => `
+    <details class="build-group build-group-${id}" data-build-group="${id}" ${buildTrayGroupState[id] ? "open" : ""}>
+      <summary><strong>${label}</strong><span>${count}</span></summary>
+      <div class="build-group-items">${tokens}</div>
+    </details>
+  `;
+  const catalog = buildCatalog();
+  const toolTokens = stopButton + moveButton + removeButton + repairButton + repairAllButton;
+  const placeableGroups = buildCatalogGroups.map((group) => {
+    const entries = catalog.filter((item) => group.types.includes(item.type));
+    return groupMarkup(group.id, group.label, entries.map(buildToken).join(""), entries.length);
   }).join("");
+  hud.buildTrayBody.innerHTML = groupMarkup("tools", "Tools", toolTokens, stopButton ? 5 : 4) + placeableGroups;
+  hud.repairAllButton = hud.buildTrayBody.querySelector("[data-repair-all]");
+  hud.repairAllCost = hud.buildTrayBody.querySelector("[data-repair-all-cost]");
+  hud.buildTrayBody.querySelectorAll("[data-build-group]").forEach((group) => {
+    group.addEventListener("toggle", () => {
+      buildTrayGroupState[group.dataset.buildGroup] = group.open;
+    });
+  });
   const stop = hud.buildTrayBody.querySelector("[data-stop-building]");
   if (stop) stop.addEventListener("click", () => stopBuildMode());
   const move = hud.buildTrayBody.querySelector("[data-move-buildings]");
@@ -7598,6 +10157,10 @@ function renderBuildTray() {
   if (repair) repair.addEventListener("click", () => {
     if (repairMode) stopBuildMode("Stopped repairing objects.");
     else enterRepairMode();
+  });
+  if (hud.repairAllButton) hud.repairAllButton.addEventListener("click", () => {
+    if (paused) return;
+    repairAllStructures();
   });
   hud.buildTrayBody.querySelectorAll("[data-tray-build]").forEach((button) => {
     button.addEventListener("click", () => selectBuildTypeForPlacement(button.dataset.trayBuild));
@@ -7678,7 +10241,7 @@ function confirmBuildAt(point) {
     setMessage(placement.reason, 4);
     return;
   }
-  if (["hunterPost", "signalTower", "iceTrap", "cabin", "storageShed", "foodPrep", "farm", "welcomeCenter", "house", "largeFountain", "statue", "garden"].includes(selectedBuildType)) {
+  if (["hunterPost", "signalTower", "iceTrap", "cabin", "storageShed", "rootCellar", "medicalTent", "blacksmith", "foodPrep", "farm", "welcomeCenter", "house", "largeFountain", "statue", "garden"].includes(selectedBuildType)) {
     activeTask = selectLearningTask(Math.min(5, Math.max(2, Math.floor(playerLevel() / 4))));
     activeTaskContext = { kind: "build", buildType: selectedBuildType, point: snapped, cost: placement.cost, replaceIds: placement.replaceIds || null };
     renderLearningTask(activeTask, activeTaskContext);
@@ -7700,7 +10263,7 @@ function placeStructure(type, point, cost, replaceIds = null) {
       const existing = state.structures.find((structure) => structure.id === id);
       if (!existing) return;
       existing.type = type;
-      existing.level = state.fortLevel || 1;
+      existing.level = cabinLinkedLevel();
       existing.maxHealth = barrierMaxHealth(type, existing.level);
       existing.health = existing.maxHealth;
       existing.gateGroup = replaceIds.join("-");
@@ -7771,7 +10334,7 @@ function selectMoveTarget(point) {
     setMessage(`Move mode: tap a new grid cell for ${structureDisplayName(structure.type)}.`, 5);
     return true;
   }
-  setMessage("Tap a building, tower, cabin, storage shed, food prep, farm, house, attraction, or decoration to move it. Fences and gates stay in the wall network.", 5);
+  setMessage("Tap a building, tower, cabin, storage shed, Kitchen Hall, farm, house, attraction, or decoration to move it. Fences and gates stay in the wall network.", 5);
   return false;
 }
 
@@ -7837,7 +10400,7 @@ function removeObjectAt(point) {
     setMessage("Move core buildings from the Build menu. Survival systems stay in camp.", 5);
     return false;
   }
-  setMessage("Remove mode: tap a fence, gate, tower, city building, decoration, cabin, storage shed, food prep, or farm.", 4);
+  setMessage("Remove mode: tap a fence, gate, tower, city building, decoration, cabin, storage shed, Kitchen Hall, or farm.", 4);
   return false;
 }
 
@@ -7862,19 +10425,23 @@ function openHelpMenu() {
     <div class="menu-grid">
       <div class="menu-card">
         <h3>First Moves</h3>
-        <p>Gather wood from trees, drop it at Storage Sheds, then load the furnace from storage. Gather berries or lettuce for raw food.</p>
+        <p>Gather wood from trees, drop it at Storage Sheds, then load the generator from storage. Gather berries or lettuce for raw food.</p>
       </div>
       <div class="menu-card">
         <h3>Food Loop</h3>
-        <p>Drop raw food at Food Prep, stand there to cook meals, then carry meals to the Dining Hall.</p>
+        <p>Drop raw food at a Root Cellar, then select unlocked recipes at the Kitchen Hall. It cooks and serves finished meals automatically. If hunger fills, Experts protest at the Group Cabin until meals bring it down.</p>
       </div>
       <div class="menu-card">
         <h3>Defense</h3>
-        <p>Build outposts during the day. At night, attackers arrive from the dark at random intervals.</p>
+        <p>Build outposts during the day. At night, attackers arrive from the dark at random intervals, and towers need generator fuel to fire.</p>
+      </div>
+      <div class="menu-card">
+        <h3>Variable Flow Repairs</h3>
+        <p>Explore for sparking broken machines. Step onto one and route algebra steam through its pipe network for learning points. Repaired machines break again after five in-game days.</p>
       </div>
       <div class="menu-card">
         <h3>Upgrades</h3>
-        <p>Open Upgrade to improve buildings and the player. Upgrade missions give learning points and long-term survival boosts.</p>
+        <p>Open Upgrade to improve buildings. After the Blacksmith unlocks, learning points can become basket and weapon tech there.</p>
       </div>
     </div>
     <div class="modal-actions">
@@ -7891,7 +10458,7 @@ function openHelpMenu() {
 
 function showTutorialTip(flag, title, copy, actions = []) {
   state.tutorialFlags = { ...defaultState.tutorialFlags, ...(state.tutorialFlags || {}) };
-  if (state.tutorialFlags[flag] || modalOpen || paused || gameOver || failureLock || activeTaskContext) return false;
+  if (state.tutorialFlags[flag] || modalOpen || paused || activeTaskContext) return false;
   state.tutorialFlags[flag] = true;
   saveState();
   hud.modalEyebrow.textContent = "Camp Tip";
@@ -7936,9 +10503,7 @@ function renderLearningTask(task, context) {
   hud.modalTitle.textContent = task.title;
   const shownOptions = shuffled(task.options);
   const options = shownOptions.map((option, index) => `<button data-option="${index}" type="button">${option.label}</button>`).join("");
-  const missionCopy = context && context.kind === "failure"
-    ? "Critical rescue challenge. A correct answer stabilizes the camp. A wrong answer ends the run."
-    : `Grade ${task.grade || "?"} challenge. Reward: ${task.points || 3} learning points.`;
+  const missionCopy = `Grade ${task.grade || "?"} challenge. Reward: ${task.points || 3} learning points.`;
   hud.modalBody.innerHTML = `
     <p class="small-note">${missionCopy}</p>
     <p>${task.text}</p>
@@ -7955,21 +10520,19 @@ function renderLearningTask(task, context) {
       if (option.correct) {
         awardLearningPoints(task);
         setMessage(task.feedback, 5);
-        if (context && context.kind === "failure") {
-          window.setTimeout(() => resolveFailureChallenge(context.failureType), 650);
-        } else if (context && context.kind === "build") {
+        if (context && context.kind === "build") {
           window.setTimeout(() => placeStructure(context.buildType, context.point, context.cost, context.replaceIds || null), 650);
         } else if (context && context.kind === "upgrade") {
           window.setTimeout(() => startUpgradeJob(context.upgradeKind, context.targetId, context.stats), 650);
+        } else if (context && context.kind === "recipe") {
+          window.setTimeout(() => unlockRecipe(context.recipeId), 650);
         } else {
           window.setTimeout(completeRecruitment, 600);
         }
       } else {
         button.classList.add("wrong");
         showCenterMessage(task.feedback || option.feedback || "That answer misses the clue. Read it again carefully.", 4);
-        if (context && context.kind === "failure") {
-          window.setTimeout(() => showGameOver(context.failureType), 850);
-        } else if (context && context.kind === "build") {
+        if (context && context.kind === "build") {
           const penalty = Math.ceil(context.cost * gameConfig.upgrades.failureCostPercent);
           state.stored.wood = Math.max(0, state.stored.wood - penalty);
           notifyChallengeResourceCost("Build Mission Failed", penalty, `${structureDisplayName(context.buildType)} was not placed.`);
@@ -7986,6 +10549,14 @@ function renderLearningTask(task, context) {
             activeTask = null;
             activeTaskContext = null;
             closeModal();
+          }, 950);
+        } else if (context && context.kind === "recipe") {
+          setMessage("The recipe cache stays sealed. Try its field note again when ready.", 5);
+          playSound("fail");
+          window.setTimeout(() => {
+            activeTask = null;
+            activeTaskContext = null;
+            closeModal(true);
           }, 950);
         } else {
           setMessage("The Expert candidate needs a clearer answer and leaves for now.", 5);
@@ -8052,7 +10623,6 @@ function openModal(mode = "") {
 }
 
 function closeModal(force = false) {
-  if (!force && (gameOver || (activeTaskContext && activeTaskContext.kind === "failure"))) return;
   modalOpen = false;
   if (modalPauseActive) {
     paused = false;
@@ -8072,7 +10642,8 @@ function openStructureMenu(structure) {
     setMessage("Use the Repair tool in Build to fix damaged fences and gates.", 4);
     return;
   }
-  const upgradeStats = getUpgradeStats("structure", structure);
+  const canUpgrade = canUpgradeStructure(structure);
+  const upgradeStats = canUpgrade ? getUpgradeStats("structure", structure) : null;
   const job = getUpgradeJob("structure", structure.id);
   const cooldown = getCooldown(upgradeCooldownKey("structure", structure.id));
   const tower = isTowerType(structure.type);
@@ -8083,13 +10654,19 @@ function openStructureMenu(structure) {
     : structure.type === "welcomeCenter"
       ? `<p>Visitors enter through this building. Visitors become Residents when they like the city and housing is available.</p>`
       : structure.type === "foodPrep"
-        ? `<p>Raw food ${structure.raw || 0}. Meals waiting ${structure.meals || 0}. Cooks can be assigned here automatically.</p>`
+        ? `<p>Meals ready to serve ${structure.meals || 0}. Chefs can be assigned here automatically.</p>${foodPrepRecipeMarkup(structure)}`
         : structure.type === "storageShed"
-          ? `<p>Shared wood inventory: ${state.stored.wood}. Wood dropped at any Storage Shed becomes available to every furnace load action.</p>`
+          ? `<p>Shared wood inventory: ${state.stored.wood}. Wood dropped at any Storage Shed becomes available to every generator load action.</p>`
+          : structure.type === "rootCellar"
+            ? `<p>All Root Cellars share raw recipe ingredients.</p>${rawFoodInventoryMarkup()}`
+            : structure.type === "medicalTent"
+              ? `<p>Hurt NPCs recover here. Doctors wait here at night and make field rounds by day.</p>`
+              : structure.type === "blacksmith"
+                ? blacksmithTechMarkup()
       : isDecorationType(structure.type)
         ? `<p>Decoration and attraction piece. Future city appeal metrics can use this placement.</p>`
         : "";
-  const utility = structure.type === "foodPrep" || structure.type === "storageShed";
+  const utility = structure.type === "foodPrep" || structure.type === "storageShed" || structure.type === "rootCellar" || structure.type === "medicalTent" || structure.type === "blacksmith";
   hud.modalEyebrow.textContent = tower ? "Tower" : isCityBuildingType(structure.type) ? "City Building" : utility ? "Camp Building" : isDecorationType(structure.type) ? "City Decor" : "Structure";
   hud.modalTitle.textContent = `${structureDisplayName(structure.type)} Lv ${structure.level}`;
   hud.modalBody.innerHTML = `
@@ -8100,13 +10677,13 @@ function openStructureMenu(structure) {
     ${cooldown ? `<p class="small-note">Upgrade retry cooldown: ${Math.ceil(cooldown)}s.</p>` : ""}
     ${tower ? stationRows : ""}
     <div class="modal-actions">
-      <button id="upgradeStructure" class="primary" type="button">${job ? "Upgrade Running" : `Upgrade Mission for ${upgradeStats.cost} wood`}</button>
+      ${canUpgrade ? `<button id="upgradeStructure" class="primary" type="button">${job ? "Upgrade Running" : `Upgrade Mission for ${upgradeStats.cost} wood`}</button>` : '<span class="small-note">This object upgrades with the Group Cabin.</span>'}
       ${isBarrierType(structure.type) && structure.health < structure.maxHealth ? `<button id="repairStructure" type="button">Repair for ${structureRepairCost(structure)} wood</button>` : ""}
       <button id="structureBack" type="button">Close</button>
     </div>
   `;
   openModal();
-  document.querySelector("#upgradeStructure").addEventListener("click", () => openUpgradePreview({ kind: "structure", target: structure }));
+  document.querySelector("#upgradeStructure")?.addEventListener("click", () => openUpgradePreview({ kind: "structure", target: structure }));
   const repairButton = document.querySelector("#repairStructure");
   if (repairButton) repairButton.addEventListener("click", () => repairStructure(structure));
   document.querySelectorAll("[data-station]").forEach((button) => {
@@ -8117,7 +10694,73 @@ function openStructureMenu(structure) {
       openStructureMenu(structure);
     });
   });
+  document.querySelectorAll("[data-blacksmith-tech]").forEach((button) => {
+    button.addEventListener("click", () => buyBlacksmithTech(button.dataset.blacksmithTech, structure));
+  });
+  bindFoodPrepRecipeButtons(() => openStructureMenu(structure));
   document.querySelector("#structureBack").addEventListener("click", () => closeModal(true));
+}
+
+function blacksmithTechMarkup() {
+  const weapon = currentWeaponTech();
+  const fireRate = playerWeaponFireRateScale();
+  return `
+    <section class="recipe-menu">
+      <h3>Workshop Tech</h3>
+      <p>Learning points become field gear here. Current weapon: ${weapon.name}. Current basket capacity bonus: +${blacksmithTechLevel("basket") * (gameConfig.blacksmith.basketCapacityBonus || 5)}.</p>
+      <p class="small-note">Weapon tech changes both attack damage and fire rate. Current fire rate x${fireRate.toFixed(2)}.</p>
+      <div class="option-list">
+        ${blacksmithTechOptions().map((tech) => {
+          const atMax = tech.id === "weapon" && tech.level >= blacksmithWeaponCatalog.length - 1;
+          return `
+            <button data-blacksmith-tech="${tech.id}" type="button" ${atMax ? "disabled" : ""}>
+              <strong>${tech.name} Lv ${tech.level}</strong>
+              <span>${tech.copy}</span>
+              <small>${atMax ? "Max forged" : `Cost: ${blacksmithTechCost(tech.id)} learning points`}</small>
+            </button>
+          `;
+        }).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function playerWeaponDamageScale() {
+  const config = gameConfig.blacksmith || defaultGameConfig.blacksmith;
+  return (config.weaponDamageMultiplier || 1.22) ** blacksmithTechLevel("weapon");
+}
+
+function playerWeaponFireRateScale() {
+  const config = gameConfig.blacksmith || defaultGameConfig.blacksmith;
+  return (config.weaponFireRateMultiplier || 1.14) ** blacksmithTechLevel("weapon");
+}
+
+function playerWeaponCooldown(baseCooldown) {
+  return Math.max(0.16, baseCooldown / playerWeaponFireRateScale());
+}
+
+function buyBlacksmithTech(id, structure) {
+  const tech = blacksmithTechOptions().find((option) => option.id === id);
+  if (!tech) return;
+  if (id === "weapon" && tech.level >= blacksmithWeaponCatalog.length - 1) {
+    showCenterMessage("That workshop weapon line is complete.", 2.2);
+    return;
+  }
+  const cost = blacksmithTechCost(id);
+  if (state.learningPoints < cost) {
+    showCenterMessage(`Need ${cost} learning points.`, 2.4);
+    setMessage("Complete repair puzzles, recipe challenges, and Recruitment missions to earn learning points.", 5);
+    return;
+  }
+  state.learningPoints -= cost;
+  state.blacksmithTech[id] = blacksmithTechLevel(id) + 1;
+  gainPlayerLevel(`${id === "weapon" ? currentWeaponTech().name : "Basket Tech"} forged`);
+  playSound("upgrade");
+  setMessage(id === "weapon"
+    ? `${currentWeaponTech().name} forged. Player shots hit harder and fire faster.`
+    : `Basket Tech upgraded. Carry capacity is now ${carryCapacity()}.`, 6);
+  saveState();
+  openStructureMenu(structure);
 }
 
 function renderStationButtons(structure) {
@@ -8160,7 +10803,7 @@ function repairStructure(structure, reopenMenu = true) {
 function repairObjectAt(point) {
   const structure = clickedStructure(point);
   if (!structure) {
-    setMessage("Tap a damaged fence, gate, tower, house, cabin, storage shed, food prep, farm, or decoration to repair it.", 5);
+    setMessage("Tap a damaged fence, gate, tower, house, cabin, storage shed, Kitchen Hall, farm, or decoration to repair it.", 5);
     return;
   }
   if (repairStructure(structure, false)) {
@@ -8185,6 +10828,7 @@ function handleCanvasClick(event) {
     return;
   }
   const point = screenToWorld(event);
+  if (handleCookingMiniGameClick(point)) return;
   if (handleWoodChopBubbleClick(point)) return;
   if (moveMode) {
     handleMoveClick(point);
@@ -8200,6 +10844,16 @@ function handleCanvasClick(event) {
   }
   if (buildMode) {
     confirmBuildAt(point);
+    return;
+  }
+  const machineSite = machineSiteNear(point);
+  if (machineSite) {
+    beginVariableFlowRepair(machineSite);
+    return;
+  }
+  const recipeSite = recipeSiteNear(point);
+  if (recipeSite) {
+    beginRecipeChallenge(recipeSite);
     return;
   }
   const structure = clickedStructure(point);
@@ -8225,9 +10879,47 @@ function handleCanvasClick(event) {
 }
 
 function canStartTouchMove(point) {
-  if (paused || modalOpen || buildMode || moveMode || removeMode || repairMode || gameOver || failureLock) return false;
+  if (paused || modalOpen || buildMode || moveMode || removeMode || repairMode) return false;
+  if (cookingMiniGameAt(point)) return false;
   if (woodChopBubbleAt(point)) return false;
   return !clickedBuilding(point) && !clickedStructure(point);
+}
+
+function startCookingTrace(event, point) {
+  if (!cookingMiniGame || paused || modalOpen || buildMode || moveMode || removeMode || repairMode) return false;
+  const index = cookingLetterIndexAt(point);
+  if (index < 0) return false;
+  selectCookingLetter(index);
+  cookingTracePointer = {
+    pointerId: event.pointerId,
+    startCount: cookingMiniGame.selected.length,
+    lastIndex: index,
+    dragging: false
+  };
+  canvas.setPointerCapture?.(event.pointerId);
+  event.preventDefault();
+  return true;
+}
+
+function updateCookingTrace(event) {
+  if (!cookingTracePointer || cookingTracePointer.pointerId !== event.pointerId || !cookingMiniGame) return false;
+  const index = cookingLetterIndexAt(screenToWorld(event));
+  if (index >= 0 && index !== cookingTracePointer.lastIndex) {
+    cookingTracePointer.lastIndex = index;
+    if (selectCookingLetter(index)) cookingTracePointer.dragging = cookingMiniGame.selected.length > cookingTracePointer.startCount;
+  }
+  event.preventDefault();
+  return true;
+}
+
+function finishCookingTrace(event) {
+  if (!cookingTracePointer || cookingTracePointer.pointerId !== event.pointerId) return false;
+  const trace = cookingTracePointer;
+  cookingTracePointer = null;
+  if (trace.dragging) submitCookingWord();
+  suppressNextCanvasClick = true;
+  event.preventDefault();
+  return true;
 }
 
 function trackedTouches() {
@@ -8266,6 +10958,8 @@ function updatePinchZoom() {
 }
 
 function handleCanvasPointerDown(event) {
+  const point = screenToWorld(event);
+  if (startCookingTrace(event, point)) return;
   if (event.pointerType !== "touch" && event.pointerType !== "pen") return;
   if (event.pointerType === "touch") {
     activeTouchPointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
@@ -8276,7 +10970,6 @@ function handleCanvasPointerDown(event) {
       return;
     }
   }
-  const point = screenToWorld(event);
   if (!canStartTouchMove(point)) return;
   touchMove = {
     pointerId: event.pointerId,
@@ -8291,6 +10984,7 @@ function handleCanvasPointerMove(event) {
   cursorScreen = { x: event.clientX, y: event.clientY, active: true };
   if (buildMode) buildPreview = snapToGrid(screenToWorld(event));
   if (moveMode && selectedMoveTarget) movePreview = snapToGrid(screenToWorld(event));
+  if (updateCookingTrace(event)) return;
   if (event.pointerType === "touch" && activeTouchPointers.has(event.pointerId)) {
     activeTouchPointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
     if (pinchZoom || activeTouchPointers.size >= 2) {
@@ -8327,6 +11021,7 @@ function stopTouchMove(blockClick = true) {
 }
 
 function handleCanvasPointerEnd(event, blockClick = true) {
+  if (finishCookingTrace(event)) return;
   if (event.pointerType === "touch") {
     activeTouchPointers.delete(event.pointerId);
     if (pinchZoom && activeTouchPointers.size < 2) {
@@ -8391,7 +11086,7 @@ hud.closeModal?.addEventListener("click", () => closeModal());
 hud.actionsToggle?.addEventListener("click", () => runHudAction(openMainMenu));
 hud.playerIconButton?.addEventListener("click", () => runHudAction(openPlayerHubMenu));
 hud.furnaceMeterCard?.addEventListener("click", () => runHudAction(() => openBuildingMenu(buildings.furnace)));
-hud.cabinHungerCard?.addEventListener("click", () => runHudAction(() => openBuildingMenu(buildings.diningHall)));
+hud.cabinHungerCard?.addEventListener("click", () => runHudAction(() => openBuildingMenu(buildings.foodPrep)));
 hud.mainMenuButton?.addEventListener("click", () => runHudAction(openMainMenu));
 hud.buildButton?.addEventListener("click", () => runHudAction(openBuildMenu));
 hud.upgradeMenuButton?.addEventListener("click", () => runHudAction(openUpgradeMenu));
@@ -8432,6 +11127,7 @@ function applyWorldSeed(seed) {
   saveState();
   closeModal(true);
   setMessage(`World seed ${cleanSeed} loaded. The same seed will recreate this wilderness layout.`, 7);
+  window.setTimeout(maybeShowBasicsTutorial, 90);
 }
 
 function openSeedMenu() {
@@ -8475,8 +11171,9 @@ async function init() {
   renderBuildTray();
   generateWorldLayout();
   spawnStarterResources();
-  setMessage("Start by gathering wood from trees and food from berry bushes. Wood fuels heat; food becomes meals.", 8);
+  setMessage("Start by gathering wood from trees and food from berry bushes. Wood fuels the generator; food becomes meals.", 8);
   if (!state.seedChosen) window.setTimeout(openSeedMenu, 80);
+  else window.setTimeout(maybeShowBasicsTutorial, 80);
   window.requestAnimationFrame(frame);
 }
 

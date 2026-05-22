@@ -218,7 +218,7 @@ button:focus-visible {
   background:
     radial-gradient(circle at 50% 50%, rgba(255, 243, 191, 0.96) 0 23%, rgba(116, 71, 38, 0.18) 24% 28%, transparent 29%),
     repeating-conic-gradient(from -2deg, rgba(47, 31, 22, 0.86) 0 3deg, transparent 3deg 30deg),
-    conic-gradient(from -90deg, #dcab65 0 var(--day-sweep), #567fa8 var(--day-sweep) 360deg);
+    conic-gradient(from 0deg, #dcab65 0 var(--day-sweep), #567fa8 var(--day-sweep) 360deg);
   box-shadow:
     inset 0 0 0 4px rgba(255, 227, 154, 0.24),
     inset 0 -8px 14px rgba(53, 28, 16, 0.48),
@@ -552,6 +552,48 @@ button:focus-visible {
   line-height: 1;
 }
 
+.meter-card.critical {
+  border-color: rgba(255, 93, 102, 0.62);
+  background: rgba(73, 22, 28, 0.72);
+  box-shadow: inset 0 0 0 1px rgba(255, 209, 102, 0.12), 0 0 18px rgba(255, 93, 102, 0.18);
+}
+
+.meter-card.offline {
+  animation: meterAlarm 1.2s ease-in-out infinite;
+}
+
+.meter-alert {
+  display: block;
+  margin-top: 5px;
+  color: #ffd4dc;
+  font-size: 0.62rem;
+  font-style: normal;
+  font-weight: 900;
+  line-height: 1.05;
+  text-wrap: balance;
+}
+
+@keyframes meterAlarm {
+  50% {
+    border-color: rgba(255, 209, 102, 0.78);
+    box-shadow: inset 0 0 0 1px rgba(255, 209, 102, 0.18), 0 0 24px rgba(255, 93, 102, 0.34);
+  }
+}
+
+@media (max-width: 760px) {
+  .meter-alert {
+    margin-top: 3px;
+    font-size: 0.48rem;
+  }
+}
+
+@media (max-width: 520px) {
+  .meter-alert {
+    margin-top: 2px;
+    font-size: 0.42rem;
+  }
+}
+
 .meter {
   width: 100%;
   height: 8px;
@@ -681,7 +723,12 @@ button:focus-visible {
 }
 
 .build-tray.collapsed {
-  width: 84px;
+  width: 198px;
+}
+
+.build-tray-controls {
+  display: grid;
+  grid-template-columns: 1fr;
 }
 
 .build-tray-toggle {
@@ -1042,6 +1089,362 @@ button:focus-visible {
   margin: 0 0 8px;
   color: var(--muted);
   font-size: 0.86rem;
+}
+
+.recipe-menu,
+.ingredient-list {
+  display: grid;
+  gap: 8px;
+  margin: 10px 0;
+}
+
+.recipe-menu {
+  padding: 10px;
+  border: 1px solid rgba(255, 190, 96, 0.22);
+  border-radius: 8px;
+  background: rgba(56, 37, 18, 0.22);
+}
+
+.recipe-menu h3 {
+  margin: 0;
+}
+
+.recipe-menu h4 {
+  margin: 0 0 7px;
+  color: #ffda9c;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+}
+
+.recipe-ready-group,
+.recipe-missing-group {
+  display: grid;
+  gap: 7px;
+}
+
+.recipe-missing-group {
+  border: 1px solid rgba(218, 240, 255, 0.12);
+  border-radius: 8px;
+  padding: 8px;
+  background: rgba(6, 17, 31, 0.24);
+}
+
+.recipe-missing-group summary {
+  cursor: pointer;
+  color: rgba(231, 241, 249, 0.78);
+  font-weight: 900;
+  list-style: none;
+}
+
+.recipe-missing-group summary::-webkit-details-marker {
+  display: none;
+}
+
+.recipe-missing-group summary::after {
+  content: "+";
+  float: right;
+  color: #ffda9c;
+}
+
+.recipe-missing-group[open] summary::after {
+  content: "-";
+}
+
+.recipe-missing-group summary strong {
+  display: inline-grid;
+  min-width: 22px;
+  min-height: 22px;
+  margin-left: 5px;
+  place-items: center;
+  border-radius: 999px;
+  background: rgba(185, 232, 255, 0.12);
+  color: #ffda9c;
+  font-size: 0.72rem;
+}
+
+.variable-flow-console {
+  display: grid;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid rgba(255, 209, 102, 0.22);
+  border-radius: 8px;
+  background:
+    radial-gradient(circle at 50% 35%, rgba(75, 255, 214, 0.1), transparent 34%),
+    linear-gradient(145deg, rgba(92, 58, 25, 0.5), rgba(5, 15, 24, 0.82));
+  box-shadow: inset 0 0 0 1px rgba(255, 231, 169, 0.06);
+}
+
+.variable-flow-console.success {
+  box-shadow: inset 0 0 28px rgba(91, 255, 214, 0.18), 0 0 20px rgba(115, 223, 155, 0.14);
+}
+
+.variable-flow-console.failed {
+  box-shadow: inset 0 0 28px rgba(255, 93, 102, 0.14);
+}
+
+.flow-equation-panel {
+  width: min(100%, 418px);
+  justify-self: center;
+  display: grid;
+  gap: 7px;
+  min-height: 64px;
+  padding: 10px;
+  border: 1px solid rgba(122, 245, 219, 0.28);
+  border-radius: 8px;
+  background:
+    radial-gradient(circle at 50% 18%, rgba(122, 245, 219, 0.14), transparent 54%),
+    rgba(5, 17, 28, 0.78);
+  box-shadow: inset 0 0 18px rgba(122, 245, 219, 0.08);
+}
+
+.flow-equation-panel > small {
+  color: #ffda9c;
+  font-size: 0.68rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.flow-status {
+  color: rgba(231, 241, 249, 0.82);
+  font-size: 0.78rem;
+}
+
+.flow-status {
+  min-height: 34px;
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid rgba(185, 232, 255, 0.14);
+  border-radius: 8px;
+  background: rgba(6, 17, 31, 0.58);
+  font-weight: 850;
+}
+
+.variable-flow-grid {
+  width: min(100%, 418px);
+  justify-self: center;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+  padding: 9px;
+  border: 2px solid rgba(196, 135, 58, 0.5);
+  border-radius: 8px;
+  background:
+    linear-gradient(rgba(255, 209, 102, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 209, 102, 0.06) 1px, transparent 1px),
+    rgba(12, 22, 29, 0.92);
+  background-size: 20% 20%, 20% 20%, auto;
+}
+
+.flow-cell {
+  position: relative;
+  aspect-ratio: 1;
+  min-width: 0;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255, 218, 156, 0.14);
+  border-radius: 8px;
+  background: rgba(29, 38, 43, 0.82);
+  overflow: hidden;
+}
+
+.flow-empty {
+  background:
+    radial-gradient(circle, rgba(255, 255, 255, 0.04), transparent 48%),
+    rgba(13, 21, 27, 0.74);
+}
+
+.flow-terminal {
+  align-content: center;
+  gap: 1px;
+  padding: 4px;
+  border-color: rgba(122, 245, 219, 0.42);
+  color: #7af5db;
+  background:
+    radial-gradient(circle, rgba(117, 255, 218, 0.38), transparent 42%),
+    rgba(13, 35, 37, 0.92);
+  text-align: center;
+}
+
+.flow-terminal small {
+  color: #ffda9c;
+  font-size: 0.52rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.flow-terminal strong {
+  font-size: 0.96rem;
+  line-height: 1;
+}
+
+.flow-pipe {
+  padding: 0;
+  color: #f4f9ff;
+  cursor: pointer;
+  background:
+    radial-gradient(circle, rgba(255, 218, 156, 0.1), transparent 54%),
+    rgba(34, 42, 45, 0.9);
+}
+
+.flow-pipe::after {
+  content: "";
+  position: absolute;
+  inset: 36%;
+  z-index: 1;
+  border: 2px solid rgba(255, 220, 146, 0.55);
+  border-radius: 50%;
+  background: #253238;
+}
+
+.flow-pipe-shape {
+  position: absolute;
+  inset: 0;
+  transform: rotate(calc(var(--pipe-turn, 0) * 90deg));
+  transition: transform 180ms ease-out;
+}
+
+.flow-pipe-shape::before,
+.flow-pipe-shape::after {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  border-radius: 999px;
+  border: 2px solid rgba(255, 215, 139, 0.52);
+  background: linear-gradient(90deg, #6e3f1f, #c98a42, #6d3c20);
+  box-shadow: inset 0 0 5px rgba(255, 229, 168, 0.34);
+}
+
+.flow-straight .flow-pipe-shape::before,
+.flow-cross .flow-pipe-shape::before,
+.flow-tee .flow-pipe-shape::before {
+  top: -8px;
+  bottom: -8px;
+  left: 39%;
+  width: 22%;
+}
+
+.flow-straight .flow-pipe-shape::after {
+  display: none;
+}
+
+.flow-elbow .flow-pipe-shape::before {
+  top: -8px;
+  left: 39%;
+  width: 22%;
+  height: 62%;
+}
+
+.flow-elbow .flow-pipe-shape::after,
+.flow-tee .flow-pipe-shape::after {
+  top: 39%;
+  right: -8px;
+  left: 50%;
+  height: 22%;
+}
+
+.flow-cross .flow-pipe-shape::after {
+  top: 39%;
+  right: -8px;
+  left: -8px;
+  height: 22%;
+}
+
+.flow-operation strong {
+  position: relative;
+  z-index: 2;
+  min-width: 34px;
+  padding: 3px 5px;
+  border: 1px solid rgba(122, 245, 219, 0.4);
+  border-radius: 999px;
+  background: rgba(6, 17, 31, 0.88);
+  color: #7af5db;
+  font-size: 0.72rem;
+  font-weight: 950;
+}
+
+.flow-active {
+  border-color: rgba(122, 245, 219, 0.84);
+  box-shadow: inset 0 0 18px rgba(86, 255, 218, 0.36), 0 0 12px rgba(86, 255, 218, 0.22);
+}
+
+.flow-active .flow-pipe-shape::before,
+.flow-active .flow-pipe-shape::after {
+  box-shadow: inset 0 0 9px rgba(122, 245, 219, 0.64), 0 0 10px rgba(122, 245, 219, 0.52);
+}
+
+.flow-equation-trace {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-height: 38px;
+  align-items: center;
+}
+
+.flow-equation-trace span {
+  min-height: 34px;
+  padding: 8px 10px;
+  border: 1px solid rgba(122, 245, 219, 0.3);
+  border-radius: 8px;
+  background: rgba(6, 23, 36, 0.86);
+  color: #d8fff8;
+  font-size: 0.86rem;
+  font-weight: 950;
+  box-shadow: inset 0 0 12px rgba(122, 245, 219, 0.1);
+}
+
+.flow-actions {
+  margin-top: 0;
+}
+
+.recipe-menu button {
+  min-height: 42px;
+  border-radius: 8px;
+  border: 1px solid rgba(218, 240, 255, 0.16);
+  padding: 9px 10px;
+  background: rgba(185, 232, 255, 0.1);
+  color: var(--text);
+  text-align: left;
+  font-weight: 850;
+}
+
+.recipe-menu button.active {
+  border-color: rgba(255, 190, 96, 0.5);
+  background: rgba(255, 179, 92, 0.18);
+}
+
+.recipe-menu button.recipe-ready {
+  border-color: rgba(115, 223, 155, 0.48);
+  background: linear-gradient(180deg, rgba(83, 181, 119, 0.25), rgba(185, 232, 255, 0.08));
+}
+
+.recipe-menu button.recipe-missing {
+  border-color: rgba(218, 240, 255, 0.12);
+  background: rgba(26, 41, 52, 0.42);
+  color: rgba(231, 241, 249, 0.72);
+}
+
+.recipe-menu button.recipe-option small {
+  float: right;
+  margin-left: 8px;
+  color: #73df9b;
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.recipe-menu button.recipe-missing small {
+  color: #ffb9b7;
+}
+
+.ingredient-list {
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+}
+
+.ingredient-list > * {
+  min-height: 34px;
+  border-radius: 8px;
+  padding: 8px 10px;
+  border: 1px solid rgba(218, 240, 255, 0.12);
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .upgrade-detail {
@@ -1732,7 +2135,7 @@ button:focus-visible {
 
 .build-tray.collapsed {
   left: auto;
-  width: 92px;
+  width: 204px;
 }
 
 .build-tray-body {
@@ -1743,6 +2146,75 @@ button:focus-visible {
   overflow-y: hidden;
   overscroll-behavior-x: contain;
   scrollbar-width: thin;
+}
+
+.build-group {
+  flex: 0 0 auto;
+  align-self: stretch;
+  display: grid;
+  align-content: start;
+  min-width: 136px;
+  border: 1px solid rgba(218, 240, 255, 0.12);
+  border-radius: 8px;
+  background: rgba(4, 14, 25, 0.42);
+  overflow: hidden;
+}
+
+.build-group summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 34px;
+  padding: 7px 9px;
+  cursor: pointer;
+  list-style: none;
+  border-bottom: 1px solid transparent;
+  color: #f4f9ff;
+  background: rgba(185, 232, 255, 0.1);
+  font-size: 0.72rem;
+  font-weight: 950;
+  text-transform: uppercase;
+}
+
+.build-group summary::-webkit-details-marker {
+  display: none;
+}
+
+.build-group summary::after {
+  content: "+";
+  color: #ffda9c;
+}
+
+.build-group summary span {
+  display: inline-grid;
+  min-width: 20px;
+  min-height: 20px;
+  margin-left: auto;
+  place-items: center;
+  border-radius: 999px;
+  background: rgba(6, 17, 31, 0.56);
+  color: #b9e8ff;
+  font-size: 0.62rem;
+}
+
+.build-group[open] summary {
+  border-bottom-color: rgba(218, 240, 255, 0.1);
+}
+
+.build-group[open] summary::after {
+  content: "-";
+}
+
+.build-group-items {
+  display: flex;
+  gap: 8px;
+  padding: 8px;
+}
+
+.build-token.repair-all-tool {
+  border-color: rgba(255, 209, 102, 0.48);
+  background: linear-gradient(180deg, rgba(255, 209, 102, 0.22), rgba(199, 131, 56, 0.14));
 }
 
 .build-tray-scroller {
@@ -1854,6 +2326,33 @@ button:focus-visible {
 }
 
 @media (max-width: 760px) {
+  .variable-flow-console {
+    gap: 8px;
+    padding: 8px;
+  }
+
+  .flow-equation-panel {
+    gap: 6px;
+    padding: 8px;
+  }
+
+  .flow-equation-trace span {
+    min-height: 30px;
+    padding: 6px 8px;
+    font-size: 0.76rem;
+  }
+
+  .variable-flow-grid {
+    gap: 4px;
+    padding: 6px;
+  }
+
+  .flow-operation strong {
+    min-width: 28px;
+    padding: 2px 4px;
+    font-size: 0.62rem;
+  }
+
   .player-level-badge {
     right: 2px;
     bottom: 2px;

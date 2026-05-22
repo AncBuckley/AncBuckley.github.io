@@ -19,16 +19,18 @@
           <span id="playerLevelBadge" class="player-level-badge">Lv 1</span>
         </button>
 
-        <button id="furnaceMeterCard" class="meter-card meter-button" type="button" aria-label="Open furnace menu">
-          <span>Furnace</span>
+        <button id="furnaceMeterCard" class="meter-card meter-button" type="button" aria-label="Open generator menu">
+          <span>Generator</span>
           <strong id="furnaceFuelText">50%</strong>
           <div class="meter"><i id="furnaceFuelMeter"></i></div>
+          <em id="generatorAlert" class="meter-alert hidden"></em>
         </button>
 
-        <button id="cabinHungerCard" class="meter-card meter-button" type="button" aria-label="Open Dining Hall menu">
+        <button id="cabinHungerCard" class="meter-card meter-button" type="button" aria-label="Open Kitchen Hall menu">
           <span>Cabin Hunger</span>
           <strong id="cabinHungerText">50%</strong>
           <div class="meter food"><i id="cabinHungerMeter"></i></div>
+          <em id="hungerAlert" class="meter-alert hidden"></em>
         </button>
 
         <section class="quick-stats" aria-label="Camp resources">
@@ -62,7 +64,9 @@
       </section>
 
       <section id="buildTray" class="hud build-tray collapsed" aria-label="Build menu">
-        <button id="buildTrayToggle" class="build-tray-toggle" type="button" aria-expanded="false">Build</button>
+        <div class="build-tray-controls">
+          <button id="buildTrayToggle" class="build-tray-toggle" type="button" aria-expanded="false">Build</button>
+        </div>
         <div class="build-tray-scroller">
           <button id="buildScrollLeft" class="build-scroll-button" type="button" aria-label="Scroll build menu left">&lt;</button>
           <div id="buildTrayBody" class="build-tray-body"></div>

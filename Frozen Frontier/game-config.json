@@ -80,11 +80,32 @@
     "minProduceSeconds": 6
   },
   "foodPrep": {
-    "baseProcessSeconds": 3.2,
+    "baseProcessSeconds": 6.4,
     "levelReductionSeconds": 0.45,
     "cookReductionSeconds": 0,
-    "playerCookingReductionSeconds": 0.45,
-    "minProcessSeconds": 0.75
+    "minProcessSeconds": 0.75,
+    "cookingMiniGame": {
+      "roundSeconds": 6,
+      "minimumWordLength": 3,
+      "baseWordBonusFraction": 0.055,
+      "letterBonusFraction": 0.012,
+      "speedBonusFraction": 0.045,
+      "streakBonusFraction": 0.01,
+      "maxStreakBonusFraction": 0.04,
+      "clearBoardBonusFraction": 0.08,
+      "correctTimeGainSeconds": 0.55,
+      "wrongTimePenaltySeconds": 1.1,
+      "wordBank": [
+        "ate", "eat", "tea", "team", "steam", "steak", "stake", "take", "late", "plate", "map", "mat", "mate", "loam", "oak",
+        "ice", "pie", "piece", "spice", "stew", "wet", "pew", "heat", "heap", "pan", "pans", "pants",
+        "broth", "rot", "saute", "sat", "meat", "step", "seat", "same", "mane", "pane"
+      ],
+      "boards": [
+        { "letters": "STEAPLAMROATSTEK", "words": ["steam", "meat", "meal", "plate", "tea", "eat"] },
+        { "letters": "SPICETEWHEATPANS", "words": ["spice", "stew", "heat", "pan", "pans", "tea", "eat"] },
+        { "letters": "BROTSAUHMETEPANS", "words": ["broth", "meat", "steam", "pan", "tea"] }
+      ]
+    }
   },
   "cabin": {
     "baseHungerGainPerSecond": 0.11,
@@ -103,14 +124,13 @@
     "baseFuelDrainPerSecond": 0.42,
     "levelDrainReductionPerSecond": 0.08,
     "minFuelDrainPerSecond": 0.12,
-    "emptyHungerGainPerSecond": 0.08,
+    "outageProductivityMultiplier": 0.25,
     "woodLoadAmount": 5,
     "fuelPerWood": 7
   },
   "trees": {
-    "chopSeconds": 7.5,
+    "chopSeconds": 15,
     "lumberjackReductionSeconds": 1.1,
-    "playerLumberReductionSeconds": 0.55,
     "minChopSeconds": 1.4,
     "progressDecayPerSecond": 0.45,
     "respawnSeconds": 225,
@@ -126,6 +146,8 @@
     "chopMiniGame": {
       "segmentCount": 4,
       "correctBonusFraction": 0.25,
+      "correctWoodBonus": 2,
+      "correctBerryBonus": 2,
       "wrongPenaltyFraction": 0.1,
       "startDelaySeconds": 1,
       "endDelaySeconds": 1,
@@ -159,7 +181,7 @@
     "wolfRaidBonusCount": 2,
     "arrowSeconds": 0.18,
     "waveBaseCount": 3,
-    "waveCountPerTier": 1,
+    "waveCountPerTier": 20,
     "waveHpPerTier": 40,
     "waveDamagePerTier": 1,
     "waveSpeedPerTier": 3,
@@ -181,6 +203,25 @@
     "roamRadius": 520,
     "meatDrops": 2
   },
+  "ptarmigan": {
+    "count": 8,
+    "hp": 52,
+    "speed": 84,
+    "fleeSpeed": 150,
+    "roamRadius": 460,
+    "meatDrops": 1
+  },
+  "medical": {
+    "patientThreshold": 0.7,
+    "tentHealPerSecond": 1.4,
+    "doctorHealPerSecond": 2.5,
+    "fieldHealRange": 34
+  },
+  "variableFlow": {
+    "machineCount": 5,
+    "respawnDays": 5,
+    "baseLearningPointReward": 6
+  },
   "build": {
     "fenceCost": 4,
     "fenceHealth": 70,
@@ -190,6 +231,9 @@
     "outpostHealth": 90,
     "cabinCost": 2000,
     "storageShedCost": 50,
+    "rootCellarCost": 60,
+    "blacksmithCost": 90,
+    "medicalTentCost": 80,
     "foodPrepCost": 50,
     "farmCost": 55,
     "welcomeCenterCost": 120,
@@ -207,6 +251,8 @@
     "iceTrapCost": 60,
     "welcomeCenterPlayerLevel": 10,
     "advancedTowerPlayerLevel": 5,
+    "blacksmithPlayerLevel": 4,
+    "medicalTentPlayerLevel": 3,
     "storageShedPlayerLevel": 12,
     "foodPrepPlayerLevel": 14,
     "signalTowerPlayerLevel": 8,
@@ -224,10 +270,10 @@
     "roamRadius": 260
   },
   "towers": {
-    "outpost": { "range": 250, "damage": 12, "cooldown": 1.45 },
-    "hunterPost": { "range": 310, "damage": 20, "cooldown": 1.25 },
-    "signalTower": { "range": 280, "damage": 8, "cooldown": 1.7, "netSeconds": 3 },
-    "iceTrap": { "range": 170, "damage": 4, "cooldown": 2.2, "slow": 0.45 },
+    "outpost": { "range": 250, "damage": 24, "cooldown": 1.45 },
+    "hunterPost": { "range": 310, "damage": 40, "cooldown": 1.25 },
+    "signalTower": { "range": 280, "damage": 16, "cooldown": 1.7, "netSeconds": 3 },
+    "iceTrap": { "range": 170, "damage": 8, "cooldown": 2.2, "slow": 0.45 },
     "rangeGrowthMultiplier": 1.12,
     "stationedMultiplier": 1.8,
     "playerMultiplier": 2.3,
@@ -241,12 +287,17 @@
     "levelSpeedMultipliers": [0.65, 0.75, 0.85, 0.93, 1, 1.08, 1.16, 1.25, 1.35, 1.5],
     "stuckSeconds": 1.15,
     "stuckNudgeDistance": 92,
+    "routeRefreshSeconds": 1.2,
+    "routeSearchCells": 10000,
+    "pathMoveCost": 0.58,
     "lumberjackWorkSeconds": 9,
     "lumberjackLowLevelWoodAmount": 5,
     "lumberjackHighLevelWoodAmount": 10,
     "lumberjackHighLevelThreshold": 6,
     "farmerWorkSeconds": 11,
     "farmerFoodAmount": 1,
+    "foragerWorkSeconds": 6,
+    "foragerBerryAmount": 3,
     "cookWorkSecondsMultiplier": 1,
     "engineerBuildReductionPerSecond": 0.35,
     "hunterArrowCooldown": 1.25,
@@ -255,13 +306,6 @@
     "guardArrowDamage": 10,
     "retrainLearningCost": 10,
     "retrainWoodCost": 200
-  },
-  "failure": {
-    "furnaceRestorePercent": 20,
-    "hungerReliefPercent": 20,
-    "fortRepairPercent": 20,
-    "minHardGrade": 8,
-    "minHardLevel": 5
   },
   "upgrades": {
     "baseSeconds": 24,
@@ -279,6 +323,14 @@
     "fortRepairHealthPerWood": 10,
     "repairCostMultiplier": 3
   },
+  "blacksmith": {
+    "baseBasketPointCost": 8,
+    "baseWeaponPointCost": 10,
+    "pointCostMultiplier": 1.61803398875,
+    "basketCapacityBonus": 5,
+    "weaponDamageMultiplier": 1.22,
+    "weaponFireRateMultiplier": 1.14
+  },
   "particles": {
     "minSpeed": 80,
     "maxSpeed": 210,
@@ -294,7 +346,6 @@
   "sprites": {
     "furnace": "assets/sprites/furnace-sheet.png",
     "cabin": "assets/sprites/cabin-sheet.png",
-    "diningHall": "assets/sprites/dining-hall-sheet.png",
     "foodPrep": "assets/sprites/food-prep-sheet.png",
     "storageShed": "assets/sprites/storage-shed-sheet.png",
     "house": "assets/sprites/house-sheet.png",
@@ -330,7 +381,6 @@
   "spriteFrames": {
     "furnace": 4,
     "cabin": 4,
-    "diningHall": 4,
     "foodPrep": 4,
     "storageShed": 4,
     "house": 4,
@@ -345,6 +395,7 @@
     "wolf": 7,
     "eagle": 8,
     "deer": 7,
+    "ptarmigan": 6,
     "wood": 4,
     "lettuce": 4,
     "meat": 4,
@@ -354,7 +405,6 @@
   "spriteRows": {
     "furnace": 10,
     "cabin": 10,
-    "diningHall": 10,
     "foodPrep": 10,
     "storageShed": 10,
     "house": 10,
@@ -381,7 +431,8 @@
     "visitor-yellow": 3,
     "wolf": 2,
     "eagle": 2,
-    "deer": 3
+    "deer": 3,
+    "ptarmigan": 1
   },
   "animation": {
     "spriteFps": 7,
