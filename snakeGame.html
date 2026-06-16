@@ -39,6 +39,14 @@
     .modal h2{margin:0 0 10px; font-size:20px}
     .controlsRow{display:flex; gap:12px; flex-wrap:wrap; align-items:center}
     input[type=number]{width:90px; padding:6px 8px; border-radius:10px; border:1px solid rgba(255,255,255,.12); background:rgba(0,0,0,.2); color:white}
+    input[type=range]{-webkit-appearance:none; appearance:none; height:6px; border-radius:3px; background:rgba(255,255,255,.12); outline:none; cursor:pointer}
+    input[type=range]::-webkit-slider-thumb{-webkit-appearance:none; appearance:none; width:16px; height:16px; border-radius:50%; background:var(--accent); border:2px solid rgba(255,255,255,.2); box-shadow:0 0 6px rgba(102,227,255,.4)}
+    input[type=range]::-moz-range-thumb{width:16px; height:16px; border-radius:50%; background:var(--accent); border:2px solid rgba(255,255,255,.2); box-shadow:0 0 6px rgba(102,227,255,.4)}
+    .lives-danger{color:var(--danger); animation: pulse .5s ease-in-out}
+    @keyframes pulse{0%,100%{transform:scale(1)} 50%{transform:scale(1.3)}}
+    .speed-slider{display:flex; align-items:center; gap:6px}
+    .speed-slider input[type=range]{width:80px}
+    .speed-slider-wide input[type=range]{width:160px}
     .toggle{display:flex; align-items:center; gap:6px}
     .ops{display:flex; gap:12px; flex-wrap:wrap}
 
@@ -55,8 +63,9 @@
     <div class="panel hud">
       <div class="stats">
         <div class="card"><span class="label">Score</span> <span id="score" class="value">0</span></div>
-        <div class="card"><span class="label">High</span> <span id="high" class="value">0</span></div>
-        <div class="card"><span class="label">Speed</span> <span id="speedVal" class="value">15</span></div>
+        <div class="card"><span class="label">High Score</span> <span id="high" class="value">0</span></div>
+        <div class="card"><span class="label">Lives</span> <span id="livesVal" class="value">5</span></div>
+        <div class="card speed-slider"><span class="label">Speed</span> <input type="range" id="speedSlider" min="3" max="20" value="8"> <span id="speedVal" class="value">8</span></div>
       </div>
       <div class="controlsRow">
         <button id="startBtn">Start</button>
@@ -101,6 +110,10 @@
         <label class="toggle">Min <input type="number" id="minVal" value="0"></label>
         <label class="toggle">Max <input type="number" id="maxVal" value="12"></label>
         <label class="toggle"><input id="wrapToggle" type="checkbox" checked> Wrap Walls</label>
+        <label class="toggle"><input id="negToggle" type="checkbox"> Allow Negatives</label>
+      </div>
+      <div class="controlsRow speed-slider-wide" style="margin-top:8px">
+        <span class="label">Speed</span> <input type="range" id="speedSliderModal" min="3" max="20" value="8"> <span id="speedValModal" class="value">8</span>
       </div>
       <div class="controlsRow" style="margin-top:12px; justify-content:flex-end">
         <button id="newProblemBtn">New Problem</button>
@@ -123,15 +136,20 @@
       running:false, paused:false, wrap:true,
       direction:{x:1,y:0}, nextDirection:{x:1,y:0}, dirLocked:false,
       snake:[], score:0,
-      high:Number(localStorage.getItem('snake_math_high')||0),
-      stepHz:15, stepMs:1000/15, acc:0, last:0,
+      highRecord: JSON.parse(localStorage.getItem('snake_math_high_record')||'null'),
+      high:0,
+      stepHz:8, stepMs:1000/8, acc:0, last:0,
       // Math state
-      minVal:0, maxVal:12, ops:{add:true, sub:true, mul:false, div:false},
+      minVal:0, maxVal:12, allowNeg:false, ops:{add:true, sub:true, mul:false, div:false},
       problem:null, targets:[],
       // Growth/Shrink control
       grow: 0,
       // Tracking answers
       correct: 0, wrong: 0,
+      // Lives
+      lives: 5,
+      // Wrong-answer flash
+      flashTimer: 0,
       // Countdown
       countdown: 0
     };
@@ -147,6 +165,7 @@
     const scoreEl = document.getElementById('score');
     const highEl = document.getElementById('high');
     const speedValTop = document.getElementById('speedVal');
+    const livesEl = document.getElementById('livesVal');
 
     
 
@@ -163,6 +182,7 @@
     const minValI = document.getElementById('minVal');
     const maxValI = document.getElementById('maxVal');
     const wrapToggle = document.getElementById('wrapToggle');
+    const negToggle = document.getElementById('negToggle');
     const newProblemBtn = document.getElementById('newProblemBtn');
 
     // Touch buttons
@@ -171,7 +191,21 @@
     const btnLeft = document.getElementById('btnLeft');
     const btnRight = document.getElementById('btnRight');
 
-    highEl.textContent = STATE.high; speedValTop.textContent='15';
+    const speedSlider = document.getElementById('speedSlider');
+    const speedSliderModal = document.getElementById('speedSliderModal');
+    const speedValModal = document.getElementById('speedValModal');
+
+    STATE.high = STATE.highRecord ? STATE.highRecord.score : 0;
+    highEl.textContent = STATE.high; speedValTop.textContent='8';
+
+    function syncSpeed(val){
+      val = Math.max(3, Math.min(20, Number(val)||8));
+      speedSlider.value = val; speedSliderModal.value = val;
+      speedValTop.textContent = val; speedValModal.textContent = val;
+      STATE.stepHz = val; STATE.stepMs = 1000/val;
+    }
+    speedSlider.addEventListener('input', (e)=> syncSpeed(e.target.value));
+    speedSliderModal.addEventListener('input', (e)=> syncSpeed(e.target.value));
 
     function resizeCanvas(){
       const logical = STATE.grid * STATE.cell;
@@ -205,10 +239,11 @@
     function resetGame(){
       STATE.score = 0; scoreEl.textContent='0';
       STATE.correct = 0; STATE.wrong = 0;
+      STATE.lives = 5; livesEl.textContent='5'; STATE.flashTimer = 0;
       STATE.grow = 0; EFX.reset();
       seedSnake();
       STATE.acc=0; STATE.last=performance.now();
-      STATE.stepHz = 15; STATE.stepMs = 1000/STATE.stepHz; // lock speed
+      syncSpeed(speedSlider.value);
       STATE.running=false; STATE.paused=false;
       readDifficulty();
       generateProblem();
@@ -222,15 +257,32 @@
 
     function gameOver(){
       STATE.running=false; STATE.paused=false;
-      if(STATE.score>STATE.high){ STATE.high=STATE.score; localStorage.setItem('snake_math_high', STATE.high); highEl.textContent=STATE.high; }
+      const isNewBest = STATE.score > STATE.high;
+      if(isNewBest){
+        STATE.high = STATE.score;
+        STATE.highRecord = {score:STATE.score, correct:STATE.correct, wrong:STATE.wrong, lives:STATE.lives};
+        localStorage.setItem('snake_math_high_record', JSON.stringify(STATE.highRecord));
+        highEl.textContent = STATE.high;
+      }
       // show results + settings
-      modalTitle.textContent = 'Game Over';
-      resultStats.style.display = 'flex';
-      resultStats.innerHTML = `<span class="label">Results</span>
-        <span class="value">Score: ${STATE.score}</span>
-        <span class="value">Best: ${STATE.high}</span>
-        <span class="value">Correct: ${STATE.correct}</span>
-        <span class="value">Wrong: ${STATE.wrong}</span>`;
+      modalTitle.textContent = isNewBest ? 'New High Score!' : 'Game Over';
+      resultStats.style.display = 'block';
+      const hr = STATE.highRecord;
+      resultStats.innerHTML =
+        `<div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:6px">
+          <span class="label">This Game</span>
+          <span class="value">Score: ${STATE.score}</span>
+          <span class="value">Correct: ${STATE.correct}</span>
+          <span class="value">Wrong: ${STATE.wrong}</span>
+          <span class="value">Lives left: ${STATE.lives}</span>
+        </div>` +
+        (hr ? `<div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; opacity:.7">
+          <span class="label">Best</span>
+          <span class="value">Score: ${hr.score}</span>
+          <span class="value">Correct: ${hr.correct}</span>
+          <span class="value">Wrong: ${hr.wrong}</span>
+          <span class="value">Lives left: ${hr.lives}</span>
+        </div>` : '');
       showOverlay();
     }
 
@@ -288,7 +340,7 @@
           }
         }
         attempts++;
-      } while(attempts<5 && !isFinite(sol));
+      } while(attempts<5 && (!isFinite(sol) || (!STATE.allowNeg && sol<0)));
 
       STATE.problem = {a,b,op,sol};
        // no "= ?"
@@ -308,6 +360,7 @@
       let tries=0; while(STATE.targets.length < needed && tries++ < 2000){
         let v = correctVal + randInt(-10,10);
         if(v===correctVal) v += (Math.random()<.5? -1 : 1) * (1 + (randInt(0,3)));
+        if(!STATE.allowNeg && v<0) continue;
         if(STATE.targets.some(t=>t.value===v)) continue;
         placeOne(v, false);
       }
@@ -353,9 +406,10 @@
       if(STATE.maxVal < STATE.minVal){ const t=STATE.minVal; STATE.minVal=STATE.maxVal; STATE.maxVal=t; minValI.value=STATE.minVal; maxValI.value=STATE.maxVal; }
       STATE.ops.add = !!opAdd.checked; STATE.ops.sub = !!opSub.checked; STATE.ops.mul = !!opMul.checked; STATE.ops.div = !!opDiv.checked;
       if(!STATE.ops.add && !STATE.ops.sub && !STATE.ops.mul && !STATE.ops.div){ STATE.ops.add=true; opAdd.checked=true; }
+      STATE.allowNeg = !!negToggle.checked;
     }
 
-    ;[opAdd,opSub,opMul,opDiv,minValI,maxValI].forEach(el=>{
+    ;[opAdd,opSub,opMul,opDiv,minValI,maxValI,negToggle].forEach(el=>{
       el.addEventListener('change', ()=>{ readDifficulty(); generateProblem(); placeTargets(); draw(); });
       el.addEventListener('input', ()=>{ readDifficulty(); generateProblem(); placeTargets(); draw(); });
     });
@@ -399,10 +453,17 @@
           // shrink by 1 if longer than 7 (net -1 compared to previous length)
           if(STATE.snake.length > 7){ STATE.snake.pop(); STATE.snake.pop(); } else { STATE.snake.pop(); }
         } else {
-          // wrong: add 3 blocks (this step + 2 future growths)
+          // wrong: lose a life, flash red, grow snake
           STATE.wrong++;
+          STATE.lives--; livesEl.textContent = STATE.lives;
+          livesEl.classList.remove('lives-danger');
+          void livesEl.offsetWidth; // reflow to restart animation
+          livesEl.classList.add('lives-danger');
+          if(STATE.lives > 2) setTimeout(()=> livesEl.classList.remove('lives-danger'), 600);
+          STATE.flashTimer = 0.4; // seconds of red flash
           STATE.grow += 3;
           placeTargets(); // refresh positions but keep problem
+          if(STATE.lives <= 0) return gameOver();
           // consume one growth immediately by skipping pop below
         }
       } else {
@@ -431,6 +492,8 @@
     }
 
     function updateEffects(dt){
+      // wrong-answer flash
+      if(STATE.flashTimer>0) STATE.flashTimer = Math.max(0, STATE.flashTimer - dt);
       // stars
       for(let i=EFX.stars.length-1;i>=0;i--){ const s=EFX.stars[i]; s.t+=dt; s.x += s.vx*dt; s.y += s.vy*dt; s.rot += s.vr*dt; if(s.t>s.life) { EFX.stars.splice(i,1); continue; }
         // trailing glitter
@@ -491,6 +554,24 @@
 
       // fx on top
       drawEffects();
+
+      // wrong-answer red flash
+      if(STATE.flashTimer > 0){
+        const g2=STATE.grid, s2=STATE.cell, W=g2*s2, H=g2*s2;
+        ctx.save();
+        ctx.globalAlpha = 0.35 * (STATE.flashTimer / 0.4);
+        ctx.fillStyle = '#ff2020';
+        ctx.fillRect(0, 0, W, H);
+        // "X" text
+        ctx.globalAlpha = 0.7 * (STATE.flashTimer / 0.4);
+        ctx.fillStyle = '#ffffff';
+        ctx.font = `${Math.floor(s2*4)}px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial`;
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.strokeStyle = 'rgba(0,0,0,.5)'; ctx.lineWidth = 6;
+        ctx.strokeText('\u2716', W/2, H/2);
+        ctx.fillText('\u2716', W/2, H/2);
+        ctx.restore();
+      }
     }
 
     function drawCountdownOverlay(){
